@@ -1,7 +1,7 @@
 object Form1: TForm1
   Left = 0
   Top = 0
-  Caption = 'Log Trace (%PLATFORM%)'
+  Caption = 'Message Monitor (x86)'
   ClientHeight = 299
   ClientWidth = 635
   Color = clBtnFace
@@ -15,9 +15,96 @@ object Form1: TForm1
   OnDestroy = FormDestroy
   PixelsPerInch = 96
   TextHeight = 13
-  object ApplicationEvents1: TApplicationEvents
-    OnMessage = ApplicationEvents1Message
-    Left = 312
-    Top = 152
+  object CoolBar1: TCoolBar
+    Left = 0
+    Top = 0
+    Width = 635
+    Height = 29
+    AutoSize = True
+    Bands = <
+      item
+        Control = cmdStartStopTrace
+        ImageIndex = -1
+        Width = 99
+      end
+      item
+        Break = False
+        Control = cmdClear
+        ImageIndex = -1
+        Width = 96
+      end
+      item
+        Break = False
+        ImageIndex = -1
+        Width = 426
+      end>
+    object cmdStartStopTrace: TButton
+      Left = 11
+      Top = 0
+      Width = 86
+      Height = 25
+      Caption = '&Start Trace'
+      TabOrder = 0
+      OnClick = cmdStartStopTraceClick
+    end
+    object cmdClear: TButton
+      Left = 114
+      Top = 0
+      Width = 83
+      Height = 25
+      Caption = '&Clear'
+      TabOrder = 1
+    end
+  end
+  object lvMessages: TListView
+    Left = 0
+    Top = 29
+    Width = 635
+    Height = 251
+    Align = alClient
+    Columns = <
+      item
+        Caption = 'PID'
+      end
+      item
+        Caption = 'TID'
+      end
+      item
+        Caption = 'hwnd'
+      end
+      item
+        Caption = 'msg'
+        Width = 150
+      end
+      item
+        Caption = 'wParam'
+      end
+      item
+        Caption = 'lParam'
+      end
+      item
+        Caption = 'details'
+      end>
+    GridLines = True
+    OwnerData = True
+    ReadOnly = True
+    RowSelect = True
+    TabOrder = 1
+    ViewStyle = vsReport
+    OnData = lvMessagesData
+    ExplicitLeft = 200
+    ExplicitTop = 96
+    ExplicitWidth = 250
+    ExplicitHeight = 150
+  end
+  object statusBar: TStatusBar
+    Left = 0
+    Top = 280
+    Width = 635
+    Height = 19
+    Panels = <>
+    ExplicitLeft = 328
+    ExplicitTop = 160
+    ExplicitWidth = 0
   end
 end
