@@ -74,11 +74,11 @@ pushd capture
 cp msgmon.man ../../build/x86/$CONFIG/msgmon.man
 
 if [ "$X86_BUILD" = true ]; then
-    "$MSBUILD" //p:Configuration="$CONFIG" //p:PLATFORM="x86" || die "Failed to build x86 client"
+    "$MSBUILD" //m //p:Configuration="$CONFIG" //p:PLATFORM="x86" || die "Failed to build x86 client"
 fi
 
 if [ "$X64_BUILD" = true ]; then
-    "$MSBUILD" //p:Configuration="$CONFIG" //p:PLATFORM="x64" || die "Failed to build x64 capture"
+    "$MSBUILD" //m //p:Configuration="$CONFIG" //p:PLATFORM="x64" || die "Failed to build x64 capture"
 fi
 
 popd
@@ -86,11 +86,11 @@ popd
 pushd client
 
 if [ "$X86_BUILD" = true ]; then
-    "$MSBUILD" //p:Configuration="$CONFIG" //p:PLATFORM="Win32" || die "Failed to build x86 client"
+    "$MSBUILD" //m //p:Configuration="$CONFIG" //p:PLATFORM="Win32" || die "Failed to build x86 client"
 fi
 
 if [ "$X64_BUILD" = true ]; then
-    "$MSBUILD" //p:Configuration="$CONFIG" //p:PLATFORM="Win64" || die "Failed to build x64 client"
+    "$MSBUILD" //m //p:Configuration="$CONFIG" //p:PLATFORM="Win64" || die "Failed to build x64 client"
 fi
 
 popd
