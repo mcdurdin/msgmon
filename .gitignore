@@ -1,0 +1,24 @@
+build/
+extra/
+
+# Visual Studio local files
+
+**/.vs/
+
+# VS, Delphi local files
+
+**/*.local
+
+# Delphi local files
+
+**/*.stat
+**/*.identcache
+**/__history/
+
+# Project-specific files
+
+# mc outputs from MsgMon.man
+source/capture/MsgMonTEMP.bin
+source/capture/MsgMon.rc
+source/capture/MsgMon.h
+source/capture/MSG00001.bin
