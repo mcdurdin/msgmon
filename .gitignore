@@ -18,7 +18,7 @@ extra/
 # Project-specific files
 
 # mc outputs from MsgMon.man
-source/capture/MsgMonTEMP.bin
-source/capture/MsgMon.rc
-source/capture/MsgMon.h
+source/capture/msgmonTEMP.bin
+source/capture/msgmon.rc
+source/capture/msgmon.h
 source/capture/MSG00001.bin

@@ -84,9 +84,15 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
+    <OutDir>$(SolutionDir)..\..\build\x86\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)..\..\build\obj\x86\$(Configuration)\</IntDir>
+    <TargetName>$(ProjectName).x86</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
+    <OutDir>$(SolutionDir)..\..\build\x64\$(Configuration)\</OutDir>
+    <IntDir>$(SolutionDir)..\..\build\obj\x64\$(Configuration)\</IntDir>
+    <TargetName>$(ProjectName).x64</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
