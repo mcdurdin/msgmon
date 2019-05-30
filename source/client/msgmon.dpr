@@ -2,7 +2,8 @@ program msgmon;
 
 uses
   Vcl.Forms,
-  MsgMon.UI.MainForm in 'MsgMon.UI.MainForm.pas' {Form1};
+  MsgMon.UI.MainForm in 'MsgMon.UI.MainForm.pas' {Form1},
+  MsgMon.System.ExecProcess in 'MsgMon.System.ExecProcess.pas';
 
 {$R *.res}
 

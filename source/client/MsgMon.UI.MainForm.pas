@@ -4,6 +4,8 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
+  Xml.XmlIntf,
+  Xml.XmlDoc,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.AppEvnts, Vcl.ToolWin,
   Vcl.ComCtrls, JwaEventTracing, JwaEvntCons, JwaEventDefs, JwaWmistr, System.Generics.Collections;
 
@@ -29,6 +31,8 @@ type
     className, realClassName: string;
     mode: DWORD;
     detail: string;
+    stack: string;
+    constructor Create(AEventData, AStackData: IXMLNode);
   end;
 
   TForm1 = class(TForm)
@@ -53,9 +57,9 @@ type
     procedure Controller_StartTrace;
     procedure Controller_StopTrace;
     procedure EnableDisableTrace;
+    procedure LoadData;
 
     // Trace consumer
-    procedure Consume_ProcessTrace;
     { Private declarations }
   public
     { Public declarations }
@@ -67,6 +71,10 @@ var
 implementation
 
 {$R *.dfm}
+
+uses
+  Winapi.ActiveX,
+  MsgMon.System.ExecProcess;
 
 const
   LibraryName = 'msgmon.capture.x86.dll';
@@ -127,6 +135,8 @@ var
 begin
   if FTracing then
   begin
+    Controller_StartTrace;
+
     cmdStartStopTrace.Caption := '&Stop Tracing';
     FillChar(params, Sizeof(params), 0);
     params.Version := ENABLE_TRACE_PARAMETERS_VERSION_2;
@@ -149,7 +159,11 @@ begin
   begin
     cmdStartStopTrace.Caption := '&Start Tracing';
 
-    status := EnableTraceEx2(
+    Controller_StopTrace;
+
+    LoadData;
+
+{    status := EnableTraceEx2(
       FSessionHandle,
       @MsgMonProviderGuid,
       EVENT_CONTROL_CODE_DISABLE_PROVIDER,
@@ -161,6 +175,8 @@ begin
 
     if ERROR_SUCCESS <> status then
       RaiseLastOSError(status, 'EnableTraceEx2');
+ }
+//    StopTrace(FSessionHandle, PWideChar(LOGSESSION_NAME),
   end;
 end;
 
@@ -172,9 +188,10 @@ var
   pi: TProcessInformation;
 {$ENDIF}
 begin
+  CoInitializeEx(nil, COINIT_APARTMENTTHREADED);
+
   messages := TObjectList<TMsgMonMessage>.Create;
 
-(*
 {$IFDEF RunX64}
   app := 'msgmon.x64host.exe';
 
@@ -191,19 +208,14 @@ begin
   CloseHandle(pi.hProcess);
   x64Thread := pi.hThread;
 {$ENDIF}
-  Controller_StartTrace;
 
   BeginLog;
-*)
-
-  Consume_ProcessTrace;
 end;
 
 procedure TForm1.FormDestroy(Sender: TObject);
 var
   h: THandle;
 begin
-(*
   EndLog;
 
 {$IFDEF RunX64}
@@ -212,19 +224,21 @@ begin
   CloseHandle(x64Thread);
 {$ENDIF}
 
-  Controller_StopTrace;
-*)
+  CoUninitialize;
 end;
 
 procedure TForm1.lvMessagesData(Sender: TObject; Item: TListItem);
+var
+  m: TMsgMonMessage;
 begin
-  Item.SubItems.Add(IntToStr(Item.Index));
-  Item.SubItems.Add('2');
-  Item.SubItems.Add('3');
-  Item.SubItems.Add('4');
-  Item.SubItems.Add('5');
-  Item.SubItems.Add('6');
-//  Item.Index
+  m := messages[Item.Index];
+  Item.Caption := IntToStr(m.pid);
+  Item.SubItems.Add(IntToStr(m.tid));
+  Item.SubItems.Add(IntToStr(m.hwnd));
+  Item.SubItems.Add(IntToStr(m.message));
+  Item.SubItems.Add(IntToStr(m.wParam));
+  Item.SubItems.Add(IntToStr(m.lParam));
+  Item.SubItems.Add(IntToStr(m.lResult));
 end;
 
 function StringBufferSize(const s: string): Integer;
@@ -233,8 +247,10 @@ begin
 end;
 
 const
-  LOGSESSION_NAME = 'MsgMon Session';
+  LOGSESSION_NAME = 'MsgMon_Session';
+  LOGSESSION_1_FILENAME = 'c:\temp\msgmon1.etl';
   LOGSESSION_FILENAME = 'c:\temp\msgmon.etl';
+  LOGSESSION_XML_FILENAME = 'c:\temp\msgmon.xml';
 
 procedure TForm1.Controller_StartTrace;
 var
@@ -257,7 +273,7 @@ begin
   pSessionProperties.Wnode.ClientContext := 1; //QPC clock resolution
   pSessionProperties.Wnode.Guid := MsgMonProviderGuid;
   pSessionProperties.LogFileMode := EVENT_TRACE_FILE_MODE_SEQUENTIAL;
-  pSessionProperties.MaximumFileSize := 1;  // 1 MB
+  pSessionProperties.MaximumFileSize := 256;  // 1 MB
   pSessionProperties.LoggerNameOffset := sizeof(EVENT_TRACE_PROPERTIES);
   pSessionProperties.LogFileNameOffset := sizeof(EVENT_TRACE_PROPERTIES) + sizeof(LOGSESSION_NAME);
   StrPCopy(PWideChar(PByte(pSessionProperties) + pSessionProperties.LogFileNameOffset), LOGSESSION_FILENAME);
@@ -276,6 +292,11 @@ begin
 
   if ERROR_SUCCESS <> status then
     RaiseLastOSError(status, 'StartTrace');
+
+  {if not TExecProcess.WaitForProcess(
+      'xperf_run.bat -on LOADER+PROC_THREAD -start "'+LOGSESSION_NAME+'" -on MsgMon:::''stack'' -f "'+LOGSESSION_1_FILENAME+'"',
+      GetCurrentDir) then
+    RaiseLastOSError;}
 end;
 
 procedure TForm1.Controller_StopTrace;
@@ -293,7 +314,7 @@ begin
     // We use ControlTraceW because JwaEventTracing has a typo for ControlTrace
     status := ControlTraceW(FSessionHandle, PWideChar(LOGSESSION_NAME), pSessionProperties^, EVENT_TRACE_CONTROL_STOP);
     if ERROR_SUCCESS <> status then
-      OutputDebugString(PChar('ControlTrace failed with '+IntToStr(status)));
+      OutputDebugString(PChar('ControlTrace failed with '+IntToStr(status)+' '+SysErrorMessage(status)));
 
     FSessionHandle := 0;
   end;
@@ -303,201 +324,108 @@ begin
     FreeMem(pSessionProperties);
     pSessionProperties := nil;
   end;
+
+  {if not TExecProcess.WaitForProcess(
+      'xperf.exe -stop "'+LOGSESSION_NAME+'" -stop -d "'+LOGSESSION_FILENAME+'"',
+      GetCurrentDir) then
+    RaiseLastOSError;}
 end;
 
-type
-  TDHSTATUS = ULONG;
-
-function TdhLoadManifest(Manifest: PWChar): TDHSTATUS; stdcall; external 'tdh.dll';
-
-type
-  TPROPERTY_DATA_DESCRIPTOR = record
-   PropertyName: ULONGLONG;
-   ArrayIndex:   ULONG;
-   Reserved:     ULONG;
-  end;
-
-  PPROPERTY_DATA_DESCRIPTOR = ^TPROPERTY_DATA_DESCRIPTOR;
-
-function TdhGetProperty(
-  pEvent: PEVENT_RECORD;
-  TdhContextCount: ULONG;
-  pTdhContext: Pointer;
-  PropertyDataCount: ULONG;
-  pPropertyData: PPROPERTY_DATA_DESCRIPTOR;
-  BufferSize: ULONG;
-  pBuffer: PBYTE
-): TDHSTATUS; stdcall; external 'tdh.dll';
-
-function TdhGetPropertySize(
-  pEvent: PEVENT_RECORD;
-  TdhContextCount: ULONG;
-  pTdhContext: Pointer;
-  PropertyDataCount: ULONG;
-  pPropertyData: PPROPERTY_DATA_DESCRIPTOR;
-  BufferSize: PULONG
-): TDHSTATUS; stdcall; external 'tdh.dll';
-
-// Todo: this needs to be in its own thread
-
-
-// Get the metadata for the event.
-
-DWORD GetEventInformation(PEVENT_RECORD pEvent, PTRACE_EVENT_INFO & pInfo)
-{
-    DWORD status = ERROR_SUCCESS;
-    DWORD BufferSize = 0;
-
-    // Retrieve the required buffer size for the event metadata.
-
-    status = TdhGetEventInformation(pEvent, 0, NULL, pInfo, &BufferSize);
-
-    if (ERROR_INSUFFICIENT_BUFFER == status)
-    {
-        pInfo = (TRACE_EVENT_INFO*) malloc(BufferSize);
-        if (pInfo == NULL)
-        {
-            wprintf(L"Failed to allocate memory for event info (size=%lu).\n", BufferSize);
-            status = ERROR_OUTOFMEMORY;
-            goto cleanup;
-        }
-
-        // Retrieve the event metadata.
-
-        status = TdhGetEventInformation(pEvent, 0, NULL, pInfo, &BufferSize);
-    }
-
-    if (ERROR_SUCCESS != status)
-    {
-        wprintf(L"TdhGetEventInformation failed with 0x%x.\n", status);
-    }
-
-cleanup:
-
-    return status;
-}
-
-procedure ProcessEvent(pEvent: PEVENT_RECORD); stdcall;
+procedure TForm1.LoadData;
 var
-  status: DWORD;
-  pUserData: PBYTE;
-  pEndOfUserData: PByte;
-  data: array[0..20] of TPROPERTY_DATA_DESCRIPTOR;
-  buf: PByte;
-  sz: DWORD;
-  PointerSize: Integer;
+  doc: IXMLDocument;
+  events: IXMLNodeList;
   i: Integer;
   m: TMsgMonMessage;
+  stack, event, eventData, system, provider: IXMLNode;
 begin
-  if IsEqualGUID(pEvent.EventHeader.ProviderId, EventTraceGuid) and
-    (pEvent.EventHeader.EventDescriptor.Opcode = EVENT_TRACE_TYPE_INFO) then
+  if FileExists(LOGSESSION_XML_FILENAME) then
+    DeleteFile(LOGSESSION_XML_FILENAME);
+
+  // Use tracerpt to generate an xml file which we load. This could be rewritten into
+  // a direct load with ProcessTrace in the future, but this saves a lot of dev time!
+  if not TExecProcess.WaitForProcess('tracerpt "'+LOGSESSION_FILENAME+'" -o "'+LOGSESSION_XML_FILENAME+'" -of XML', GetCurrentDir) then
+    RaiseLastOSError;
+
+  // Load the XML data
+  doc := LoadXMLDocument(LOGSESSION_XML_FILENAME);
+  events := doc.DocumentElement.ChildNodes;
+  event := events.First;
+  messages.Clear;
+  while event <> nil do
   begin
-    // Skip header information
-    Exit;
-  end;
+    try
+      system := event.ChildNodes.FindNode('System');
+      if not Assigned(system) then Continue;
+      provider := system.ChildNodes.FindNode('Provider');
+      if not Assigned(provider) then Continue;
+      if not provider.HasAttribute('Name') then Continue;
+      if provider.Attributes['Name'] <> 'MsgMon' then Continue;
 
-  if not IsEqualGUID(pEvent.EventHeader.ProviderId, MsgMonProviderGuid) then
-    Exit;
+      eventData := event.ChildNodes.FindNode('EventData');
+      if not Assigned(eventData) then Continue;
 
-  // Process the event. The pEvent->UserData member is a pointer to
-  // the event specific data, if it exists.
+      stack := system.ChildNodes.FindNode('Stack');
 
-//  status := GetEventInformation(pEvent, pInfo);
-//  try
-//    if ERROR_SUCCESS <> status then
-//    begin
-//       TODO: Log
-//      Exit;
-//    end;
-
-  if (EVENT_HEADER_FLAG_32_BIT_HEADER = (pEvent.EventHeader.Flags and EVENT_HEADER_FLAG_32_BIT_HEADER)) then
-  begin
-    PointerSize := 4;
-  end
-  else
-  begin
-    PointerSize := 8;
-  end;
-
-  FillChar(data, sizeof(data), 0);
-{  data[0].PropertyName := 'Platform';
-  data[1].PropertyName := 'Process';
-  data[2].PropertyName := 'PID';
-  data[3].PropertyName := 'TID';
-  data[4].PropertyName := 'dwTickCount';
-  data[5].PropertyName := 'hwndFocus';
-  data[6].PropertyName := 'hwndActive';
-  data[7].PropertyName := 'hwndCapture';
-  data[8].PropertyName := 'hwndCaret';
-  data[9].PropertyName := 'hwndMenuOwner';
-  data[10].PropertyName := 'hwndMoveSize';
-  data[11].PropertyName := 'hklActive';
-  data[12].PropertyName := 'hwnd';
-  data[13].PropertyName := 'message';
-  data[14].PropertyName := 'wParam';
-  data[15].PropertyName := 'lParam';
-  data[16].PropertyName := 'lResult';
-  data[17].PropertyName := 'ClassName';
-  data[18].PropertyName := 'RealClassName';
-  data[19].PropertyName := 'Mode';
-  data[20].PropertyName := 'Detail';
-  for i := Low(data) to High(data) do data[i].ArrayIndex := $FFFFFFFF;
-  //data[0].PropertyName := 'Platform'; //(ULONGLONG)((PBYTE)(pInfo) + pInfo->EventPropertyInfoArray[i].NameOffset);
-}
-  pUserData := PBYTE(pEvent.UserData);
-  pEndOfUserData := PBYTE(PBYTE(pEvent.UserData) + pEvent.UserDataLength);
-
-  status := TdhGetPropertySize(pEvent, 0, nil, Length(data), @data[0], @sz);
-  if status <> ERROR_SUCCESS then
-    //TODO LOG if status <> ERROR_SUCCESS then
-    Exit;
-
-  buf := AllocMem(sz);
-  try
-    status := TdhGetProperty(pEvent, 0, nil, Length(data), @data[0], sz, buf);
-    if status <> ERROR_SUCCESS then
-    begin
-      // TODO: LOG
-      Exit;
+      m := TMsgMonMessage.Create(eventData, stack);
+      messages.Add(m);
+    finally
+      event := event.NextSibling;
     end;
-
-    m := TMsgMonMessage.Create;
-    form1.messages.Add(TMsgMonMessage.Create);
-
-  finally
-    FreeMem(buf);
   end;
-end;
-
-procedure TForm1.Consume_ProcessTrace;
-var
-  hTrace: TRACEHANDLE;
-  status: TDHSTATUS;
-  logfile: EVENT_TRACE_LOGFILE;
-begin
-  lvMessages.Items.Count := 1024;
-
-  status := TdhLoadManifest('msgmon.man');
-  if status <> ERROR_SUCCESS then
-    RaiseLastOSError(status, 'OpenTraceConsumer: TdhLoadManifest');
-
-  FillChar(logfile, sizeof(logfile), 0);
-  logfile.LogFileName := LOGSESSION_FILENAME;
-  logfile.LoggerName := nil; // For Real Time Trace
-  logfile.LogFileMode.ProcessTraceMode := PROCESS_TRACE_MODE_EVENT_RECORD; // or PROCESS_TRACE_MODE_REAL_TIME
-  logfile.EventCallback.EventRecordCallback := ProcessEvent;
-  hTrace := OpenTrace(logfile);
-  if hTrace = INVALID_HANDLE_VALUE then
-    RaiseLastOSError(GetLastError, 'OpenTraceConsumer: OpenTrace');
-
-  status := ProcessTrace(@hTrace, 1, nil, nil);
-  if status <> ERROR_SUCCESS then
-    RaiseLastOSError(status, 'OpenTraceConsumer: ProcessTrace');
-
-  CloseTrace(hTrace);
-  hTrace := 0;
 
   lvMessages.Items.Count := messages.Count;
+  lvMessages.Invalidate;
+end;
+
+{ TMsgMonMessage }
+
+constructor TMsgMonMessage.Create(AEventData, AStackData: IXMLNode);
+var
+  name, value: string;
+  valueInt: Int64;
+begin
+  inherited Create;
+
+  if not Assigned(AEventData.ChildNodes) then
+    Exit;
+
+  AEventData := AEventData.ChildNodes.First;
+  while Assigned(AEventData) do
+  begin
+    if AEventData.HasAttribute('Name') then
+    begin
+      name := AEventData.Attributes['Name'];
+      value := Trim(VarToStr(AEventData.NodeValue));
+      valueInt := StrToIntDef(value, 0);
+      if name = 'Platform' then platform_ := valueInt
+      else if name = 'Process' then processPath := value
+      else if name = 'PID' then pid := valueInt
+      else if name = 'TID' then tid := valueInt
+      else if name = 'dwTickCount' then tickCount := valueInt
+      else if name = 'hwndFocus' then Self.hwndFocus := valueInt
+      else if name = 'hwndActive' then Self.hwndActive := valueInt
+      else if name = 'hwndCapture' then Self.hwndCapture := valueInt
+      else if name = 'hwndCaret' then Self.hwndCaret := valueInt
+      else if name = 'hwndMenuOwner' then Self.hwndMenuOwner := valueInt
+      else if name = 'hwndMoveSize' then Self.hwndMoveSize := valueInt
+      else if name = 'hklActive' then Self.activeHKL := valueInt
+      else if name = 'hwnd' then Self.hwnd := valueInt
+      else if name = 'message' then Self.message := valueInt
+      else if name = 'wParam' then Self.wParam := valueInt
+      else if name = 'lParam' then Self.lParam := valueInt
+      else if name = 'lResult' then Self.lResult := valueInt
+      else if name = 'ClassName' then Self.ClassName := value
+      else if name = 'RealClassName' then Self.RealClassName := value
+      else if name = 'Mode' then Self.Mode := valueInt
+      else if name = 'Detail' then Self.Detail := value;
+    end;
+
+    AEventData := AEventData.NextSibling;
+  end;
+
+  if Assigned(AStackData) then
+    stack := AStackData.XML;
 end;
 
 end.

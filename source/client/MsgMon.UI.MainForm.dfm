@@ -25,32 +25,32 @@ object Form1: TForm1
       item
         Control = cmdStartStopTrace
         ImageIndex = -1
-        Width = 99
+        Width = 101
       end
       item
         Break = False
         Control = cmdClear
         ImageIndex = -1
-        Width = 96
+        Width = 99
       end
       item
         Break = False
         ImageIndex = -1
-        Width = 426
+        Width = 421
       end>
     object cmdStartStopTrace: TButton
       Left = 11
       Top = 0
-      Width = 86
+      Width = 88
       Height = 25
       Caption = '&Start Trace'
       TabOrder = 0
       OnClick = cmdStartStopTraceClick
     end
     object cmdClear: TButton
-      Left = 114
+      Left = 116
       Top = 0
-      Width = 83
+      Width = 86
       Height = 25
       Caption = '&Clear'
       TabOrder = 1
@@ -92,10 +92,6 @@ object Form1: TForm1
     TabOrder = 1
     ViewStyle = vsReport
     OnData = lvMessagesData
-    ExplicitLeft = 200
-    ExplicitTop = 96
-    ExplicitWidth = 250
-    ExplicitHeight = 150
   end
   object statusBar: TStatusBar
     Left = 0
@@ -103,8 +99,5 @@ object Form1: TForm1
     Width = 635
     Height = 19
     Panels = <>
-    ExplicitLeft = 328
-    ExplicitTop = 160
-    ExplicitWidth = 0
   end
 end
