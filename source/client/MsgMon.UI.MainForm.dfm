@@ -31,12 +31,18 @@ object Form1: TForm1
         Break = False
         Control = cmdClear
         ImageIndex = -1
-        Width = 101
+        Width = 81
+      end
+      item
+        Break = False
+        Control = cmdFlushLibraries
+        ImageIndex = -1
+        Width = 73
       end
       item
         Break = False
         ImageIndex = -1
-        Width = 418
+        Width = 361
       end>
     object cmdStartStopTrace: TButton
       Left = 11
@@ -50,10 +56,19 @@ object Form1: TForm1
     object cmdClear: TButton
       Left = 117
       Top = 0
-      Width = 88
+      Width = 68
       Height = 25
       Caption = '&Clear'
       TabOrder = 1
+    end
+    object cmdFlushLibraries: TButton
+      Left = 202
+      Top = 0
+      Width = 60
+      Height = 25
+      Caption = 'Flush libs'
+      TabOrder = 2
+      OnClick = cmdFlushLibrariesClick
     end
   end
   object lvMessages: TListView

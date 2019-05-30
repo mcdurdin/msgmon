@@ -3,8 +3,9 @@
 #include <unordered_map>
 
 // This must be kept in sync with number of descriptors used below and in .man
-#define MAX_DESCRIPTORS_MESSAGE 19
+#define MAX_DESCRIPTORS_MESSAGE 16
 #define MAX_DESCRIPTORS_WINDOW 7
+#define MAX_DESCRIPTORS_PROCESS 4
 
 // {082E6CC6-239C-4B96-9475-159AA241B4AB}
 //static const GUID guid_EtwProviderId =
@@ -73,6 +74,7 @@ class THREADDATA {
 public:
 	REGHANDLE etwRegHandle;
 	BOOL inProc;
+  BOOL processLogged;
 	std::unordered_map<HWND, PWINDOWCONSTANTDATA> *windows;
 	THREADDATA() {
 		windows = new std::unordered_map<HWND, PWINDOWCONSTANTDATA>;
@@ -112,6 +114,7 @@ void OutputDebugError(PWCHAR functionName, PWCHAR target, DWORD dwErr);
 
 void LogMessage(DWORD mode, HWND hwnd, DWORD message, WPARAM wParam, LPARAM lParam, LRESULT lResult);
 void LogWindow(HWND hwnd);
+void LogProcess();
 
 PTHREADDATA ThreadData();
 PPROCESSDATA ProcessData();

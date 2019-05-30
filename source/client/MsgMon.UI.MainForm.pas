@@ -4,65 +4,36 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Xml.XmlIntf,
-  Xml.XmlDoc,
+//  Xml.XmlIntf,
+//  Xml.XmlDoc,
+//  Xml.XmlDom,
+Winapi.msxml,
+//  Xml.Win.msxmldom,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.AppEvnts, Vcl.ToolWin,
-  Vcl.ComCtrls, JwaEventTracing, JwaEvntCons, JwaEventDefs, JwaWmistr, System.Generics.Collections;
+  Vcl.ComCtrls, JwaEventTracing, JwaEvntCons, JwaEventDefs, JwaWmistr, System.Generics.Collections,
+
+  MsgMon.System.Data.Message,
+  MsgMon.System.Data.Process,
+  MsgMon.System.Data.Window;
 
 type
-  TMsgMonMessage = class
-  strict private
-    FEventData, FStackData: IXMLNode;
-  public
-    platform_: DWORD;
-    processPath: string;
-    pid, tid: DWORD;
-    tickCount: DWORD;
-    hwndFocus,
-    hwndActive,
-    hwndCapture,
-    hwndCaret,
-    hwndMenuOwner,
-    hwndMoveSize: DWORD;
-
-    activeHKL: DWORD;
-
-    hwnd,
-    message: DWORD;
-    wParam, lParam, lResult: UINT64;
-
-    mode: DWORD;
-    detail: string;
-    stack: string;
-    procedure Fill;
-    constructor Create(AEventData, AStackData: IXMLNode);
-  end;
-
-  TMsgMonWindow = class
-    hwnd: DWORD;
-    pid, tid: DWORD;
-    hwndOwner, hwndParent: DWORD;
-    ClassName, RealClassName: string;
-    constructor Create(AEventData: IXMLNode);
-  end;
-
-  TMsgMonWindows = class(TObjectDictionary<DWORD,TMsgMonWindow>)
-  end;
-
   TForm1 = class(TForm)
     CoolBar1: TCoolBar;
     cmdStartStopTrace: TButton;
     cmdClear: TButton;
     lvMessages: TListView;
     statusBar: TStatusBar;
+    cmdFlushLibraries: TButton;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure cmdStartStopTraceClick(Sender: TObject);
     procedure lvMessagesData(Sender: TObject; Item: TListItem);
+    procedure cmdFlushLibrariesClick(Sender: TObject);
   private
-    doc: IXMLDocument;
-    messages: TObjectList<TMsgMonMessage>;
+    doc: IXMLDOMDocument3;
+    messages: TMsgMonMessages;
     windows: TMsgMonWindows;
+    processes: TMsgMonProcesses;
 
     x64Thread: Cardinal;
 
@@ -142,6 +113,11 @@ const
   EVENT_CONTROL_CODE_DISABLE_PROVIDER = 0;
 
   MsgMonProviderGuid: TGUID = '{082E6CC6-239C-4B96-9475-159AA241B4AB}';
+
+procedure TForm1.cmdFlushLibrariesClick(Sender: TObject);
+begin
+  FlushLibrary;
+end;
 
 procedure TForm1.cmdStartStopTraceClick(Sender: TObject);
 begin
@@ -253,8 +229,9 @@ procedure TForm1.FormCreate(Sender: TObject);
 begin
   CoInitializeEx(nil, COINIT_APARTMENTTHREADED);
 
-  messages := TObjectList<TMsgMonMessage>.Create;
+  messages := TMsgMonMessages.Create;
   windows := TMsgMonWindows.Create;
+  processes := TMsgMonProcesses.Create;
 
   // Load last session
   LoadData;
@@ -275,11 +252,14 @@ procedure TForm1.FlushLibrary;
 var
   h: THandle;
   te: TThreadEntry32;
+  hd, hdcurrent: HDESK;
 begin
   // A better way of doing may be to make each loaded process have a thread
   // waiting on this process handle. Then after the process exits, the thread
   // does a PostThreadMessage and then FreeLibraryAndExitThread
   // e.g. https://stackoverflow.com/a/25597741/1836776
+
+  hdcurrent := GetThreadDesktop(GetCurrentThreadID);
 
   h := CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
   if h <> INVALID_HANDLE_VALUE then
@@ -290,7 +270,16 @@ begin
     begin
       repeat
         if te.dwSize >= 12 then // see https://devblogs.microsoft.com/oldnewthing/20060223-14/?p=32173
-          PostThreadMessage(te.th32ThreadID, WM_NULL, 0, 0);
+        begin
+          hd := GetThreadDesktop(te.th32ThreadID);
+          if (hd <> 0) and (hd = hdcurrent) then
+          begin
+            if not PostThreadMessage(te.th32ThreadID, WM_NULL, 0, 0) then
+            begin
+              OutputDebugString(Pchar(format('Unable to post to %d::%d -- (%d) %s', [te.th32OwnerProcessID, te.th32ThreadID, GetLastError, SysErrorMessage(GetLastError)])));
+            end;
+          end;
+        end;
       until not Thread32Next(h, te);
     end;
     CloseHandle(h);
@@ -308,6 +297,7 @@ begin
   Item.Caption := IntToStr(m.pid);
   Item.SubItems.Add(IntToStr(m.tid));
   w := windows[m.hwnd];
+  // TODO: Deal with reused window handles
   if not Assigned(w) then
   begin
     Item.SubItems.Add(IntToStr(m.hwnd));
@@ -316,7 +306,7 @@ begin
   begin
     s := w.ClassName;
     if w.ClassName <> w.RealClassName then
-      s := s  + ' ['+w.RealClassName']';
+      s := s  + ' ['+w.RealClassName+']';
     s := s + ' ('+IntToStr(m.hwnd)+')';
     Item.SubItems.Add(s);
   end;
@@ -430,46 +420,61 @@ end;
 
 procedure TForm1.LoadData;
 var
-  events: IXMLNodeList;
+  events: IXMLDOMNodeList;// XMLNodeList;
   m: TMsgMonMessage;
-  stack, event, eventData, system, provider: IXMLNode;
+  stack, event, eventData, system, provider: IXMLDOMNode;
   w: TMsgMonWindow;
   eventID: string;
+  p: TMsgMonProcess;
+  nameAttr: IXMLDOMNode;
+  node: IXMLDOMNode;
 begin
   if not FileExists(LOGSESSION_XML_FILENAME) then
     Exit;
 
   // Load the XML data
-  doc := LoadXMLDocument(LOGSESSION_XML_FILENAME);
+  doc := CoDOMDocument60.Create;
+  doc.load(LOGSESSION_XML_FILENAME);
+//  doc :=  LoadXMLDocument(LOGSESSION_XML_FILENAME);
   events := doc.DocumentElement.ChildNodes;
-  event := events.First;
+  event := events.nextNode;
   messages.Clear;
   while event <> nil do
   begin
     try
-      system := event.ChildNodes.FindNode('System');
+      system := event.selectSingleNode('System');// ChildNodes. FindNode('System');
       if not Assigned(system) then Continue;
-      provider := system.ChildNodes.FindNode('Provider');
+      provider := system.selectSingleNode('Provider');// ChildNodes.FindNode('Provider');
       if not Assigned(provider) then Continue;
-      if not provider.HasAttribute('Name') then Continue;
-      if provider.Attributes['Name'] <> 'MsgMon' then Continue;
+      nameAttr := provider.attributes.getNamedItem('Name');
+      if not Assigned(nameAttr) then Continue;
+      if nameAttr.nodeValue <> 'MsgMon' then Continue;
 
-      eventData := event.ChildNodes.FindNode('EventData');
+      eventData := event.selectSingleNode('EventData');
       if not Assigned(eventData) then Continue;
 
-      eventID := VarToStr(system.ChildValues['EventID']);
-      if eventID = '2' then
+      node := system.selectSingleNode('EventID');
+      if not Assigned(node) then Continue;
+
+      eventID := VarToStr(node.nodeValue);
+      if eventID = '1' then
+      begin
+        stack := system.selectSingleNode('Stack');
+        m := TMsgMonMessage.Create(eventData, stack);
+        messages.Add(m);
+      end
+      else if eventID = '2' then
       begin
         w := TMsgMonWindow.Create(eventData);
         windows.Remove(w.hwnd);
         windows.Add(w.hwnd, w);
       end
-      else if eventID = '1' then
+      else if eventID = '3' then
       begin
-        stack := system.ChildNodes.FindNode('Stack');
-        m := TMsgMonMessage.Create(eventData, stack);
-        messages.Add(m);
-      end;
+        p := TMsgMonProcess.Create(eventData);
+        processes.Remove(p.pid); // TODO handle reused PID
+        processes.Add(p.pid, p);
+      end
     finally
       event := event.NextSibling;
     end;
@@ -477,99 +482,6 @@ begin
 
   lvMessages.Items.Count := messages.Count;
   lvMessages.Invalidate;
-end;
-
-{ TMsgMonMessage }
-
-constructor TMsgMonMessage.Create(AEventData, AStackData: IXMLNode);
-begin
-  inherited Create;
-  FEventData := AEventData;
-  FStackData := AStackData;
-  Assert(FEventData <> nil);
-end;
-
-procedure TMsgMonMessage.Fill;
-var
-  name, value: string;
-  valueInt: Int64;
-begin
-  if not Assigned(FEventData) then
-    // Already populated
-    Exit;
-
-  if not Assigned(FEventData.ChildNodes) then
-    Exit;
-
-  FEventData := FEventData.ChildNodes.First;
-  while Assigned(FEventData) do
-  begin
-    if FEventData.HasAttribute('Name') then
-    begin
-      name := FEventData.Attributes['Name'];
-      value := Trim(VarToStr(FEventData.NodeValue));
-      valueInt := StrToIntDef(value, 0);
-      if name = 'Platform' then platform_ := valueInt
-      else if name = 'Process' then processPath := value
-      else if name = 'PID' then pid := valueInt
-      else if name = 'TID' then tid := valueInt
-      else if name = 'dwTickCount' then tickCount := valueInt
-      else if name = 'hwndFocus' then Self.hwndFocus := valueInt
-      else if name = 'hwndActive' then Self.hwndActive := valueInt
-      else if name = 'hwndCapture' then Self.hwndCapture := valueInt
-      else if name = 'hwndCaret' then Self.hwndCaret := valueInt
-      else if name = 'hwndMenuOwner' then Self.hwndMenuOwner := valueInt
-      else if name = 'hwndMoveSize' then Self.hwndMoveSize := valueInt
-      else if name = 'hklActive' then Self.activeHKL := valueInt
-      else if name = 'hwnd' then Self.hwnd := valueInt
-      else if name = 'message' then Self.message := valueInt
-      else if name = 'wParam' then Self.wParam := valueInt
-      else if name = 'lParam' then Self.lParam := valueInt
-      else if name = 'lResult' then Self.lResult := valueInt
-      else if name = 'Mode' then Self.Mode := valueInt
-      else if name = 'Detail' then Self.Detail := value;
-    end;
-
-    FEventData := FEventData.NextSibling;
-  end;
-
-  FEventData := nil;
-
-  if Assigned(FStackData) then
-    stack := FStackData.XML;
-end;
-
-{ TMsgMonWindow }
-
-constructor TMsgMonWindow.Create(AEventData: IXMLNode);
-var
-  name, value: string;
-  valueInt: Int64;
-begin
-  inherited Create;
-
-  if not Assigned(AEventData.ChildNodes) then
-    Exit;
-
-  AEventData := AEventData.ChildNodes.First;
-  while Assigned(AEventData) do
-  begin
-    if AEventData.HasAttribute('Name') then
-    begin
-      name := AEventData.Attributes['Name'];
-      value := Trim(VarToStr(AEventData.NodeValue));
-      valueInt := StrToIntDef(value, 0);
-      if name = 'hwnd' then Self.hwnd := valueInt
-      else if name = 'PID' then pid := valueInt
-      else if name = 'TID' then tid := valueInt
-      else if name = 'hwndOwner' then Self.hwndOwner := valueInt
-      else if name = 'hwndParent' then Self.hwndParent := valueInt
-      else if name = 'ClassName' then Self.ClassName := value
-      else if name = 'RealClassName' then Self.RealClassName := value;
-    end;
-
-    AEventData := AEventData.NextSibling;
-  end;
 end;
 
 end.

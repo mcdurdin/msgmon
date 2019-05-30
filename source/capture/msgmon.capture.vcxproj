@@ -164,6 +164,7 @@
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
     <ClCompile Include="LogMessage.cpp" />
+    <ClCompile Include="LogProcess.cpp" />
     <ClCompile Include="LogTraceMonitor.cpp" />
     <ClCompile Include="LogWindow.cpp" />
     <ClCompile Include="MessageDetail.cpp" />

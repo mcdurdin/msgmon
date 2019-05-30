@@ -19,6 +19,8 @@ void LogMessage(DWORD mode, HWND hwnd, DWORD message, WPARAM wParam, LPARAM lPar
     return;
   }
 
+  LogProcess();
+
 	GUITHREADINFO gti;
 	gti.cbSize = sizeof(gti);
 	if (!GetGUIThreadInfo(GetCurrentThreadId(), &gti)) {
@@ -28,7 +30,6 @@ void LogMessage(DWORD mode, HWND hwnd, DWORD message, WPARAM wParam, LPARAM lPar
 
 	DWORD pid = GetCurrentProcessId();
 	DWORD tid = GetCurrentThreadId();
-	DWORD tickCount = GetTickCount();
 	HKL activeHKL = GetKeyboardLayout(0);
 
 	WCHAR szDetail[768]; // TODO: get rid of this evil; pass detail as structured data
@@ -42,12 +43,6 @@ void LogMessage(DWORD mode, HWND hwnd, DWORD message, WPARAM wParam, LPARAM lPar
 
 	EVENT_DATA_DESCRIPTOR Descriptors[MAX_DESCRIPTORS_MESSAGE];
 
-#ifdef _WIN64
-	DWORD platform = PLATFORM_X64;
-#else
-	DWORD platform = PLATFORM_X86;
-#endif
-
 	// These parameters are 64 bit on 64 bit Windows, 32 bit otherwise
 	UINT64 wParam64 = (UINT64)wParam;
 	UINT64 lParam64 = (UINT64)lParam;
@@ -56,35 +51,32 @@ void LogMessage(DWORD mode, HWND hwnd, DWORD message, WPARAM wParam, LPARAM lPar
 	// These must match the manifest template in logtrace.man
 
 	// Event metadata
-	EventDataDescCreate(&Descriptors[0], &platform, sizeof(DWORD)); // <data name = "Platform" inType = "Platform" / >
-	EventDataDescCreate(&Descriptors[1], ProcessData()->szProcessPath, (ULONG)(ProcessData()->cchProcessPath + 1) * sizeof(WCHAR)); //  <data name = "Process" inType = "win:UnicodeString" / >
-	EventDataDescCreate(&Descriptors[2], &pid, sizeof(DWORD)); //  <data name = "PID" inType = "win:UInt32" / >
-	EventDataDescCreate(&Descriptors[3], &tid, sizeof(DWORD)); //  <data name = "TID" inType = "win:UInt32" / >
-	EventDataDescCreate(&Descriptors[4], &tickCount, sizeof(DWORD)); //  <data name = "TickCount" inType = "win:UInt32" / >
+	EventDataDescCreate(&Descriptors[0], &pid, sizeof(DWORD)); //  <data name = "PID" inType = "win:UInt32" / >
+	EventDataDescCreate(&Descriptors[1], &tid, sizeof(DWORD)); //  <data name = "TID" inType = "win:UInt32" / >
 
 																	 // GUI info
-	EventDataDescCreate(&Descriptors[5], (PDWORD)&gti.hwndFocus, sizeof(DWORD)); //  <data name = "FocusHWND" inType = "win:UInt32" / >
-	EventDataDescCreate(&Descriptors[6], (PDWORD)&gti.hwndActive, sizeof(DWORD)); //  <data name = "ActiveHWND" inType = "win:UInt32" / >
-	EventDataDescCreate(&Descriptors[7], (PDWORD)&gti.hwndCapture, sizeof(DWORD)); //  <data name = "FocusHWND" inType = "win:UInt32" / >
-	EventDataDescCreate(&Descriptors[8], (PDWORD)&gti.hwndCaret, sizeof(DWORD)); //  <data name = "FocusHWND" inType = "win:UInt32" / >
-	EventDataDescCreate(&Descriptors[9], (PDWORD)&gti.hwndMenuOwner, sizeof(DWORD)); //  <data name = "FocusHWND" inType = "win:UInt32" / >
-	EventDataDescCreate(&Descriptors[10], (PDWORD)&gti.hwndMoveSize, sizeof(DWORD)); //  <data name = "FocusHWND" inType = "win:UInt32" / >
+	EventDataDescCreate(&Descriptors[2], (PDWORD)&gti.hwndFocus, sizeof(DWORD)); //  <data name = "FocusHWND" inType = "win:UInt32" / >
+	EventDataDescCreate(&Descriptors[3], (PDWORD)&gti.hwndActive, sizeof(DWORD)); //  <data name = "ActiveHWND" inType = "win:UInt32" / >
+	EventDataDescCreate(&Descriptors[4], (PDWORD)&gti.hwndCapture, sizeof(DWORD)); //  <data name = "FocusHWND" inType = "win:UInt32" / >
+	EventDataDescCreate(&Descriptors[5], (PDWORD)&gti.hwndCaret, sizeof(DWORD)); //  <data name = "FocusHWND" inType = "win:UInt32" / >
+	EventDataDescCreate(&Descriptors[6], (PDWORD)&gti.hwndMenuOwner, sizeof(DWORD)); //  <data name = "FocusHWND" inType = "win:UInt32" / >
+	EventDataDescCreate(&Descriptors[7], (PDWORD)&gti.hwndMoveSize, sizeof(DWORD)); //  <data name = "FocusHWND" inType = "win:UInt32" / >
 																					 //gti.flags, gti.rcCaret
 
 																					 // Keyboard info
-	EventDataDescCreate(&Descriptors[11], (PDWORD)&activeHKL, sizeof(DWORD)); //  <data name = "ActiveHKL" inType = "win:UInt32" / >
+	EventDataDescCreate(&Descriptors[8], (PDWORD)&activeHKL, sizeof(DWORD)); //  <data name = "ActiveHKL" inType = "win:UInt32" / >
 
 																			  // Message raw values
-	EventDataDescCreate(&Descriptors[12], (PDWORD)&hwnd, sizeof(DWORD)); //  <data name = "hwnd" inType = "win:UInt32" / >
-	EventDataDescCreate(&Descriptors[13], (PDWORD)&message, sizeof(DWORD)); //  <data name = "message" inType = "win:UInt32" / >
-	EventDataDescCreate(&Descriptors[14], (PUINT64)&wParam64, sizeof(UINT64)); //  <data name = "wParam" inType = "win:UInt64" / >
-	EventDataDescCreate(&Descriptors[15], (PUINT64)&lParam64, sizeof(UINT64)); //  <data name = "lParam" inType = "win:UInt64" / >
-	EventDataDescCreate(&Descriptors[16], (PUINT64)&lResult64, sizeof(UINT64)); //  <data name = "lResult64" inType = "win:UInt64" / >
+	EventDataDescCreate(&Descriptors[9], (PDWORD)&hwnd, sizeof(DWORD)); //  <data name = "hwnd" inType = "win:UInt32" / >
+	EventDataDescCreate(&Descriptors[10], (PDWORD)&message, sizeof(DWORD)); //  <data name = "message" inType = "win:UInt32" / >
+	EventDataDescCreate(&Descriptors[11], (PUINT64)&wParam64, sizeof(UINT64)); //  <data name = "wParam" inType = "win:UInt64" / >
+	EventDataDescCreate(&Descriptors[12], (PUINT64)&lParam64, sizeof(UINT64)); //  <data name = "lParam" inType = "win:UInt64" / >
+	EventDataDescCreate(&Descriptors[13], (PUINT64)&lResult64, sizeof(UINT64)); //  <data name = "lResult64" inType = "win:UInt64" / >
 
 																				// Message detail
-	EventDataDescCreate(&Descriptors[17], (PDWORD)&mode, sizeof(DWORD)); //  <data name = "mode" inType = "Mode" / >
-	EventDataDescCreate(&Descriptors[18], szDetail, (ULONG)(wcslen(szDetail) + 1) * sizeof(WCHAR)); //  <data name = "mode" inType = "Mode" / >
-#if MAX_DESCRIPTORS_MESSAGE != 19
+	EventDataDescCreate(&Descriptors[14], (PDWORD)&mode, sizeof(DWORD)); //  <data name = "mode" inType = "Mode" / >
+	EventDataDescCreate(&Descriptors[15], szDetail, (ULONG)(wcslen(szDetail) + 1) * sizeof(WCHAR)); //  <data name = "mode" inType = "Mode" / >
+#if MAX_DESCRIPTORS_MESSAGE != 16
 #error MAX_DESCRIPTORS_MESSAGE must match the number of fields in the .man file
   // because we are building this up here, this is a bit of a safety valve
   // when we update the event descriptors, reminding us to keep the constant,

@@ -44,33 +44,30 @@
           <!-- This template must match the EventDataDescCreate call in LogTraceMonitor.cpp -->
           <template tid="MsgMonMessageTemplate">
             <!-- Event metadata -->
-            <!--  0 --> <data name="Platform" inType="win:UInt32" map="Platform" />
-            <!--  1 --> <data name="Process" inType="win:UnicodeString" />
-            <!--  2 --> <data name="PID" inType="win:UInt32" />
-            <!--  3 --> <data name="TID" inType="win:UInt32" />
-            <!--  4 --> <data name="dwTickCount" inType="win:UInt32" />
+            <!--  0 --> <data name="PID" inType="win:UInt32" />
+            <!--  1 --> <data name="TID" inType="win:UInt32" />
             
             <!-- GUI info -->
-            <!--  5 --> <data name="hwndFocus" inType="win:UInt32" />
-            <!--  6 --> <data name="hwndActive" inType="win:UInt32" />
-            <!--  7 --> <data name="hwndCapture" inType="win:UInt32" />
-            <!--  8 --> <data name="hwndCaret" inType="win:UInt32" />
-            <!--  9 --> <data name="hwndMenuOwner" inType="win:UInt32" />
-            <!-- 10 --> <data name="hwndMoveSize" inType="win:UInt32" />
+            <!--  2 --> <data name="hwndFocus" inType="win:UInt32" />
+            <!--  3 --> <data name="hwndActive" inType="win:UInt32" />
+            <!--  4 --> <data name="hwndCapture" inType="win:UInt32" />
+            <!--  5 --> <data name="hwndCaret" inType="win:UInt32" />
+            <!--  6 --> <data name="hwndMenuOwner" inType="win:UInt32" />
+            <!--  7 --> <data name="hwndMoveSize" inType="win:UInt32" />
 
             <!-- Keyboard info -->
-            <!-- 11 --> <data name="hklActive" inType="win:UInt32" />
+            <!--  8 --> <data name="hklActive" inType="win:UInt32" />
 
             <!-- Message raw values -->
-            <!-- 12 --> <data name="hwnd" inType="win:UInt32" />
-            <!-- 13 --> <data name="message" inType="win:UInt32" />
-            <!-- 14 --> <data name="wParam" inType="win:UInt64" />
-            <!-- 15 --> <data name="lParam" inType="win:UInt64" />
-            <!-- 16 --> <data name="lResult" inType="win:UInt64" />
+            <!--  9 --> <data name="hwnd" inType="win:UInt32" />
+            <!-- 10 --> <data name="message" inType="win:UInt32" />
+            <!-- 11 --> <data name="wParam" inType="win:UInt64" />
+            <!-- 12 --> <data name="lParam" inType="win:UInt64" />
+            <!-- 13 --> <data name="lResult" inType="win:UInt64" />
 
             <!-- Message detail -->
-            <!-- 17 --> <data name="Mode" inType="win:UInt32" />
-            <!-- 18 --> <data name="Detail" inType="win:UnicodeString" />
+            <!-- 14 --> <data name="Mode" inType="win:UInt32" />
+            <!-- 15 --> <data name="Detail" inType="win:UnicodeString" />
           </template>
 
           <template tid="MsgMonWindowTemplate">
@@ -83,6 +80,12 @@
             <!--  6 --> <data name="RealClassName" inType="win:UnicodeString" />
           </template>
 
+          <template tid="MsgMonProcessTemplate">
+            <!--  0 --> <data name="PID" inType="win:UInt32" />
+            <!--  1 --> <data name="Platform" inType="win:UInt32" map="Platform" />
+            <!--  2 --> <data name="Process" inType="win:UnicodeString" />
+            <!--  3 --> <data name="CommandLine" inType="win:UnicodeString" />
+          </template>
         </templates>
 
         <events>
@@ -100,6 +103,13 @@
               symbol="MsgMonWindowEvent"
               keywords="Read"
               message="$(string.EventWindow)" />
+          <event value="3"
+              channel="C1"
+              level="win:Informational"
+              template="MsgMonProcessTemplate"
+              symbol="MsgMonProcessEvent"
+              keywords="Read"
+              message="$(string.EventProcess)" />
         </events>
       </provider>
     </events>
@@ -113,6 +123,7 @@
 
         <string id="EventMessage" value="[%1] [%2] [%3] [%4] (%5 %6) %7 %8 %9 %10:%11 %12" />
         <string id="EventWindow" value="[%1]" />
+        <string id="EventProcess" value="[%1]" />
         <string id="Platform.x86" value="x86" />
         <string id="Platform.x64" value="x64" />
 
