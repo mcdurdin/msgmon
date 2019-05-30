@@ -15,8 +15,8 @@
       <provider name="MsgMon"
           guid="{082E6CC6-239C-4B96-9475-159AA241B4AB}"
           symbol="ProviderGuid"
-          resourceFileName="c:\projects\msgmon\build\bin\debug\msgmon.capture.x86.dll"
-          messageFileName="c:\projects\msgmon\build\bin\debug\msgmon.capture.x86.dll"
+          resourceFileName="msgmon.capture.x86.dll"
+          messageFileName="msgmon.capture.x86.dll"
           message="$(string.Provider.Name)">
           
         <keywords>
