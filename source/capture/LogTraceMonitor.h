@@ -3,7 +3,7 @@
 #include <unordered_map>
 
 // This must be kept in sync with number of descriptors used below and in .man
-#define MAX_DESCRIPTORS_MESSAGE 21
+#define MAX_DESCRIPTORS_MESSAGE 19
 #define MAX_DESCRIPTORS_WINDOW 7
 
 // {082E6CC6-239C-4B96-9475-159AA241B4AB}

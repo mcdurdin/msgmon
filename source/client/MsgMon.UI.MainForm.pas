@@ -11,6 +11,9 @@ uses
 
 type
   TMsgMonMessage = class
+  strict private
+    FEventData, FStackData: IXMLNode;
+  public
     platform_: DWORD;
     processPath: string;
     pid, tid: DWORD;
@@ -28,11 +31,22 @@ type
     message: DWORD;
     wParam, lParam, lResult: UINT64;
 
-    className, realClassName: string;
     mode: DWORD;
     detail: string;
     stack: string;
+    procedure Fill;
     constructor Create(AEventData, AStackData: IXMLNode);
+  end;
+
+  TMsgMonWindow = class
+    hwnd: DWORD;
+    pid, tid: DWORD;
+    hwndOwner, hwndParent: DWORD;
+    ClassName, RealClassName: string;
+    constructor Create(AEventData: IXMLNode);
+  end;
+
+  TMsgMonWindows = class(TObjectDictionary<DWORD,TMsgMonWindow>)
   end;
 
   TForm1 = class(TForm)
@@ -46,7 +60,9 @@ type
     procedure cmdStartStopTraceClick(Sender: TObject);
     procedure lvMessagesData(Sender: TObject; Item: TListItem);
   private
+    doc: IXMLDocument;
     messages: TObjectList<TMsgMonMessage>;
+    windows: TMsgMonWindows;
 
     x64Thread: Cardinal;
 
@@ -57,8 +73,11 @@ type
     procedure Controller_StartTrace;
     procedure Controller_StopTrace;
     procedure EnableDisableTrace;
+    procedure PrepData;
     procedure LoadData;
     procedure FlushLibrary;
+    procedure BeginLogProcesses;
+    procedure EndLogProcesses;
 
     // Trace consumer
     { Private declarations }
@@ -130,6 +149,50 @@ begin
   EnableDisableTrace;
 end;
 
+procedure TForm1.BeginLogProcesses;
+{$IFDEF RUNX64}
+var
+  app: string;
+  si: TStartupInfo;
+  pi: TProcessInformation;
+{$ENDIF}
+begin
+{$IFDEF RunX64}
+  app := 'msgmon.x64host.exe';
+
+  FillChar(si, SizeOf(TStartupInfo), 0);
+  FillChar(pi, Sizeof(TProcessInformation), 0);
+
+  si.cb := SizeOf(TStartupInfo);
+  if not CreateProcess(PChar(app), nil, nil, nil, False, NORMAL_PRIORITY_CLASS, nil, nil, si, pi) then
+  begin
+    ShowMessage('Unable to start x64 process');
+    Exit;
+  end;
+
+  CloseHandle(pi.hProcess);
+  x64Thread := pi.hThread;
+{$ENDIF}
+
+  BeginLog;
+end;
+
+procedure TForm1.EndLogProcesses;
+var
+  h: THandle;
+begin
+  EndLog;
+
+{$IFDEF RunX64}
+  h := FindWindow('Tmsgmonx64Host', nil);
+  PostMessage(h, WM_USER+100, 0, 0);
+  WaitForSingleObject(x64Thread, INFINITE);
+  CloseHandle(x64Thread);
+{$ENDIF}
+
+  FlushLibrary;
+end;
+
 procedure TForm1.EnableDisableTrace;
 var
   params: TENABLE_TRACE_PARAMETERS;
@@ -137,6 +200,8 @@ var
 begin
   if FTracing then
   begin
+    BeginLogProcesses;
+
     Controller_StartTrace;
 
     cmdStartStopTrace.Caption := '&Stop Tracing';
@@ -161,8 +226,10 @@ begin
   begin
     cmdStartStopTrace.Caption := '&Start Tracing';
 
+    EndLogProcesses;
     Controller_StopTrace;
 
+    PrepData;
     LoadData;
 
 {    status := EnableTraceEx2(
@@ -183,63 +250,76 @@ begin
 end;
 
 procedure TForm1.FormCreate(Sender: TObject);
-{$IFDEF RUNX64}
-var
-  app: string;
-  si: TStartupInfo;
-  pi: TProcessInformation;
-{$ENDIF}
 begin
   CoInitializeEx(nil, COINIT_APARTMENTTHREADED);
 
   messages := TObjectList<TMsgMonMessage>.Create;
+  windows := TMsgMonWindows.Create;
 
-{$IFDEF RunX64}
-  app := 'msgmon.x64host.exe';
-
-  FillChar(si, SizeOf(TStartupInfo), 0);
-  FillChar(pi, Sizeof(TProcessInformation), 0);
-
-  si.cb := SizeOf(TStartupInfo);
-  if not CreateProcess(PChar(app), nil, nil, nil, False, NORMAL_PRIORITY_CLASS, nil, nil, si, pi) then
-  begin
-    ShowMessage('Unable to start x64 process');
-    Exit;
-  end;
-
-  CloseHandle(pi.hProcess);
-  x64Thread := pi.hThread;
-{$ENDIF}
-
-  BeginLog;
+  // Load last session
+  LoadData;
 end;
 
 procedure TForm1.FormDestroy(Sender: TObject);
-var
-  h: THandle;
 begin
-  EndLog;
-
-{$IFDEF RunX64}
-  h := FindWindow('Tmsgmonx64Host', nil);
-  PostMessage(h, WM_USER+100, 0, 0);
-  WaitForSingleObject(x64Thread, INFINITE);
-  CloseHandle(x64Thread);
-{$ENDIF}
-
-  FlushLibrary;
+  if FTracing then
+  begin
+    FTracing := not FTracing;
+    EnableDisableTrace;
+  end;
 
   CoUninitialize;
+end;
+
+procedure TForm1.FlushLibrary;
+var
+  h: THandle;
+  te: TThreadEntry32;
+begin
+  // A better way of doing may be to make each loaded process have a thread
+  // waiting on this process handle. Then after the process exits, the thread
+  // does a PostThreadMessage and then FreeLibraryAndExitThread
+  // e.g. https://stackoverflow.com/a/25597741/1836776
+
+  h := CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+  if h <> INVALID_HANDLE_VALUE then
+  begin
+    FillChar(te, sizeof(te), 0);
+    te.dwSize := sizeof(te);
+    if Thread32First(h, te) then
+    begin
+      repeat
+        if te.dwSize >= 12 then // see https://devblogs.microsoft.com/oldnewthing/20060223-14/?p=32173
+          PostThreadMessage(te.th32ThreadID, WM_NULL, 0, 0);
+      until not Thread32Next(h, te);
+    end;
+    CloseHandle(h);
+  end;
 end;
 
 procedure TForm1.lvMessagesData(Sender: TObject; Item: TListItem);
 var
   m: TMsgMonMessage;
+  w: TMsgMonWindow;
+  s: string;
 begin
   m := messages[Item.Index];
+  m.Fill;
   Item.Caption := IntToStr(m.pid);
   Item.SubItems.Add(IntToStr(m.tid));
-  Item.SubItems.Add(IntToStr(m.hwnd));
+  w := windows[m.hwnd];
+  if not Assigned(w) then
+  begin
+    Item.SubItems.Add(IntToStr(m.hwnd));
+  end
+  else
+  begin
+    s := w.ClassName;
+    if w.ClassName <> w.RealClassName then
+      s := s  + ' ['+w.RealClassName']';
+    s := s + ' ('+IntToStr(m.hwnd)+')';
+    Item.SubItems.Add(s);
+  end;
   Item.SubItems.Add(IntToStr(m.message));
   Item.SubItems.Add(IntToStr(m.wParam));
   Item.SubItems.Add(IntToStr(m.lParam));
@@ -253,7 +333,8 @@ end;
 
 const
   LOGSESSION_NAME = 'MsgMon_Session';
-  LOGSESSION_1_FILENAME = 'c:\temp\msgmon1.etl';
+  // TODO Use temp paths
+  //  LOGSESSION_1_FILENAME = 'c:\temp\msgmon1.etl';
   LOGSESSION_FILENAME = 'c:\temp\msgmon.etl';
   LOGSESSION_XML_FILENAME = 'c:\temp\msgmon.xml';
 
@@ -336,12 +417,7 @@ begin
     RaiseLastOSError;}
 end;
 
-procedure TForm1.LoadData;
-var
-  doc: IXMLDocument;
-  events: IXMLNodeList;
-  m: TMsgMonMessage;
-  stack, event, eventData, system, provider: IXMLNode;
+procedure TForm1.PrepData;
 begin
   if FileExists(LOGSESSION_XML_FILENAME) then
     DeleteFile(LOGSESSION_XML_FILENAME);
@@ -350,6 +426,18 @@ begin
   // a direct load with ProcessTrace in the future, but this saves a lot of dev time!
   if not TExecProcess.WaitForProcess('tracerpt "'+LOGSESSION_FILENAME+'" -o "'+LOGSESSION_XML_FILENAME+'" -of XML', GetCurrentDir) then
     RaiseLastOSError;
+end;
+
+procedure TForm1.LoadData;
+var
+  events: IXMLNodeList;
+  m: TMsgMonMessage;
+  stack, event, eventData, system, provider: IXMLNode;
+  w: TMsgMonWindow;
+  eventID: string;
+begin
+  if not FileExists(LOGSESSION_XML_FILENAME) then
+    Exit;
 
   // Load the XML data
   doc := LoadXMLDocument(LOGSESSION_XML_FILENAME);
@@ -369,9 +457,19 @@ begin
       eventData := event.ChildNodes.FindNode('EventData');
       if not Assigned(eventData) then Continue;
 
-      stack := system.ChildNodes.FindNode('Stack');
-      m := TMsgMonMessage.Create(eventData, stack);
-      messages.Add(m);
+      eventID := VarToStr(system.ChildValues['EventID']);
+      if eventID = '2' then
+      begin
+        w := TMsgMonWindow.Create(eventData);
+        windows.Remove(w.hwnd);
+        windows.Add(w.hwnd, w);
+      end
+      else if eventID = '1' then
+      begin
+        stack := system.ChildNodes.FindNode('Stack');
+        m := TMsgMonMessage.Create(eventData, stack);
+        messages.Add(m);
+      end;
     finally
       event := event.NextSibling;
     end;
@@ -384,22 +482,32 @@ end;
 { TMsgMonMessage }
 
 constructor TMsgMonMessage.Create(AEventData, AStackData: IXMLNode);
+begin
+  inherited Create;
+  FEventData := AEventData;
+  FStackData := AStackData;
+  Assert(FEventData <> nil);
+end;
+
+procedure TMsgMonMessage.Fill;
 var
   name, value: string;
   valueInt: Int64;
 begin
-  inherited Create;
-
-  if not Assigned(AEventData.ChildNodes) then
+  if not Assigned(FEventData) then
+    // Already populated
     Exit;
 
-  AEventData := AEventData.ChildNodes.First;
-  while Assigned(AEventData) do
+  if not Assigned(FEventData.ChildNodes) then
+    Exit;
+
+  FEventData := FEventData.ChildNodes.First;
+  while Assigned(FEventData) do
   begin
-    if AEventData.HasAttribute('Name') then
+    if FEventData.HasAttribute('Name') then
     begin
-      name := AEventData.Attributes['Name'];
-      value := Trim(VarToStr(AEventData.NodeValue));
+      name := FEventData.Attributes['Name'];
+      value := Trim(VarToStr(FEventData.NodeValue));
       valueInt := StrToIntDef(value, 0);
       if name = 'Platform' then platform_ := valueInt
       else if name = 'Process' then processPath := value
@@ -418,42 +526,49 @@ begin
       else if name = 'wParam' then Self.wParam := valueInt
       else if name = 'lParam' then Self.lParam := valueInt
       else if name = 'lResult' then Self.lResult := valueInt
-      else if name = 'ClassName' then Self.ClassName := value
-      else if name = 'RealClassName' then Self.RealClassName := value
       else if name = 'Mode' then Self.Mode := valueInt
       else if name = 'Detail' then Self.Detail := value;
     end;
 
-    AEventData := AEventData.NextSibling;
+    FEventData := FEventData.NextSibling;
   end;
 
-  if Assigned(AStackData) then
-    stack := AStackData.XML;
+  FEventData := nil;
+
+  if Assigned(FStackData) then
+    stack := FStackData.XML;
 end;
 
-procedure TForm1.FlushLibrary;
-var
-  h: THandle;
-  te: TThreadEntry32;
-begin
-  // A better way of doing may be to make each loaded process have a thread
-  // waiting on this process handle. Then after the process exits, the thread
-  // does a PostThreadMessage and then FreeLibraryAndExitThread
-  // e.g. https://stackoverflow.com/a/25597741/1836776
+{ TMsgMonWindow }
 
-  h := CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
-  if h <> INVALID_HANDLE_VALUE then
+constructor TMsgMonWindow.Create(AEventData: IXMLNode);
+var
+  name, value: string;
+  valueInt: Int64;
+begin
+  inherited Create;
+
+  if not Assigned(AEventData.ChildNodes) then
+    Exit;
+
+  AEventData := AEventData.ChildNodes.First;
+  while Assigned(AEventData) do
   begin
-    FillChar(te, sizeof(te), 0);
-    te.dwSize := sizeof(te);
-    if Thread32First(h, te) then
+    if AEventData.HasAttribute('Name') then
     begin
-      repeat
-        if te.dwSize >= 12 then // see https://devblogs.microsoft.com/oldnewthing/20060223-14/?p=32173
-          PostThreadMessage(te.th32ThreadID, WM_NULL, 0, 0);
-      until not Thread32Next(h, te);
+      name := AEventData.Attributes['Name'];
+      value := Trim(VarToStr(AEventData.NodeValue));
+      valueInt := StrToIntDef(value, 0);
+      if name = 'hwnd' then Self.hwnd := valueInt
+      else if name = 'PID' then pid := valueInt
+      else if name = 'TID' then tid := valueInt
+      else if name = 'hwndOwner' then Self.hwndOwner := valueInt
+      else if name = 'hwndParent' then Self.hwndParent := valueInt
+      else if name = 'ClassName' then Self.ClassName := value
+      else if name = 'RealClassName' then Self.RealClassName := value;
     end;
-    CloseHandle(h);
+
+    AEventData := AEventData.NextSibling;
   end;
 end;
 

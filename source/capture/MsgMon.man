@@ -69,10 +69,8 @@
             <!-- 16 --> <data name="lResult" inType="win:UInt64" />
 
             <!-- Message detail -->
-            <!-- 17 --> <data name="ClassName" inType="win:UnicodeString" />
-            <!-- 18 --> <data name="RealClassName" inType="win:UnicodeString" />
-            <!-- 19 --> <data name="Mode" inType="win:UInt32" />
-            <!-- 20 --> <data name="Detail" inType="win:UnicodeString" />
+            <!-- 17 --> <data name="Mode" inType="win:UInt32" />
+            <!-- 18 --> <data name="Detail" inType="win:UnicodeString" />
           </template>
 
           <template tid="MsgMonWindowTemplate">

@@ -25,32 +25,32 @@ object Form1: TForm1
       item
         Control = cmdStartStopTrace
         ImageIndex = -1
-        Width = 101
+        Width = 102
       end
       item
         Break = False
         Control = cmdClear
         ImageIndex = -1
-        Width = 99
+        Width = 101
       end
       item
         Break = False
         ImageIndex = -1
-        Width = 421
+        Width = 418
       end>
     object cmdStartStopTrace: TButton
       Left = 11
       Top = 0
-      Width = 88
+      Width = 89
       Height = 25
       Caption = '&Start Trace'
       TabOrder = 0
       OnClick = cmdStartStopTraceClick
     end
     object cmdClear: TButton
-      Left = 116
+      Left = 117
       Top = 0
-      Width = 86
+      Width = 88
       Height = 25
       Caption = '&Clear'
       TabOrder = 1

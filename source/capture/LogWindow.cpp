@@ -17,11 +17,11 @@ void LogWindow(HWND hwnd) {
 		return;
 	}
 
-	if (!EventProviderEnabled(pThreadData->etwRegHandle, WINEVENT_LEVEL_INFO, READ_KEYWORD)) return;
+  if (!EventProviderEnabled(pThreadData->etwRegHandle, WINEVENT_LEVEL_INFO, READ_KEYWORD)) {
+    return;
+  }
 
 	// First time we've seen this window. Collect details about it and log an event about it
-
-	OutputDebugString(L"About to log window");
 
 	WINDOWCONSTANTDATA *w = new WINDOWCONSTANTDATA(hwnd);
 
@@ -39,8 +39,13 @@ void LogWindow(HWND hwnd) {
 	EventDataDescCreate(&Descriptors[4], (PDWORD)&w->hwndParent, sizeof(DWORD)); //  <data name = "hwndParent" inType = "win:UInt32" / >
 	EventDataDescCreate(&Descriptors[5], w->className.c_str(), (ULONG)(w->className.size() + 1) * sizeof(WCHAR)); //  <data name = "ClassName" inType = "win:UnicodeString" / >
 	EventDataDescCreate(&Descriptors[6], w->realClassName.c_str(), (ULONG)(w->realClassName.size() + 1) * sizeof(WCHAR)); //  <data name = "RealClassName" inType = "win:UnicodeString" / >
-	//assert(MAX_DESCRIPTORS_WINDOW == 6 + 1);
-
+#if MAX_DESCRIPTORS_WINDOW != 7
+#error MAX_DESCRIPTORS_WINDOW must match the number of fields in the .man file
+  // because we are building this up here, this is a bit of a safety valve
+  // when we update the event descriptors, reminding us to keep the constant,
+  // the code here, and the .man file in sync (ugh!)
+#endif
+  
 	DWORD dwErr = EventWrite(pThreadData->etwRegHandle, &MsgMonWindowEvent, (ULONG)MAX_DESCRIPTORS_WINDOW, &Descriptors[0]);
 	if (dwErr != ERROR_SUCCESS) {
 		OutputDebugError(L"Log", L"EventWrite", dwErr);

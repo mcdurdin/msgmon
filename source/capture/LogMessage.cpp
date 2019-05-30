@@ -13,7 +13,11 @@ void LogMessage(DWORD mode, HWND hwnd, DWORD message, WPARAM wParam, LPARAM lPar
 		return;
 	}
 
-	if (!EventProviderEnabled(pThreadData->etwRegHandle, WINEVENT_LEVEL_INFO, READ_KEYWORD)) return;
+  if (!EventProviderEnabled(pThreadData->etwRegHandle, WINEVENT_LEVEL_INFO, READ_KEYWORD)) {
+    // We may need to flush our cache
+    pThreadData->windows->clear();
+    return;
+  }
 
 	GUITHREADINFO gti;
 	gti.cbSize = sizeof(gti);
@@ -35,16 +39,6 @@ void LogMessage(DWORD mode, HWND hwnd, DWORD message, WPARAM wParam, LPARAM lPar
 	// TODO: handle window destruction to remove from info cache
 
 	LogWindow(hwnd);
-
-	// TODO: Cache class names?
-	WCHAR wszClassName[32];
-	int cchClassName = GetClassName(hwnd, wszClassName, 32);
-	wszClassName[cchClassName] = 0;
-
-	// This allows us to use appropriate message types for EM_, BM_ etc
-	WCHAR wszRealClassName[32];
-	int cchRealClassName = RealGetWindowClass(hwnd, wszRealClassName, 32);
-	wszRealClassName[cchRealClassName] = 0;
 
 	EVENT_DATA_DESCRIPTOR Descriptors[MAX_DESCRIPTORS_MESSAGE];
 
@@ -88,10 +82,14 @@ void LogMessage(DWORD mode, HWND hwnd, DWORD message, WPARAM wParam, LPARAM lPar
 	EventDataDescCreate(&Descriptors[16], (PUINT64)&lResult64, sizeof(UINT64)); //  <data name = "lResult64" inType = "win:UInt64" / >
 
 																				// Message detail
-	EventDataDescCreate(&Descriptors[17], wszClassName, (ULONG)(cchClassName + 1) * sizeof(WCHAR)); //  <data name = "hwndClassName" inType = "win:UnicodeString" / >
-	EventDataDescCreate(&Descriptors[18], wszRealClassName, (ULONG)(cchRealClassName + 1) * sizeof(WCHAR)); //  <data name = "hwndClassName" inType = "win:UnicodeString" / >
-	EventDataDescCreate(&Descriptors[19], (PDWORD)&mode, sizeof(DWORD)); //  <data name = "mode" inType = "Mode" / >
-	EventDataDescCreate(&Descriptors[20], szDetail, (ULONG)(wcslen(szDetail) + 1) * sizeof(WCHAR)); //  <data name = "mode" inType = "Mode" / >
+	EventDataDescCreate(&Descriptors[17], (PDWORD)&mode, sizeof(DWORD)); //  <data name = "mode" inType = "Mode" / >
+	EventDataDescCreate(&Descriptors[18], szDetail, (ULONG)(wcslen(szDetail) + 1) * sizeof(WCHAR)); //  <data name = "mode" inType = "Mode" / >
+#if MAX_DESCRIPTORS_MESSAGE != 19
+#error MAX_DESCRIPTORS_MESSAGE must match the number of fields in the .man file
+  // because we are building this up here, this is a bit of a safety valve
+  // when we update the event descriptors, reminding us to keep the constant,
+  // the code here, and the .man file in sync (ugh!)
+#endif
 
 	DWORD dwErr = EventWrite(pThreadData->etwRegHandle, &MsgMonMessageEvent, (ULONG)MAX_DESCRIPTORS_MESSAGE, &Descriptors[0]);
 	if (dwErr != ERROR_SUCCESS) {
