@@ -41,6 +41,9 @@
     <ClCompile Include="MessageDetail.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="LogMessage.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="MsgMon.rc">

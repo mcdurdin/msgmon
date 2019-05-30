@@ -335,7 +335,6 @@ procedure TForm1.LoadData;
 var
   doc: IXMLDocument;
   events: IXMLNodeList;
-  i: Integer;
   m: TMsgMonMessage;
   stack, event, eventData, system, provider: IXMLNode;
 begin
@@ -366,7 +365,6 @@ begin
       if not Assigned(eventData) then Continue;
 
       stack := system.ChildNodes.FindNode('Stack');
-
       m := TMsgMonMessage.Create(eventData, stack);
       messages.Add(m);
     finally

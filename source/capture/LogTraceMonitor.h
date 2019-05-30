@@ -1,9 +1,85 @@
 #pragma once
 
+#include <unordered_map>
 
-#define MAX_WINDOWMESSAGENAMES 1003
+// This must be kept in sync with number of descriptors used below and in .man
+#define MAX_DESCRIPTORS 21
 
-extern PWCHAR szWindowsMessageNames[];
+// {082E6CC6-239C-4B96-9475-159AA241B4AB}
+//static const GUID guid_EtwProviderId =
+//{ 0x82e6cc6, 0x239c, 0x4b96,{ 0x94, 0x75, 0x15, 0x9a, 0xa2, 0x41, 0xb4, 0xab } };
+
+#define PLATFORM_X86	1
+#define PLATFORM_X64	2
+
+#define MODE_POST		1
+#define MODE_SEND		2
+#define MODE_RETURN		3
+
+
+
+
+//
+// System-wide data
+//
+
+struct SHAREDDATA {
+	HHOOK
+		hhookGetMessage,
+		hhookCallWndProc,
+		hhookCallWndProcRet;
+};
+
+typedef SHAREDDATA *PSHAREDDATA;
+
+//
+// Process-level data
+//
+
+struct PROCESSDATA {
+	WCHAR szProcessPath[MAX_PATH];
+	DWORD cchProcessPath;
+};
+
+typedef PROCESSDATA *PPROCESSDATA;
+
+//
+// Thread-level data structures
+//
+
+struct WINDOWCONSTANTDATA {
+	DWORD pid, tid;
+	HWND hwndParent, hwndOwner;
+	std::wstring className;
+	std::wstring realClassName;
+};
+
+struct WINDOWEVENTDATA {
+	HWND hwnd;
+	RECT wndRect;
+	//std::wstring caption;
+};
+
+class THREADDATA {
+public:
+	REGHANDLE etwRegHandle;
+	BOOL inProc;
+	std::unordered_map<HWND, WINDOWCONSTANTDATA> *windows;
+	THREADDATA() {
+		windows = new std::unordered_map<HWND, WINDOWCONSTANTDATA>;
+	}
+	~THREADDATA() {
+		delete windows;
+	}
+	// WINDOWCLASSNAMES
+};
+
+typedef THREADDATA *PTHREADDATA;
+
+
+//#define MAX_WINDOWMESSAGENAMES 1003
+//
+//extern PWCHAR szWindowsMessageNames[];
 
 extern HMODULE g_hModule;
 
@@ -12,10 +88,17 @@ BOOL UninitThread();
 BOOL InitProcess();
 BOOL UninitProcess();
 
-PWCHAR GetMessageName(DWORD message);
-void GetWindowReference(HWND hwnd, PWCHAR buf);
+//PWCHAR GetMessageName(DWORD message);
+//void GetWindowReference(HWND hwnd, PWCHAR buf);
 
 BOOL GetMessageDetail(HWND hwnd, DWORD message, WPARAM wParam, LPARAM lParam, LRESULT lResult, PWCHAR szDetail);
 
 void OutputDebugError(PWCHAR functionName, PWCHAR target);
 void OutputDebugError(PWCHAR functionName, PWCHAR target, DWORD dwErr);
+
+
+
+void LogMessage(DWORD mode, HWND hwnd, DWORD message, WPARAM wParam, LPARAM lParam, LRESULT lResult);
+
+PTHREADDATA ThreadData();
+PPROCESSDATA ProcessData();

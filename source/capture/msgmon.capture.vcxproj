@@ -163,6 +163,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="dllmain.cpp" />
+    <ClCompile Include="LogMessage.cpp" />
     <ClCompile Include="LogTraceMonitor.cpp" />
     <ClCompile Include="MessageDetail.cpp" />
     <ClCompile Include="MessageNames.cpp" />
