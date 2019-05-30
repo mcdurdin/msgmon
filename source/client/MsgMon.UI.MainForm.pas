@@ -58,6 +58,7 @@ type
     procedure Controller_StopTrace;
     procedure EnableDisableTrace;
     procedure LoadData;
+    procedure FlushLibrary;
 
     // Trace consumer
     { Private declarations }
@@ -74,6 +75,7 @@ implementation
 
 uses
   Winapi.ActiveX,
+  Winapi.Tlhelp32,
   MsgMon.System.ExecProcess;
 
 const
@@ -221,8 +223,11 @@ begin
 {$IFDEF RunX64}
   h := FindWindow('Tmsgmonx64Host', nil);
   PostMessage(h, WM_USER+100, 0, 0);
+  WaitForSingleObject(x64Thread, INFINITE);
   CloseHandle(x64Thread);
 {$ENDIF}
+
+  FlushLibrary;
 
   CoUninitialize;
 end;
@@ -273,7 +278,7 @@ begin
   pSessionProperties.Wnode.ClientContext := 1; //QPC clock resolution
   pSessionProperties.Wnode.Guid := MsgMonProviderGuid;
   pSessionProperties.LogFileMode := EVENT_TRACE_FILE_MODE_SEQUENTIAL;
-  pSessionProperties.MaximumFileSize := 256;  // 1 MB
+  pSessionProperties.MaximumFileSize := 256;  // 256 MB
   pSessionProperties.LoggerNameOffset := sizeof(EVENT_TRACE_PROPERTIES);
   pSessionProperties.LogFileNameOffset := sizeof(EVENT_TRACE_PROPERTIES) + sizeof(LOGSESSION_NAME);
   StrPCopy(PWideChar(PByte(pSessionProperties) + pSessionProperties.LogFileNameOffset), LOGSESSION_FILENAME);
@@ -424,6 +429,32 @@ begin
 
   if Assigned(AStackData) then
     stack := AStackData.XML;
+end;
+
+procedure TForm1.FlushLibrary;
+var
+  h: THandle;
+  te: TThreadEntry32;
+begin
+  // A better way of doing may be to make each loaded process have a thread
+  // waiting on this process handle. Then after the process exits, the thread
+  // does a PostThreadMessage and then FreeLibraryAndExitThread
+  // e.g. https://stackoverflow.com/a/25597741/1836776
+
+  h := CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
+  if h <> INVALID_HANDLE_VALUE then
+  begin
+    FillChar(te, sizeof(te), 0);
+    te.dwSize := sizeof(te);
+    if Thread32First(h, te) then
+    begin
+      repeat
+        if te.dwSize >= 12 then // see https://devblogs.microsoft.com/oldnewthing/20060223-14/?p=32173
+          PostThreadMessage(te.th32ThreadID, WM_NULL, 0, 0);
+      until not Thread32Next(h, te);
+    end;
+    CloseHandle(h);
+  end;
 end;
 
 end.

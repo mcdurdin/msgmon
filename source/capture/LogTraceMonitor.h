@@ -3,12 +3,14 @@
 #include <unordered_map>
 
 // This must be kept in sync with number of descriptors used below and in .man
-#define MAX_DESCRIPTORS 21
+#define MAX_DESCRIPTORS_MESSAGE 21
+#define MAX_DESCRIPTORS_WINDOW 7
 
 // {082E6CC6-239C-4B96-9475-159AA241B4AB}
 //static const GUID guid_EtwProviderId =
 //{ 0x82e6cc6, 0x239c, 0x4b96,{ 0x94, 0x75, 0x15, 0x9a, 0xa2, 0x41, 0xb4, 0xab } };
 
+// MESSAGE maps
 #define PLATFORM_X86	1
 #define PLATFORM_X64	2
 
@@ -16,7 +18,7 @@
 #define MODE_SEND		2
 #define MODE_RETURN		3
 
-
+// WINDOW maps?
 
 
 //
@@ -28,6 +30,8 @@ struct SHAREDDATA {
 		hhookGetMessage,
 		hhookCallWndProc,
 		hhookCallWndProcRet;
+	DWORD
+		ownerProcessId;
 };
 
 typedef SHAREDDATA *PSHAREDDATA;
@@ -47,12 +51,17 @@ typedef PROCESSDATA *PPROCESSDATA;
 // Thread-level data structures
 //
 
-struct WINDOWCONSTANTDATA {
+class WINDOWCONSTANTDATA {
+public:
+	HWND hwnd;
 	DWORD pid, tid;
 	HWND hwndParent, hwndOwner;
 	std::wstring className;
 	std::wstring realClassName;
+	WINDOWCONSTANTDATA(HWND hwnd);
 };
+
+typedef WINDOWCONSTANTDATA *PWINDOWCONSTANTDATA;
 
 struct WINDOWEVENTDATA {
 	HWND hwnd;
@@ -64,11 +73,14 @@ class THREADDATA {
 public:
 	REGHANDLE etwRegHandle;
 	BOOL inProc;
-	std::unordered_map<HWND, WINDOWCONSTANTDATA> *windows;
+	std::unordered_map<HWND, PWINDOWCONSTANTDATA> *windows;
 	THREADDATA() {
-		windows = new std::unordered_map<HWND, WINDOWCONSTANTDATA>;
+		windows = new std::unordered_map<HWND, PWINDOWCONSTANTDATA>;
 	}
 	~THREADDATA() {
+		for (auto& it: *windows) {
+			delete it.second;
+		}
 		delete windows;
 	}
 	// WINDOWCLASSNAMES
@@ -99,6 +111,7 @@ void OutputDebugError(PWCHAR functionName, PWCHAR target, DWORD dwErr);
 
 
 void LogMessage(DWORD mode, HWND hwnd, DWORD message, WPARAM wParam, LPARAM lParam, LRESULT lResult);
+void LogWindow(HWND hwnd);
 
 PTHREADDATA ThreadData();
 PPROCESSDATA ProcessData();

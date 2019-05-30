@@ -15,10 +15,14 @@
       <provider name="MsgMon"
           guid="{082E6CC6-239C-4B96-9475-159AA241B4AB}"
           symbol="ProviderGuid"
-          resourceFileName="c:\projects\message_trace\debug\logtracemonitor.dll"
-          messageFileName="c:\projects\message_trace\debug\logtracemonitor.dll"
+          resourceFileName="c:\projects\msgmon\build\bin\debug\msgmon.capture.x86.dll"
+          messageFileName="c:\projects\msgmon\build\bin\debug\msgmon.capture.x86.dll"
           message="$(string.Provider.Name)">
           
+        <keywords>
+            <keyword name="Read" symbol="READ_KEYWORD" mask="0x1" />
+        </keywords>
+
         <maps>
           <valueMap name="Platform">
             <map value="1" message="$(string.Platform.x86)"/>
@@ -38,7 +42,7 @@
         
         <templates>
           <!-- This template must match the EventDataDescCreate call in LogTraceMonitor.cpp -->
-          <template tid="MsgMonTemplate">
+          <template tid="MsgMonMessageTemplate">
             <!-- Event metadata -->
             <!--  0 --> <data name="Platform" inType="win:UInt32" map="Platform" />
             <!--  1 --> <data name="Process" inType="win:UnicodeString" />
@@ -71,15 +75,33 @@
             <!-- 20 --> <data name="Detail" inType="win:UnicodeString" />
           </template>
 
+          <template tid="MsgMonWindowTemplate">
+            <!--  0 --> <data name="hwnd" inType="win:UInt32" />
+            <!--  1 --> <data name="PID" inType="win:UInt32" />
+            <!--  2 --> <data name="TID" inType="win:UInt32" />
+            <!--  3 --> <data name="hwndOwner" inType="win:UInt32" />
+            <!--  4 --> <data name="hwndParent" inType="win:UInt32" />
+            <!--  5 --> <data name="ClassName" inType="win:UnicodeString" />
+            <!--  6 --> <data name="RealClassName" inType="win:UnicodeString" />
+          </template>
+
         </templates>
 
         <events>
           <event value="1"
               channel="C1"
               level="win:Informational"
-              template="MsgMonTemplate"
-              symbol="MsgMonEvent"
+              template="MsgMonMessageTemplate"
+              symbol="MsgMonMessageEvent"
+              keywords="Read"
               message="$(string.EventMessage)" />
+          <event value="2"
+              channel="C1"
+              level="win:Informational"
+              template="MsgMonWindowTemplate"
+              symbol="MsgMonWindowEvent"
+              keywords="Read"
+              message="$(string.EventWindow)" />
         </events>
       </provider>
     </events>
@@ -92,6 +114,7 @@
         <string id="Provider.Name" value="MsgMon"/>
 
         <string id="EventMessage" value="[%1] [%2] [%3] [%4] (%5 %6) %7 %8 %9 %10:%11 %12" />
+        <string id="EventWindow" value="[%1]" />
         <string id="Platform.x86" value="x86" />
         <string id="Platform.x64" value="x64" />
 

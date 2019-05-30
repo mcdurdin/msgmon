@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include <winmeta.h>
 #include "MsgMon.h"
 
 //
@@ -11,6 +12,8 @@ void LogMessage(DWORD mode, HWND hwnd, DWORD message, WPARAM wParam, LPARAM lPar
 		// We'll silently fail so we don't spam debug console
 		return;
 	}
+
+	if (!EventProviderEnabled(pThreadData->etwRegHandle, WINEVENT_LEVEL_INFO, READ_KEYWORD)) return;
 
 	GUITHREADINFO gti;
 	gti.cbSize = sizeof(gti);
@@ -29,6 +32,10 @@ void LogMessage(DWORD mode, HWND hwnd, DWORD message, WPARAM wParam, LPARAM lPar
 		szDetail[0] = 0;
 	}
 
+	// TODO: handle window destruction to remove from info cache
+
+	LogWindow(hwnd);
+
 	// TODO: Cache class names?
 	WCHAR wszClassName[32];
 	int cchClassName = GetClassName(hwnd, wszClassName, 32);
@@ -39,7 +46,7 @@ void LogMessage(DWORD mode, HWND hwnd, DWORD message, WPARAM wParam, LPARAM lPar
 	int cchRealClassName = RealGetWindowClass(hwnd, wszRealClassName, 32);
 	wszRealClassName[cchRealClassName] = 0;
 
-	EVENT_DATA_DESCRIPTOR Descriptors[MAX_DESCRIPTORS];
+	EVENT_DATA_DESCRIPTOR Descriptors[MAX_DESCRIPTORS_MESSAGE];
 
 #ifdef _WIN64
 	DWORD platform = PLATFORM_X64;
@@ -86,8 +93,8 @@ void LogMessage(DWORD mode, HWND hwnd, DWORD message, WPARAM wParam, LPARAM lPar
 	EventDataDescCreate(&Descriptors[19], (PDWORD)&mode, sizeof(DWORD)); //  <data name = "mode" inType = "Mode" / >
 	EventDataDescCreate(&Descriptors[20], szDetail, (ULONG)(wcslen(szDetail) + 1) * sizeof(WCHAR)); //  <data name = "mode" inType = "Mode" / >
 
-	DWORD dwErr = EventWrite(pThreadData->etwRegHandle, &MsgMonEvent, (ULONG)MAX_DESCRIPTORS, &Descriptors[0]);
+	DWORD dwErr = EventWrite(pThreadData->etwRegHandle, &MsgMonMessageEvent, (ULONG)MAX_DESCRIPTORS_MESSAGE, &Descriptors[0]);
 	if (dwErr != ERROR_SUCCESS) {
-		OutputDebugError(L"Log", L"EventWrite");
+		OutputDebugError(L"Log", L"EventWrite", dwErr);
 	}
 }
