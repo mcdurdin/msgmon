@@ -31,6 +31,9 @@ die ( ) {
 # Environment. Update this as required for platform versions
 
 MSBUILD="C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Community\\MSBuild\\15.0\\Bin\\MSBuild.exe"
+if [[ ! -f $MSBUILD ]]; then
+  MSBUILD="C:\\Program Files (x86)\\Microsoft Visual Studio\\2017\\Professional\\MSBuild\\15.0\\Bin\\MSBuild.exe"
+fi
 export BDS="C:\\Program Files (x86)\\Embarcadero\\Studio\\19.0"
 
 # Default parameters

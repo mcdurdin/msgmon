@@ -72,8 +72,8 @@ begin
     nameAttr := FEventData.attributes.getNamedItem('Name');
     if Assigned(nameAttr) then
     begin
-      name := VarToStr(nameAttr.nodeValue);
-      value := Trim(VarToStr(FEventData.NodeValue));
+      name := VarToStr(nameAttr.text);
+      value := Trim(VarToStr(FEventData.text));
       valueInt := StrToIntDef(value, 0);
       if name = 'PID' then pid := valueInt
       else if name = 'TID' then tid := valueInt

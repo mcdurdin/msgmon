@@ -25,46 +25,46 @@ object Form1: TForm1
       item
         Control = cmdStartStopTrace
         ImageIndex = -1
-        Width = 102
+        Width = 103
       end
       item
         Break = False
         Control = cmdClear
         ImageIndex = -1
-        Width = 81
+        Width = 83
       end
       item
         Break = False
         Control = cmdFlushLibraries
         ImageIndex = -1
-        Width = 73
+        Width = 75
       end
       item
         Break = False
         ImageIndex = -1
-        Width = 361
+        Width = 356
       end>
     object cmdStartStopTrace: TButton
       Left = 11
       Top = 0
-      Width = 89
+      Width = 90
       Height = 25
       Caption = '&Start Trace'
       TabOrder = 0
       OnClick = cmdStartStopTraceClick
     end
     object cmdClear: TButton
-      Left = 117
+      Left = 118
       Top = 0
-      Width = 68
+      Width = 70
       Height = 25
       Caption = '&Clear'
       TabOrder = 1
     end
     object cmdFlushLibraries: TButton
-      Left = 202
+      Left = 205
       Top = 0
-      Width = 60
+      Width = 62
       Height = 25
       Caption = 'Flush libs'
       TabOrder = 2

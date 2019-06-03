@@ -8,11 +8,12 @@ uses
 //  Xml.XmlDoc,
 //  Xml.XmlDom,
 Winapi.msxml,
-//  Xml.Win.msxmldom,
+Winapi.MSXMLIntf,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.AppEvnts, Vcl.ToolWin,
   Vcl.ComCtrls, JwaEventTracing, JwaEvntCons, JwaEventDefs, JwaWmistr, System.Generics.Collections,
 
   MsgMon.System.Data.Message,
+  MsgMon.System.Data.MessageName,
   MsgMon.System.Data.Process,
   MsgMon.System.Data.Window;
 
@@ -32,8 +33,9 @@ type
   private
     doc: IXMLDOMDocument3;
     messages: TMsgMonMessages;
-    windows: TMsgMonWindows;
-    processes: TMsgMonProcesses;
+    messagenames: TMsgMonMessageNameDictionary;
+    windows: TMsgMonWindowDictionary;
+    processes: TMsgMonProcessDictionary;
 
     x64Thread: Cardinal;
 
@@ -64,6 +66,7 @@ implementation
 {$R *.dfm}
 
 uses
+  XmlLite,
   Winapi.ActiveX,
   Winapi.Tlhelp32,
   MsgMon.System.ExecProcess;
@@ -230,9 +233,9 @@ begin
   CoInitializeEx(nil, COINIT_APARTMENTTHREADED);
 
   messages := TMsgMonMessages.Create;
-  windows := TMsgMonWindows.Create;
-  processes := TMsgMonProcesses.Create;
-
+  windows := TMsgMonWindowDictionary.Create;
+  processes := TMsgMonProcessDictionary.Create;
+  messagenames := TMsgMonMessageNameDictionary.Create;
   // Load last session
   LoadData;
 end;
@@ -289,15 +292,33 @@ end;
 procedure TForm1.lvMessagesData(Sender: TObject; Item: TListItem);
 var
   m: TMsgMonMessage;
+  ws: TMsgMonWindows;
   w: TMsgMonWindow;
   s: string;
+  ps: TMsgMonProcesses;
+  p: TMsgMonProcess;
+  mn: TMsgMonMessageName;
 begin
   m := messages[Item.Index];
   m.Fill;
-  Item.Caption := IntToStr(m.pid);
+
+  if processes.TryGetValue(m.pid, ps)
+    then p := ps.FromBase(Item.Index)
+    else p := nil;
+
+  if not Assigned(p) then
+  begin
+    Item.Caption := IntToStr(m.pid);
+  end
+  else
+    Item.Caption := p.processName + ' ('+IntToStr(m.pid)+')';
+
   Item.SubItems.Add(IntToStr(m.tid));
-  w := windows[m.hwnd];
-  // TODO: Deal with reused window handles
+
+  if windows.TryGetValue(m.hwnd, ws)
+    then w := ws.FromBase(Item.Index)
+    else w := nil;
+
   if not Assigned(w) then
   begin
     Item.SubItems.Add(IntToStr(m.hwnd));
@@ -310,7 +331,14 @@ begin
     s := s + ' ('+IntToStr(m.hwnd)+')';
     Item.SubItems.Add(s);
   end;
-  Item.SubItems.Add(IntToStr(m.message));
+
+  if messagenames.TryGetValue(m.message, mn) then
+  begin
+    Item.SubItems.Add(mn.name)
+  end
+  else
+    Item.SubItems.Add(IntToStr(m.message));
+
   Item.SubItems.Add(IntToStr(m.wParam));
   Item.SubItems.Add(IntToStr(m.lParam));
   Item.SubItems.Add(IntToStr(m.lResult));
@@ -418,6 +446,11 @@ begin
     RaiseLastOSError;
 end;
 
+function selectNode(p: IXMLDOMNode; const name: string): IXMLDOMNode;
+begin
+  Result := p.selectSingleNode('./*[local-name() = '''+name+''']');
+end;
+
 procedure TForm1.LoadData;
 var
   events: IXMLDOMNodeList;// XMLNodeList;
@@ -428,13 +461,60 @@ var
   p: TMsgMonProcess;
   nameAttr: IXMLDOMNode;
   node: IXMLDOMNode;
+  i: Integer;
+  r: IXMLReader;
+  LocalName: PWideChar;
+  LocalNameLen: Cardinal;
+  nodeType: Integer;
+  state: string;
+  ws: TMsgMonWindows;
+  ps: TMsgMonProcesses;
 begin
   if not FileExists(LOGSESSION_XML_FILENAME) then
     Exit;
 
+(*
+  r := CreateXmlFileReader(LOGSESSION_XML_FILENAME);
+  while r.Read(nodeType) = S_OK do
+  begin
+    if nodeType = XmlNodeType_Element then
+    begin
+      r.GetLocalName(LocalName, LocalNameLen);
+      if state = '' then
+      begin
+        if LocalName = 'Event' then
+        begin
+          state := 'Event';
+        end;
+      end
+      else if state = 'Event' then
+      begin
+        if LocalName = 'System' then
+        begin
+          state := 'System';
+        end;
+      end
+      else if state = 'System' then
+      begin
+        if LocalName = 'Provider' then
+        begin
+
+        end;
+      end;
+    end
+    else if nodeType = XmlNodeType_EndElement then
+    begin
+      if state = 'Event' then
+        state := '';
+  end;
+*)
   // Load the XML data
   doc := CoDOMDocument60.Create;
+//  doc.
+//  doc.namespaces.add();
   doc.load(LOGSESSION_XML_FILENAME);
+//  for i := 0 to doc.namespaces.length - 1 do
+//    showmessage(doc.namespaces.));
 //  doc :=  LoadXMLDocument(LOGSESSION_XML_FILENAME);
   events := doc.DocumentElement.ChildNodes;
   event := events.nextNode;
@@ -442,38 +522,47 @@ begin
   while event <> nil do
   begin
     try
-      system := event.selectSingleNode('System');// ChildNodes. FindNode('System');
+//      event.childNodes.
+      system := selectNode(event, 'System');
       if not Assigned(system) then Continue;
-      provider := system.selectSingleNode('Provider');// ChildNodes.FindNode('Provider');
+      provider := selectNode(system, 'Provider');// ChildNodes.FindNode('Provider');
       if not Assigned(provider) then Continue;
       nameAttr := provider.attributes.getNamedItem('Name');
       if not Assigned(nameAttr) then Continue;
       if nameAttr.nodeValue <> 'MsgMon' then Continue;
 
-      eventData := event.selectSingleNode('EventData');
+      eventData := selectNode(event, 'EventData');
       if not Assigned(eventData) then Continue;
 
-      node := system.selectSingleNode('EventID');
+      node := selectNode(system, 'EventID');
       if not Assigned(node) then Continue;
 
-      eventID := VarToStr(node.nodeValue);
+      eventID := VarToStr(node.text);
       if eventID = '1' then
       begin
-        stack := system.selectSingleNode('Stack');
+        stack := selectNode(system, 'Stack');
         m := TMsgMonMessage.Create(eventData, stack);
         messages.Add(m);
       end
       else if eventID = '2' then
       begin
-        w := TMsgMonWindow.Create(eventData);
-        windows.Remove(w.hwnd);
-        windows.Add(w.hwnd, w);
+        w := TMsgMonWindow.Create(eventData, messages.Count);
+        if not windows.TryGetValue(w.hwnd, ws) then
+        begin
+          ws := TMsgMonWindows.Create;
+          windows.Add(w.hwnd, ws);
+        end;
+        ws.Add(w);
       end
       else if eventID = '3' then
       begin
-        p := TMsgMonProcess.Create(eventData);
-        processes.Remove(p.pid); // TODO handle reused PID
-        processes.Add(p.pid, p);
+        p := TMsgMonProcess.Create(eventData, messages.Count);
+        if not processes.TryGetValue(p.pid, ps) then
+        begin
+          ps := TMsgMonProcesses.Create;
+          processes.Add(p.pid, ps);
+        end;
+        ps.Add(p);
       end
     finally
       event := event.NextSibling;

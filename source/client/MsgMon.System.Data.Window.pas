@@ -9,14 +9,19 @@ uses
 
 type
   TMsgMonWindow = class
+    base: Integer;  // First reference in messages index
     hwnd: DWORD;
     pid, tid: DWORD;
     hwndOwner, hwndParent: DWORD;
     ClassName, RealClassName: string;
-    constructor Create(AEventData: IXMLDOMNode);
+    constructor Create(AEventData: IXMLDOMNode; ABase: Integer);
   end;
 
-  TMsgMonWindows = class(TObjectDictionary<DWORD,TMsgMonWindow>)
+  TMsgMonWindows = class(TObjectList<TMsgMonWindow>)
+    function FromBase(ABase: Integer): TMsgMonWindow;
+  end;
+
+  TMsgMonWindowDictionary = class(TObjectDictionary<DWORD,TMsgMonWindows>)
   end;
 
 implementation
@@ -27,13 +32,15 @@ uses
 
 { TMsgMonWindow }
 
-constructor TMsgMonWindow.Create(AEventData: IXMLDOMNode);
+constructor TMsgMonWindow.Create(AEventData: IXMLDOMNode; ABase: Integer);
 var
   name, value: string;
   valueInt: Int64;
   nameAttr: IXMLDOMNode;
 begin
   inherited Create;
+
+  base := ABase;
 
   if not Assigned(AEventData.ChildNodes) then
     Exit;
@@ -44,8 +51,8 @@ begin
     nameAttr := AEventData.attributes.getNamedItem('Name');
     if Assigned(nameAttr) then
     begin
-      name := VarToStr(nameAttr.nodeValue);
-      value := Trim(VarToStr(AEventData.NodeValue));
+      name := VarToStr(nameAttr.text);
+      value := Trim(VarToStr(AEventData.text));
       valueInt := StrToIntDef(value, 0);
       if name = 'hwnd' then Self.hwnd := valueInt
       else if name = 'PID' then pid := valueInt
@@ -58,6 +65,20 @@ begin
 
     AEventData := AEventData.NextSibling;
   end;
+end;
+
+{ TMsgMonWindows }
+
+function TMsgMonWindows.FromBase(ABase: Integer): TMsgMonWindow;
+var
+  i: Integer;
+begin
+  for i := Count-1 downto 0 do
+    if Items[i].base <= ABase then
+      Exit(Items[i]);
+  if Count = 0 then
+    Exit(nil);
+  Result := Items[0];
 end;
 
 end.
