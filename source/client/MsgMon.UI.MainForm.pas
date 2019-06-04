@@ -405,6 +405,7 @@ begin
     begin
       lvc := lvMessages.Columns.Add;
       lvc.Caption := c.Caption;
+      lvc.AutoSize := False;
       if c.Width < 0
         then lvc.Width := lvMessages.ClientWidth - ColumnWidths
         else lvc.Width := c.Width;
@@ -423,7 +424,7 @@ begin
     Exit;
 
   m := context.FilteredMessages[Item.Index];
-  m.Fill(context.Processes, context.Windows, context.MessageNames);
+//  m.Fill(context.Processes, context.Windows, context.MessageNames);
 
   if session.displayColumns.Count = 0 then
     Exit;
