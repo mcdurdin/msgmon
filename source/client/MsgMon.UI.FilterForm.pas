@@ -29,11 +29,11 @@ type
     procedure cmdAddClick(Sender: TObject);
     procedure cmdRemoveClick(Sender: TObject);
   private
-    FContext: TMsgMonContext;
+    FContext: TMMContext;
     FFilters: TMMFilters;
     procedure FillFilterView;
   public
-    constructor Create(AOwner: TComponent; AContext: TMsgMonContext; AFilters: TMMFilters); reintroduce;
+    constructor Create(AOwner: TComponent; AContext: TMMContext; AFilters: TMMFilters); reintroduce;
   end;
 
 implementation
@@ -77,7 +77,7 @@ begin
   FillFilterView;
 end;
 
-constructor TMMFilterForm.Create(AOwner: TComponent; AContext: TMsgMonContext;
+constructor TMMFilterForm.Create(AOwner: TComponent; AContext: TMMContext;
   AFilters: TMMFilters);
 var
   cols: TMMColumns;

@@ -92,7 +92,10 @@ object MMMainForm: TMMMainForm
     Top = 280
     Width = 635
     Height = 19
-    Panels = <>
+    Panels = <
+      item
+        Width = 250
+      end>
   end
   object menu: TMainMenu
     Left = 312

@@ -20,10 +20,10 @@ type
 
   TMMFilters = class(TObjectList<TMMFilter>)
   private
-    FContext: TMsgMonContext;
+    FContext: TMMContext;
     FColumns: TMMColumns;
   public
-    constructor Create(AContext: TMsgMonContext);
+    constructor Create(AContext: TMMContext);
     destructor Destroy; override;
     procedure Apply;
     property Columns: TMMColumns read FColumns;
@@ -45,7 +45,7 @@ uses
 
 procedure TMMFilters.Apply;
 var
-  m: TMsgMonMessage;
+  m: TMMMessage;
   f: TMMFilter;
   v: Boolean;
 begin
@@ -66,7 +66,7 @@ begin
   end;
 end;
 
-constructor TMMFilters.Create(AContext: TMsgMonContext);
+constructor TMMFilters.Create(AContext: TMMContext);
 begin
   inherited Create;
   FContext := AContext;

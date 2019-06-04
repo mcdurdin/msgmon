@@ -12,7 +12,7 @@ uses
   MsgMon.System.Data.Window;
 
 type
-  TMsgMonMessage = class
+  TMMMessage = class
   strict private
     FEventData, FStackData: IXMLDOMNode;
   public
@@ -36,16 +36,16 @@ type
     detail: string;
     stack: string;
 
-    process: TMsgMonProcess;
-    window: TMsgMonWindow;
-    messageName: TMsgMonMessageName;
+    process: TMMProcess;
+    window: TMMWindow;
+    messageName: TMMMessageName;
 
-    procedure Fill(processes: TMsgMonProcessDictionary; windows: TMsgMonWindowDictionary; messageNames: TMsgMonMessageNameDictionary);
+    procedure Fill(processes: TMMProcessDictionary; windows: TMMWindowDictionary; messageNames: TMMMessageNameDictionary);
     constructor Create(AIndex: Integer; AEventData, AStackData: IXMLDOMNode);
   end;
 
 type
-  TMsgMonMessages = class(TObjectList<TMsgMonMessage>)
+  TMMMessages = class(TObjectList<TMMMessage>)
   end;
 
 implementation
@@ -56,7 +56,7 @@ uses
 
 { TMsgMonMessage }
 
-constructor TMsgMonMessage.Create(AIndex: Integer; AEventData, AStackData: IXMLDOMNode);
+constructor TMMMessage.Create(AIndex: Integer; AEventData, AStackData: IXMLDOMNode);
 begin
   inherited Create;
   index := AIndex;
@@ -65,13 +65,13 @@ begin
   Assert(FEventData <> nil);
 end;
 
-procedure TMsgMonMessage.Fill(processes: TMsgMonProcessDictionary; windows: TMsgMonWindowDictionary; messageNames: TMsgMonMessageNameDictionary);
+procedure TMMMessage.Fill(processes: TMMProcessDictionary; windows: TMMWindowDictionary; messageNames: TMMMessageNameDictionary);
 var
   name, value: string;
   valueInt: Int64;
   nameAttr: IXMLDOMNode;
-  ps: TMsgMonProcesses;
-  ws: TMsgMonWindows;
+  ps: TMMProcesses;
+  ws: TMMWindows;
 begin
   if not Assigned(FEventData) then
     // Already populated

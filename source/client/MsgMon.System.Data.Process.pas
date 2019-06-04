@@ -8,7 +8,7 @@ uses
   Winapi.msxml;
 
 type
-  TMsgMonProcess = class
+  TMMProcess = class
     base: Integer;
     pid: DWORD;
     platform_: DWORD;
@@ -17,11 +17,11 @@ type
     constructor Create(AEventData: IXMLDOMNode; ABase: Integer);
   end;
 
-  TMsgMonProcesses = class(TObjectList<TMsgMonProcess>)
-    function FromBase(ABase: Integer): TMsgMonProcess;
+  TMMProcesses = class(TObjectList<TMMProcess>)
+    function FromBase(ABase: Integer): TMMProcess;
   end;
 
-  TMsgMonProcessDictionary = class(TObjectDictionary<DWORD,TMsgMonProcesses>)
+  TMMProcessDictionary = class(TObjectDictionary<DWORD,TMMProcesses>)
   end;
 
 implementation
@@ -32,7 +32,7 @@ uses
 
 { TMsgMonProcess }
 
-constructor TMsgMonProcess.Create(AEventData: IXMLDOMNode; ABase: Integer);
+constructor TMMProcess.Create(AEventData: IXMLDOMNode; ABase: Integer);
 var
   name, value: string;
   valueInt: Int64;
@@ -68,7 +68,7 @@ end;
 
 { TMsgMonProcesses }
 
-function TMsgMonProcesses.FromBase(ABase: Integer): TMsgMonProcess;
+function TMMProcesses.FromBase(ABase: Integer): TMMProcess;
 var
   i: Integer;
 begin

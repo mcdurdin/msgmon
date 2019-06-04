@@ -21,31 +21,31 @@ type
   TMMColumn = class
   private
     FWidth: Integer;
-    FContext: TMsgMonContext;
+    FContext: TMMContext;
   protected
     function DefaultWidth: Integer; virtual;
     function GetCaption: string; virtual;
     function DoLoad(o: TJSONObject): Boolean; virtual;
     procedure DoSave(o: TJSONObject); virtual;
-    function DoRender(data: TMsgMonMessage): string; virtual; abstract;
-    function DoCompare(d1, d2: TMsgMonMessage): Integer; virtual; abstract;
-    function DoFilter(data: TMsgMonMessage; relation: TMMFilterRelation; const value: string): Boolean; virtual; abstract;
+    function DoRender(data: TMMMessage): string; virtual; abstract;
+    function DoCompare(d1, d2: TMMMessage): Integer; virtual; abstract;
+    function DoFilter(data: TMMMessage; relation: TMMFilterRelation; const value: string): Boolean; virtual; abstract;
   public
-    constructor Create(context: TMsgMonContext);
+    constructor Create(context: TMMContext);
     function Load(o: TJSONObject): Boolean;
     procedure Save(o: TJSONObject);
-    function Render(data: TMsgMonMessage): string;
-    function Compare(d1, d2: TMsgMonMessage): Integer;
-    function Filter(data: TMsgMonMessage; relation: TMMFilterRelation; const value: string; action: TMMFilterAction): Boolean;
+    function Render(data: TMMMessage): string;
+    function Compare(d1, d2: TMMMessage): Integer;
+    function Filter(data: TMMMessage; relation: TMMFilterRelation; const value: string; action: TMMFilterAction): Boolean;
     property Caption: string read GetCaption;
     property Width: Integer read FWidth write FWidth;
   end;
 
   TMMColumns = class(TObjectList<TMMColumn>)
   private
-    FContext: TMsgMonContext;
+    FContext: TMMContext;
   public
-    constructor Create(context: TMsgMonContext);
+    constructor Create(context: TMMContext);
     procedure LoadFromFile(const Filename: string);
     procedure SaveToFile(const Filename: string);
     procedure LoadDefaultView;
@@ -55,75 +55,75 @@ type
   TMMColumn_Integer = class(TMMColumn)
   protected
     function DefaultWidth: Integer; override;
-    function DoRender(data: TMsgMonMessage): string; override;
-    function DoCompare(d1, d2: TMsgMonMessage): Integer; override;
-    function GetData(data: TMsgMonMessage): Integer; virtual; abstract;
-    function DoFilter(data: TMsgMonMessage; relation: TMMFilterRelation; const value: string): Boolean; override;
+    function DoRender(data: TMMMessage): string; override;
+    function DoCompare(d1, d2: TMMMessage): Integer; override;
+    function GetData(data: TMMMessage): Integer; virtual; abstract;
+    function DoFilter(data: TMMMessage; relation: TMMFilterRelation; const value: string): Boolean; override;
   public
   end;
 
   TMMColumn_String = class(TMMColumn)
   protected
-    function DoRender(data: TMsgMonMessage): string; override;
-    function DoCompare(d1, d2: TMsgMonMessage): Integer; override;
-    function GetData(data: TMsgMonMessage): string; virtual; abstract;
-    function DoFilter(data: TMsgMonMessage; relation: TMMFilterRelation; const value: string): Boolean; override;
+    function DoRender(data: TMMMessage): string; override;
+    function DoCompare(d1, d2: TMMMessage): Integer; override;
+    function GetData(data: TMMMessage): string; virtual; abstract;
+    function DoFilter(data: TMMMessage; relation: TMMFilterRelation; const value: string): Boolean; override;
   public
   end;
 
   TMMColumn_Time = class(TMMColumn)
   protected
     function DefaultWidth: Integer; override;
-    function DoRender(data: TMsgMonMessage): string; override;
-    function DoCompare(d1, d2: TMsgMonMessage): Integer; override;
-    function GetData(data: TMsgMonMessage): TDateTime; virtual; abstract;
-    function DoFilter(data: TMsgMonMessage; relation: TMMFilterRelation; const value: string): Boolean; override;
+    function DoRender(data: TMMMessage): string; override;
+    function DoCompare(d1, d2: TMMMessage): Integer; override;
+    function GetData(data: TMMMessage): TDateTime; virtual; abstract;
+    function DoFilter(data: TMMMessage; relation: TMMFilterRelation; const value: string): Boolean; override;
   public
   end;
 
   TMMColumn_Window = class(TMMColumn)
   protected
     function DefaultWidth: Integer; override;
-    function DoRender(data: TMsgMonMessage): string; override;
-    function DoCompare(d1, d2: TMsgMonMessage): Integer; override;
-    function GetData(data: TMsgMonMessage): Cardinal; virtual; abstract;
-    function DoFilter(data: TMsgMonMessage; relation: TMMFilterRelation; const value: string): Boolean; override;
+    function DoRender(data: TMMMessage): string; override;
+    function DoCompare(d1, d2: TMMMessage): Integer; override;
+    function GetData(data: TMMMessage): Cardinal; virtual; abstract;
+    function DoFilter(data: TMMMessage; relation: TMMFilterRelation; const value: string): Boolean; override;
   public
   end;
 
-  TMMColumn_Index = class(TMMColumn_Integer)
+  TMMColumn_Sequence = class(TMMColumn_Integer)
   protected
     function DefaultWidth: Integer; override;
     function GetCaption: string; override;
-    function GetData(data: TMsgMonMessage): Integer; override;
+    function GetData(data: TMMMessage): Integer; override;
   end;
 
-  TMMColumn_ProcessPlatform = class(TMMColumn_String)
+  TMMColumn_ProcessArchitecture = class(TMMColumn_String)
   protected
     function DefaultWidth: Integer; override;
     function GetCaption: string; override;
-    function GetData(data: TMsgMonMessage): string; override;
+    function GetData(data: TMMMessage): string; override;
   end;
 
   TMMColumn_ProcessName = class(TMMColumn_String)
   protected
     function DefaultWidth: Integer; override;
     function GetCaption: string; override;
-    function GetData(data: TMsgMonMessage): string; override;
+    function GetData(data: TMMMessage): string; override;
   end;
 
   TMMColumn_ProcessPath = class(TMMColumn_String)
   protected
     function DefaultWidth: Integer; override;
     function GetCaption: string; override;
-    function GetData(data: TMsgMonMessage): string; override;
+    function GetData(data: TMMMessage): string; override;
   end;
 
   TMMColumn_CommandLine = class(TMMColumn_String)
   protected
     function DefaultWidth: Integer; override;
     function GetCaption: string; override;
-    function GetData(data: TMsgMonMessage): string; override;
+    function GetData(data: TMMMessage): string; override;
   end;
 
 //  TMMColumn_EventTime = class(TMMColumn_Time)
@@ -140,103 +140,103 @@ type
   protected
     function DefaultWidth: Integer; override;
     function GetCaption: string; override;
-    function GetData(data: TMsgMonMessage): Integer; override;
+    function GetData(data: TMMMessage): Integer; override;
   end;
 
   TMMColumn_TID = class(TMMColumn_Integer)
   protected
     function DefaultWidth: Integer; override;
     function GetCaption: string; override;
-    function GetData(data: TMsgMonMessage): Integer; override;
+    function GetData(data: TMMMessage): Integer; override;
   end;
 
   TMMColumn_hWnd = class(TMMColumn_Window)
   protected
     function GetCaption: string; override;
-    function GetData(data: TMsgMonMessage): Cardinal; override;
+    function GetData(data: TMMMessage): Cardinal; override;
   end;
 
   TMMColumn_Mode = class(TMMColumn_String)
   protected
     function DefaultWidth: Integer; override;
     function GetCaption: string; override;
-    function GetData(data: TMsgMonMessage): string; override;
+    function GetData(data: TMMMessage): string; override;
   end;
 
   TMMColumn_MessageName = class(TMMColumn_String)
   protected
     function DefaultWidth: Integer; override;
     function GetCaption: string; override;
-    function GetData(data: TMsgMonMessage): string; override;
+    function GetData(data: TMMMessage): string; override;
   end;
 
   TMMColumn_MessageID = class(TMMColumn_Integer)
   protected
     function DefaultWidth: Integer; override;
     function GetCaption: string; override;
-    function GetData(data: TMsgMonMessage): Integer; override;
+    function GetData(data: TMMMessage): Integer; override;
   end;
 
   TMMColumn_wParam = class(TMMColumn_Integer)
   protected
     function GetCaption: string; override;
-    function GetData(data: TMsgMonMessage): Integer; override;
+    function GetData(data: TMMMessage): Integer; override;
   end;
 
   TMMColumn_lParam = class(TMMColumn_Integer)
   protected
     function GetCaption: string; override;
-    function GetData(data: TMsgMonMessage): Integer; override;
+    function GetData(data: TMMMessage): Integer; override;
   end;
 
   TMMColumn_lResult = class(TMMColumn_Integer)
   protected
     function GetCaption: string; override;
-    function GetData(data: TMsgMonMessage): Integer; override;
+    function GetData(data: TMMMessage): Integer; override;
   end;
 
   TMMColumn_Detail = class(TMMColumn_String)
   protected
     function DefaultWidth: Integer; override;
     function GetCaption: string; override;
-    function GetData(data: TMsgMonMessage): string; override;
+    function GetData(data: TMMMessage): string; override;
   end;
 
   TMMColumn_MessageScope = class(TMMColumn_String)
   protected
     function DefaultWidth: Integer; override;
     function GetCaption: string; override;
-    function GetData(data: TMsgMonMessage): string; override;
+    function GetData(data: TMMMessage): string; override;
   end;
 
   TMMColumn_hWndFocus = class(TMMColumn_Window)
   protected
-    function GetData(data: TMsgMonMessage): Cardinal; override;
+    function GetData(data: TMMMessage): Cardinal; override;
   end;
 
   TMMColumn_hWndActive = class(TMMColumn_Window)
   protected
-    function GetData(data: TMsgMonMessage): Cardinal; override;
+    function GetData(data: TMMMessage): Cardinal; override;
   end;
 
   TMMColumn_hWndCapture = class(TMMColumn_Window)
   protected
-    function GetData(data: TMsgMonMessage): Cardinal; override;
+    function GetData(data: TMMMessage): Cardinal; override;
   end;
 
   TMMColumn_hWndCaret = class(TMMColumn_Window)
   protected
-    function GetData(data: TMsgMonMessage): Cardinal; override;
+    function GetData(data: TMMMessage): Cardinal; override;
   end;
 
   TMMColumn_hWndMenuOwner = class(TMMColumn_Window)
   protected
-    function GetData(data: TMsgMonMessage): Cardinal; override;
+    function GetData(data: TMMMessage): Cardinal; override;
   end;
 
   TMMColumn_hWndMoveSize = class(TMMColumn_Window)
   protected
-    function GetData(data: TMsgMonMessage): Cardinal; override;
+    function GetData(data: TMMMessage): Cardinal; override;
   end;
 
 implementation
@@ -246,12 +246,12 @@ uses
 
 { TMMColumn }
 
-function TMMColumn.Compare(d1, d2: TMsgMonMessage): Integer;
+function TMMColumn.Compare(d1, d2: TMMMessage): Integer;
 begin
   Result := DoCompare(d1, d2);
 end;
 
-constructor TMMColumn.Create(context: TMsgMonContext);
+constructor TMMColumn.Create(context: TMMContext);
 begin
   inherited Create;
   FContext := context;
@@ -278,7 +278,7 @@ begin
   ;
 end;
 
-function TMMColumn.Filter(data: TMsgMonMessage; relation: TMMFilterRelation;
+function TMMColumn.Filter(data: TMMMessage; relation: TMMFilterRelation;
   const value: string; action: TMMFilterAction): Boolean;
 begin
   Result := DoFilter(data, relation, value);
@@ -292,7 +292,7 @@ begin
   Result := DoLoad(o);
 end;
 
-function TMMColumn.Render(data: TMsgMonMessage): string;
+function TMMColumn.Render(data: TMMMessage): string;
 begin
   Result := DoRender(data);
 end;
@@ -310,19 +310,21 @@ begin
   Result := 92;
 end;
 
-function TMMColumn_Integer.DoCompare(d1, d2: TMsgMonMessage): Integer;
+function TMMColumn_Integer.DoCompare(d1, d2: TMMMessage): Integer;
 begin
   Result := GetData(d1) - GetData(d2);
 end;
 
-function TMMColumn_Integer.DoFilter(data: TMsgMonMessage;
+function TMMColumn_Integer.DoFilter(data: TMMMessage;
   relation: TMMFilterRelation; const value: string): Boolean;
 var
   dataValue, filterValue: Integer;
 begin
+  Result := False;
+
   dataValue := GetData(data);
   if not TryStrToInt(value, filterValue) then
-    Exit(False);
+    Exit;
 
   case relation of
     frIs:         Result := filterValue = dataValue;
@@ -336,23 +338,25 @@ begin
   end;
 end;
 
-function TMMColumn_Integer.DoRender(data: TMsgMonMessage): string;
+function TMMColumn_Integer.DoRender(data: TMMMessage): string;
 begin
   Result := IntToStr(GetData(data));
 end;
 
 { TMMColumn_String }
 
-function TMMColumn_String.DoCompare(d1, d2: TMsgMonMessage): Integer;
+function TMMColumn_String.DoCompare(d1, d2: TMMMessage): Integer;
 begin
   Result := CompareText(GetData(d1), GetData(d2));
 end;
 
-function TMMColumn_String.DoFilter(data: TMsgMonMessage;
+function TMMColumn_String.DoFilter(data: TMMMessage;
   relation: TMMFilterRelation; const value: string): Boolean;
 var
   dataValue: string;
 begin
+  Result := False;
+
   dataValue := GetData(data);
 
   case relation of
@@ -367,24 +371,24 @@ begin
   end;
 end;
 
-function TMMColumn_String.DoRender(data: TMsgMonMessage): string;
+function TMMColumn_String.DoRender(data: TMMMessage): string;
 begin
   Result := GetData(data);
 end;
 
 { TMMColumn_Index }
 
-function TMMColumn_Index.DefaultWidth: Integer;
+function TMMColumn_Sequence.DefaultWidth: Integer;
 begin
   Result := 48;
 end;
 
-function TMMColumn_Index.GetCaption: string;
+function TMMColumn_Sequence.GetCaption: string;
 begin
-  Result := '#';
+  Result := 'Sequence';
 end;
 
-function TMMColumn_Index.GetData(data: TMsgMonMessage): Integer;
+function TMMColumn_Sequence.GetData(data: TMMMessage): Integer;
 begin
   Result := data.Index;
 end;
@@ -401,7 +405,7 @@ begin
   Result := 'Process Name';
 end;
 
-function TMMColumn_ProcessName.GetData(data: TMsgMonMessage): string;
+function TMMColumn_ProcessName.GetData(data: TMMMessage): string;
 begin
   if data.process = nil
     then Result := IntToStr(data.pid)
@@ -420,7 +424,7 @@ begin
   Result := 'Process Path';
 end;
 
-function TMMColumn_ProcessPath.GetData(data: TMsgMonMessage): string;
+function TMMColumn_ProcessPath.GetData(data: TMMMessage): string;
 begin
   if data.process = nil
     then Result := ''
@@ -439,7 +443,7 @@ begin
   Result := 'Command Line';
 end;
 
-function TMMColumn_CommandLine.GetData(data: TMsgMonMessage): string;
+function TMMColumn_CommandLine.GetData(data: TMMMessage): string;
 begin
   if data.process = nil
     then Result := ''
@@ -458,7 +462,7 @@ begin
   Result := 'PID';
 end;
 
-function TMMColumn_PID.GetData(data: TMsgMonMessage): Integer;
+function TMMColumn_PID.GetData(data: TMMMessage): Integer;
 begin
   Result := data.pid;
 end;
@@ -475,7 +479,7 @@ begin
   Result := 'TID';
 end;
 
-function TMMColumn_TID.GetData(data: TMsgMonMessage): Integer;
+function TMMColumn_TID.GetData(data: TMMMessage): Integer;
 begin
   Result := data.tid;
 end;
@@ -492,7 +496,7 @@ begin
   Result := 'Message';
 end;
 
-function TMMColumn_MessageName.GetData(data: TMsgMonMessage): string;
+function TMMColumn_MessageName.GetData(data: TMMMessage): string;
 begin
   if data.messageName = nil then
   begin
@@ -518,7 +522,7 @@ begin
   Result := 'Message#';
 end;
 
-function TMMColumn_MessageID.GetData(data: TMsgMonMessage): Integer;
+function TMMColumn_MessageID.GetData(data: TMMMessage): Integer;
 begin
   Result := data.message;
 end;
@@ -530,7 +534,7 @@ begin
   Result := 'wParam';
 end;
 
-function TMMColumn_wParam.GetData(data: TMsgMonMessage): Integer;
+function TMMColumn_wParam.GetData(data: TMMMessage): Integer;
 begin
   Result := data.wParam;
 end;
@@ -542,7 +546,7 @@ begin
   Result := 'lParam';
 end;
 
-function TMMColumn_lParam.GetData(data: TMsgMonMessage): Integer;
+function TMMColumn_lParam.GetData(data: TMMMessage): Integer;
 begin
   Result := data.lParam;
 end;
@@ -554,7 +558,7 @@ begin
   Result := 'lResult';
 end;
 
-function TMMColumn_lResult.GetData(data: TMsgMonMessage): Integer;
+function TMMColumn_lResult.GetData(data: TMMMessage): Integer;
 begin
   Result := data.lResult;
 end;
@@ -571,7 +575,7 @@ begin
   Result := 'Detail';
 end;
 
-function TMMColumn_Detail.GetData(data: TMsgMonMessage): string;
+function TMMColumn_Detail.GetData(data: TMMMessage): string;
 begin
   Result := data.detail;
 end;
@@ -588,7 +592,7 @@ begin
   Result := 'Scope';
 end;
 
-function TMMColumn_MessageScope.GetData(data: TMsgMonMessage): string;
+function TMMColumn_MessageScope.GetData(data: TMMMessage): string;
 begin
   if data.messageName = nil then
   begin
@@ -610,22 +614,24 @@ begin
   Result := 128;
 end;
 
-function TMMColumn_Time.DoCompare(d1, d2: TMsgMonMessage): Integer;
+function TMMColumn_Time.DoCompare(d1, d2: TMMMessage): Integer;
 begin
   if GetData(d1) < GetData(d2) then Result := 1
   else if GetData(d1) > GetData(d2) then Result := -1
   else Result := 0;
 end;
 
-function TMMColumn_Time.DoFilter(data: TMsgMonMessage;
+function TMMColumn_Time.DoFilter(data: TMMMessage;
   relation: TMMFilterRelation; const value: string): Boolean;
 var
   dataValue, filterValue: TDateTime;
 begin
+  Result := False;
+
   // TODO: This is garbage. Just want it to compile for now
   dataValue := GetData(data);
   if not TryStrToDateTime(value, filterValue) then
-    Exit(False);
+    Exit;
 
   case relation of
     frIs:         Result := filterValue = dataValue;
@@ -639,14 +645,14 @@ begin
   end;
 end;
 
-function TMMColumn_Time.DoRender(data: TMsgMonMessage): string;
+function TMMColumn_Time.DoRender(data: TMMMessage): string;
 begin
   Result := FormatDateTime('yyyy-mm-dd hh:nn:ss', GetData(data));
 end;
 
 { TMMColumns }
 
-constructor TMMColumns.Create(context: TMsgMonContext);
+constructor TMMColumns.Create(context: TMMContext);
 begin
   inherited Create;
   FContext := context;
@@ -655,8 +661,8 @@ end;
 procedure TMMColumns.LoadAll;
 begin
   Clear;
-  Add(TMMColumn_Index.Create(FContext));
-  Add(TMMColumn_ProcessPlatform.Create(FContext));
+  Add(TMMColumn_Sequence.Create(FContext));
+  Add(TMMColumn_ProcessArchitecture.Create(FContext));
   Add(TMMColumn_ProcessName.Create(FContext));
   Add(TMMColumn_PID.Create(FContext));
   Add(TMMColumn_TID.Create(FContext));
@@ -679,8 +685,8 @@ end;
 procedure TMMColumns.LoadDefaultView;
 begin
   Clear;
-  Add(TMMColumn_Index.Create(FContext));
-  Add(TMMColumn_ProcessPlatform.Create(FContext));
+  Add(TMMColumn_Sequence.Create(FContext));
+  Add(TMMColumn_ProcessArchitecture.Create(FContext));
   Add(TMMColumn_ProcessName.Create(FContext));
   Add(TMMColumn_PID.Create(FContext));
   Add(TMMColumn_TID.Create(FContext));
@@ -716,7 +722,7 @@ begin
   Result := 'Mode';
 end;
 
-function TMMColumn_Mode.GetData(data: TMsgMonMessage): string;
+function TMMColumn_Mode.GetData(data: TMMMessage): string;
 begin
   case data.mode of
     1: Result := 'P';
@@ -726,19 +732,19 @@ begin
   end;
 end;
 
-{ TMMColumn_ProcessPlatform }
+{ TMMColumn_ProcessArchitecture }
 
-function TMMColumn_ProcessPlatform.DefaultWidth: Integer;
+function TMMColumn_ProcessArchitecture.DefaultWidth: Integer;
 begin
   Result := 32;
 end;
 
-function TMMColumn_ProcessPlatform.GetCaption: string;
+function TMMColumn_ProcessArchitecture.GetCaption: string;
 begin
-  Result := 'Platform';
+  Result := 'Architecture';
 end;
 
-function TMMColumn_ProcessPlatform.GetData(data: TMsgMonMessage): string;
+function TMMColumn_ProcessArchitecture.GetData(data: TMMMessage): string;
 begin
   if Assigned(data.process) then
     case data.process.platform_ of
@@ -755,7 +761,7 @@ begin
   Result := 'hwnd';
 end;
 
-function TMMColumn_hWnd.GetData(data: TMsgMonMessage): Cardinal;
+function TMMColumn_hWnd.GetData(data: TMMMessage): Cardinal;
 begin
   Result := data.hwnd;
 end;
@@ -767,21 +773,21 @@ begin
   Result := 128;
 end;
 
-function TMMColumn_Window.DoCompare(d1, d2: TMsgMonMessage): Integer;
+function TMMColumn_Window.DoCompare(d1, d2: TMMMessage): Integer;
 begin
   Result := Integer(GetData(d1)) - Integer(GetData(d2));
 end;
 
-function TMMColumn_Window.DoFilter(data: TMsgMonMessage;
+function TMMColumn_Window.DoFilter(data: TMMMessage;
   relation: TMMFilterRelation; const value: string): Boolean;
 var
-  ws: TMsgMonWindows;
-  w: TMsgMonWindow;
   dataValue: string;
   filterValueInt: Integer;
-  dataValueInt: Cardinal;
+  dataValueInt: Integer;
 begin
-  dataValueInt := GetData(data);
+  Result := False;
+
+  dataValueInt := Integer(GetData(data));
   dataValue := DoRender(data); // TODO we could be nuanced here
   if TryStrToInt(value, filterValueInt) then
   begin
@@ -811,11 +817,11 @@ begin
   end;
 end;
 
-function TMMColumn_Window.DoRender(data: TMsgMonMessage): string;
+function TMMColumn_Window.DoRender(data: TMMMessage): string;
 var
   hwnd: Cardinal;
-  ws: TMsgMonWindows;
-  w: TMsgMonWindow;
+  ws: TMMWindows;
+  w: TMMWindow;
 begin
   hwnd := GetData(data);
 
@@ -836,42 +842,42 @@ end;
 
 { TMMColumn_hWndFocus }
 
-function TMMColumn_hWndFocus.GetData(data: TMsgMonMessage): Cardinal;
+function TMMColumn_hWndFocus.GetData(data: TMMMessage): Cardinal;
 begin
   Result := data.hwndFocus;
 end;
 
 { TMMColumn_hWndActive }
 
-function TMMColumn_hWndActive.GetData(data: TMsgMonMessage): Cardinal;
+function TMMColumn_hWndActive.GetData(data: TMMMessage): Cardinal;
 begin
   Result := data.hwndActive;
 end;
 
 { TMMColumn_hWndCapture }
 
-function TMMColumn_hWndCapture.GetData(data: TMsgMonMessage): Cardinal;
+function TMMColumn_hWndCapture.GetData(data: TMMMessage): Cardinal;
 begin
   Result := data.hwndCapture;
 end;
 
 { TMMColumn_hWndCaret }
 
-function TMMColumn_hWndCaret.GetData(data: TMsgMonMessage): Cardinal;
+function TMMColumn_hWndCaret.GetData(data: TMMMessage): Cardinal;
 begin
   Result := data.hwndCaret;
 end;
 
 { TMMColumn_hWndMenuOwner }
 
-function TMMColumn_hWndMenuOwner.GetData(data: TMsgMonMessage): Cardinal;
+function TMMColumn_hWndMenuOwner.GetData(data: TMMMessage): Cardinal;
 begin
   Result := data.hwndMenuOwner;
 end;
 
 { TMMColumn_hWndMoveSize }
 
-function TMMColumn_hWndMoveSize.GetData(data: TMsgMonMessage): Cardinal;
+function TMMColumn_hWndMoveSize.GetData(data: TMMMessage): Cardinal;
 begin
   Result := data.hwndMoveSize;
 end;

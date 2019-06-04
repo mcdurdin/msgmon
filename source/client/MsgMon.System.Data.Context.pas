@@ -9,29 +9,29 @@ uses
   MsgMon.System.Data.Window;
 
 type
-  TMsgMonContext = class
+  TMMContext = class
   private
-    FProcesses: TMsgMonProcessDictionary;
-    FMessageNames: TMsgMonMessageNameDictionary;
-    FWindows: TMsgMonWindowDictionary;
-    FMessages: TMsgMonMessages;
-    FFilteredMessages: TMsgMonMessages;
+    FProcesses: TMMProcessDictionary;
+    FMessageNames: TMMMessageNameDictionary;
+    FWindows: TMMWindowDictionary;
+    FMessages: TMMMessages;
+    FFilteredMessages: TMMMessages;
   public
     constructor Create;
     destructor Destroy; override;
     procedure Clear;
-    property MessageNames: TMsgMonMessageNameDictionary read FMessageNames;
-    property Processes: TMsgMonProcessDictionary read FProcesses;
-    property Windows: TMsgMonWindowDictionary read FWindows;
-    property Messages: TMsgMonMessages read FMessages;
-    property FilteredMessages: TMsgMonMessages read FFilteredMessages;
+    property MessageNames: TMMMessageNameDictionary read FMessageNames;
+    property Processes: TMMProcessDictionary read FProcesses;
+    property Windows: TMMWindowDictionary read FWindows;
+    property Messages: TMMMessages read FMessages;
+    property FilteredMessages: TMMMessages read FFilteredMessages;
   end;
 
 implementation
 
 { TMsgMonContext }
 
-procedure TMsgMonContext.Clear;
+procedure TMMContext.Clear;
 begin
   FFilteredMessages.Clear;
   FMessages.Clear;
@@ -41,17 +41,17 @@ begin
   FWindows.Clear;
 end;
 
-constructor TMsgMonContext.Create;
+constructor TMMContext.Create;
 begin
   inherited Create;
-  FMessages := TMsgMonMessages.Create;
-  FFilteredMessages := TMsgMonMessages.Create(False);
-  FMessageNames := TMsgMonMessageNameDictionary.Create;
-  FProcesses := TMsgMonProcessDictionary.Create;
-  FWindows := TMsgMonWindowDictionary.Create;
+  FMessages := TMMMessages.Create;
+  FFilteredMessages := TMMMessages.Create(False);
+  FMessageNames := TMMMessageNameDictionary.Create;
+  FProcesses := TMMProcessDictionary.Create;
+  FWindows := TMMWindowDictionary.Create;
 end;
 
-destructor TMsgMonContext.Destroy;
+destructor TMMContext.Destroy;
 begin
   FWindows.Free;
   FProcesses.Free;

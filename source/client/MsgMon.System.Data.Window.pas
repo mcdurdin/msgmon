@@ -8,7 +8,7 @@ uses
   Winapi.msxml;
 
 type
-  TMsgMonWindow = class
+  TMMWindow = class
     base: Integer;  // First reference in messages index
     hwnd: DWORD;
     pid, tid: DWORD;
@@ -17,11 +17,11 @@ type
     constructor Create(AEventData: IXMLDOMNode; ABase: Integer);
   end;
 
-  TMsgMonWindows = class(TObjectList<TMsgMonWindow>)
-    function FromBase(ABase: Integer): TMsgMonWindow;
+  TMMWindows = class(TObjectList<TMMWindow>)
+    function FromBase(ABase: Integer): TMMWindow;
   end;
 
-  TMsgMonWindowDictionary = class(TObjectDictionary<DWORD,TMsgMonWindows>)
+  TMMWindowDictionary = class(TObjectDictionary<DWORD,TMMWindows>)
   end;
 
 implementation
@@ -32,7 +32,7 @@ uses
 
 { TMsgMonWindow }
 
-constructor TMsgMonWindow.Create(AEventData: IXMLDOMNode; ABase: Integer);
+constructor TMMWindow.Create(AEventData: IXMLDOMNode; ABase: Integer);
 var
   name, value: string;
   valueInt: Int64;
@@ -69,7 +69,7 @@ end;
 
 { TMsgMonWindows }
 
-function TMsgMonWindows.FromBase(ABase: Integer): TMsgMonWindow;
+function TMMWindows.FromBase(ABase: Integer): TMMWindow;
 var
   i: Integer;
 begin

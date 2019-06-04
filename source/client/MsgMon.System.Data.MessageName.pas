@@ -7,20 +7,20 @@ uses
   Winapi.Messages;
 
 type
-  TMessageNameScope = (mnsGlobal, mnsEdit, mnsButton, mnsList, mnsApp, mnsUser, mnsCustom);
+  TMMMessageNameScope = (mnsGlobal, mnsEdit, mnsButton, mnsList, mnsApp, mnsUser, mnsCustom);
 
-  TMsgMonMessageName = class
+  TMMMessageName = class
   public
     id: Integer;
     name: string;
-    scope: TMessageNameScope;
+    scope: TMMMessageNameScope;
     ScopeName: string;
-    constructor Create(id: Integer; const name: string; const scope: TMessageNameScope);
+    constructor Create(id: Integer; const name: string; const scope: TMMMessageNameScope);
   end;
 
-  TMsgMonMessageNameDictionary = class(TObjectDictionary<Integer,TMsgMonMessageName>)
+  TMMMessageNameDictionary = class(TObjectDictionary<Integer,TMMMessageName>)
   private
-    procedure AddDefault(id: Integer; const name: string; const scope: TMessageNameScope);
+    procedure AddDefault(id: Integer; const name: string; const scope: TMMMessageNameScope);
   public
     constructor Create;
     procedure FillDefault;
@@ -33,34 +33,34 @@ uses
 
 { TMessageName }
 
-constructor TMsgMonMessageName.Create(id: Integer; const name: string;
-  const scope: TMessageNameScope);
+constructor TMMMessageName.Create(id: Integer; const name: string;
+  const scope: TMMMessageNameScope);
 begin
   inherited Create;
   Self.id := id;
   Self.name := name;
   Self.scope := scope;
-  Self.ScopeName := Copy(GetEnumName(TypeInfo(TMessageNameScope), Ord(scope)), 4, MaxInt);
+  Self.ScopeName := Copy(GetEnumName(TypeInfo(TMMMessageNameScope), Ord(scope)), 4, MaxInt);
 end;
 
 {----------------------------------------}
 
 { TMsgMonMessageNameDictionary }
 
-procedure TMsgMonMessageNameDictionary.AddDefault(id: Integer;
-  const name: string; const scope: TMessageNameScope);
+procedure TMMMessageNameDictionary.AddDefault(id: Integer;
+  const name: string; const scope: TMMMessageNameScope);
 begin
   Assert(not Self.ContainsKey(id));
-  Add(id, TMsgMonMessageName.Create(id, name, scope));
+  Add(id, TMMMessageName.Create(id, name, scope));
 end;
 
-constructor TMsgMonMessageNameDictionary.Create;
+constructor TMMMessageNameDictionary.Create;
 begin
   inherited Create;
   FillDefault;
 end;
 
-procedure TMsgMonMessageNameDictionary.FillDefault;
+procedure TMMMessageNameDictionary.FillDefault;
 begin
   AddDefault(WM_NULL, 'WM_NULL', mnsGlobal);
   AddDefault(WM_CREATE, 'WM_CREATE', mnsGlobal);

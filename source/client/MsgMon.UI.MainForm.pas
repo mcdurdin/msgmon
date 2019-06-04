@@ -68,7 +68,7 @@ type
     procedure mnuFilterResetFilterClick(Sender: TObject);
   private
     doc: IXMLDOMDocument3;
-    context: TMsgMonContext;
+    context: TMMContext;
     displayColumns: TMMColumns;
     filters: TMMFilters;
 
@@ -269,7 +269,7 @@ procedure TMMMainForm.FormCreate(Sender: TObject);
 begin
   CoInitializeEx(nil, COINIT_APARTMENTTHREADED);
 
-  context := TMsgMonContext.Create;
+  context := TMMContext.Create;
   filters := TMMFilters.Create(context);
   displayColumns := TMMColumns.Create(context);
 
@@ -370,7 +370,7 @@ end;
 
 procedure TMMMainForm.lvMessagesData(Sender: TObject; Item: TListItem);
 var
-  m: TMsgMonMessage;
+  m: TMMMessage;
   i: Integer;
 begin
   m := context.FilteredMessages[Item.Index];
@@ -416,6 +416,8 @@ begin
 
   lvMessages.Items.Count := context.FilteredMessages.Count;
   lvMessages.Invalidate;
+
+  statusBar.Panels[0].Text := 'Showing '+IntToStr(context.FilteredMessages.Count)+' of total '+IntToStr(context.Messages.Count)+' messages';
 end;
 
 procedure TMMMainForm.mnuFilterFilterClick(Sender: TObject);
@@ -545,15 +547,15 @@ end;
 procedure TMMMainForm.LoadData;
 var
   events: IXMLDOMNodeList;
-  m: TMsgMonMessage;
+  m: TMMMessage;
   stack, event, eventData, system, provider: IXMLDOMNode;
-  w: TMsgMonWindow;
+  w: TMMWindow;
   eventID: string;
-  p: TMsgMonProcess;
+  p: TMMProcess;
   nameAttr: IXMLDOMNode;
   node: IXMLDOMNode;
-  ws: TMsgMonWindows;
-  ps: TMsgMonProcesses;
+  ws: TMMWindows;
+  ps: TMMProcesses;
 begin
   if not FileExists(LOGSESSION_XML_FILENAME) then
     Exit;
@@ -586,25 +588,25 @@ begin
       if eventID = '1' then
       begin
         stack := selectNode(system, 'Stack');
-        m := TMsgMonMessage.Create(context.messages.Count, eventData, stack);
+        m := TMMMessage.Create(context.messages.Count, eventData, stack);
         context.messages.Add(m);
       end
       else if eventID = '2' then
       begin
-        w := TMsgMonWindow.Create(eventData, context.messages.Count);
+        w := TMMWindow.Create(eventData, context.messages.Count);
         if not context.windows.TryGetValue(w.hwnd, ws) then
         begin
-          ws := TMsgMonWindows.Create;
+          ws := TMMWindows.Create;
           context.windows.Add(w.hwnd, ws);
         end;
         ws.Add(w);
       end
       else if eventID = '3' then
       begin
-        p := TMsgMonProcess.Create(eventData, context.messages.Count);
+        p := TMMProcess.Create(eventData, context.messages.Count);
         if not context.processes.TryGetValue(p.pid, ps) then
         begin
-          ps := TMsgMonProcesses.Create;
+          ps := TMMProcesses.Create;
           context.processes.Add(p.pid, ps);
         end;
         ps.Add(p);
