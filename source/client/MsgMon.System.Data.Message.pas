@@ -7,7 +7,6 @@ uses
   Winapi.Windows,
   Winapi.msxml,
 
-  MsgMon.System.Data.Context,
   MsgMon.System.Data.MessageName,
   MsgMon.System.Data.Process,
   MsgMon.System.Data.Window;
@@ -41,7 +40,7 @@ type
     window: TMsgMonWindow;
     messageName: TMsgMonMessageName;
 
-    procedure Fill(context: TMsgMonContext);
+    procedure Fill(processes: TMsgMonProcessDictionary; windows: TMsgMonWindowDictionary; messageNames: TMsgMonMessageNameDictionary);
     constructor Create(AIndex: Integer; AEventData, AStackData: IXMLDOMNode);
   end;
 
@@ -66,7 +65,7 @@ begin
   Assert(FEventData <> nil);
 end;
 
-procedure TMsgMonMessage.Fill(context: TMsgMonContext);
+procedure TMsgMonMessage.Fill(processes: TMsgMonProcessDictionary; windows: TMsgMonWindowDictionary; messageNames: TMsgMonMessageNameDictionary);
 var
   name, value: string;
   valueInt: Int64;
@@ -120,15 +119,15 @@ begin
 
   // Lookup data from context
 
-  if context.Processes.TryGetValue(pid, ps)
+  if processes.TryGetValue(pid, ps)
     then process := ps.FromBase(index)
     else process := nil;
 
-  if context.Windows.TryGetValue(hwnd, ws)
+  if windows.TryGetValue(hwnd, ws)
     then window := ws.FromBase(index)
     else window := nil;
 
-  if not context.MessageNames.TryGetValue(message, messageName)
+  if not messageNames.TryGetValue(message, messageName)
     then messageName := nil;
 end;
 

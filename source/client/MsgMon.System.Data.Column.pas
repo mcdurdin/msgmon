@@ -14,6 +14,10 @@ uses
   MsgMon.System.Data.Window;
 
 type
+  // Filter actions here to avoid circular dependencies. I could structure this better
+  TMMFilterRelation = (frIs, frIsNot, frLessThan, frMoreThan, frBeginsWith, frEndsWith, frContains, frExcludes);
+  TMMFilterAction = (faInclude, faExclude);
+
   TMMColumn = class
   private
     FWidth: Integer;
@@ -25,13 +29,14 @@ type
     procedure DoSave(o: TJSONObject); virtual;
     function DoRender(data: TMsgMonMessage): string; virtual; abstract;
     function DoCompare(d1, d2: TMsgMonMessage): Integer; virtual; abstract;
+    function DoFilter(data: TMsgMonMessage; relation: TMMFilterRelation; const value: string): Boolean; virtual; abstract;
   public
     constructor Create(context: TMsgMonContext);
     function Load(o: TJSONObject): Boolean;
     procedure Save(o: TJSONObject);
     function Render(data: TMsgMonMessage): string;
     function Compare(d1, d2: TMsgMonMessage): Integer;
-//    function Filter(data: TMsgMonMessage; filter: TMMFilter): Boolean; virtual;
+    function Filter(data: TMsgMonMessage; relation: TMMFilterRelation; const value: string; action: TMMFilterAction): Boolean;
     property Caption: string read GetCaption;
     property Width: Integer read FWidth write FWidth;
   end;
@@ -53,6 +58,7 @@ type
     function DoRender(data: TMsgMonMessage): string; override;
     function DoCompare(d1, d2: TMsgMonMessage): Integer; override;
     function GetData(data: TMsgMonMessage): Integer; virtual; abstract;
+    function DoFilter(data: TMsgMonMessage; relation: TMMFilterRelation; const value: string): Boolean; override;
   public
   end;
 
@@ -61,6 +67,7 @@ type
     function DoRender(data: TMsgMonMessage): string; override;
     function DoCompare(d1, d2: TMsgMonMessage): Integer; override;
     function GetData(data: TMsgMonMessage): string; virtual; abstract;
+    function DoFilter(data: TMsgMonMessage; relation: TMMFilterRelation; const value: string): Boolean; override;
   public
   end;
 
@@ -70,6 +77,7 @@ type
     function DoRender(data: TMsgMonMessage): string; override;
     function DoCompare(d1, d2: TMsgMonMessage): Integer; override;
     function GetData(data: TMsgMonMessage): TDateTime; virtual; abstract;
+    function DoFilter(data: TMsgMonMessage; relation: TMMFilterRelation; const value: string): Boolean; override;
   public
   end;
 
@@ -79,6 +87,7 @@ type
     function DoRender(data: TMsgMonMessage): string; override;
     function DoCompare(d1, d2: TMsgMonMessage): Integer; override;
     function GetData(data: TMsgMonMessage): Cardinal; virtual; abstract;
+    function DoFilter(data: TMsgMonMessage; relation: TMMFilterRelation; const value: string): Boolean; override;
   public
   end;
 
@@ -232,6 +241,9 @@ type
 
 implementation
 
+uses
+  System.StrUtils;
+
 { TMMColumn }
 
 function TMMColumn.Compare(d1, d2: TMsgMonMessage): Integer;
@@ -266,6 +278,14 @@ begin
   ;
 end;
 
+function TMMColumn.Filter(data: TMsgMonMessage; relation: TMMFilterRelation;
+  const value: string; action: TMMFilterAction): Boolean;
+begin
+  Result := DoFilter(data, relation, value);
+  if action = faExclude then
+    Result := not Result;
+end;
+
 function TMMColumn.Load(o: TJSONObject): Boolean;
 begin
   FWidth := o.GetValue<Integer>('width', DefaultWidth);
@@ -295,6 +315,27 @@ begin
   Result := GetData(d1) - GetData(d2);
 end;
 
+function TMMColumn_Integer.DoFilter(data: TMsgMonMessage;
+  relation: TMMFilterRelation; const value: string): Boolean;
+var
+  dataValue, filterValue: Integer;
+begin
+  dataValue := GetData(data);
+  if not TryStrToInt(value, filterValue) then
+    Exit(False);
+
+  case relation of
+    frIs:         Result := filterValue = dataValue;
+    frIsNot:      Result := filterValue <> dataValue;
+    frLessThan:   Result := filterValue < dataValue;
+    frMoreThan:   Result := filterValue > dataValue;
+    frBeginsWith: Result := IntToStr(dataValue).StartsWith(value);
+    frEndsWith:   Result := IntToStr(dataValue).EndsWith(value);
+    frContains:   Result := IntToStr(dataValue).Contains(value);
+    frExcludes:   Result := not IntToStr(dataValue).Contains(value);
+  end;
+end;
+
 function TMMColumn_Integer.DoRender(data: TMsgMonMessage): string;
 begin
   Result := IntToStr(GetData(data));
@@ -305,6 +346,25 @@ end;
 function TMMColumn_String.DoCompare(d1, d2: TMsgMonMessage): Integer;
 begin
   Result := CompareText(GetData(d1), GetData(d2));
+end;
+
+function TMMColumn_String.DoFilter(data: TMsgMonMessage;
+  relation: TMMFilterRelation; const value: string): Boolean;
+var
+  dataValue: string;
+begin
+  dataValue := GetData(data);
+
+  case relation of
+    frIs:         Result := SameText(value, dataValue);
+    frIsNot:      Result := not SameText(value, dataValue);
+    frLessThan:   Result := CompareText(value, dataValue) < 0;
+    frMoreThan:   Result := CompareText(value, dataValue) > 0;
+    frBeginsWith: Result := dataValue.StartsWith(value, True); // not strictly same as CompareText but good enough
+    frEndsWith:   Result := dataValue.EndsWith(value, True); // not strictly same as CompareText but good enough
+    frContains:   Result := ContainsText(dataValue, value);
+    frExcludes:   Result := not ContainsText(dataValue, value);
+  end;
 end;
 
 function TMMColumn_String.DoRender(data: TMsgMonMessage): string;
@@ -557,6 +617,28 @@ begin
   else Result := 0;
 end;
 
+function TMMColumn_Time.DoFilter(data: TMsgMonMessage;
+  relation: TMMFilterRelation; const value: string): Boolean;
+var
+  dataValue, filterValue: TDateTime;
+begin
+  // TODO: This is garbage. Just want it to compile for now
+  dataValue := GetData(data);
+  if not TryStrToDateTime(value, filterValue) then
+    Exit(False);
+
+  case relation of
+    frIs:         Result := filterValue = dataValue;
+    frIsNot:      Result := filterValue <> dataValue;
+    frLessThan:   Result := filterValue < dataValue;
+    frMoreThan:   Result := filterValue > dataValue;
+    frBeginsWith: Result := DateTimeToStr(dataValue).StartsWith(value);
+    frEndsWith:   Result := DateTimeToStr(dataValue).EndsWith(value);
+    frContains:   Result := DateTimeToStr(dataValue).Contains(value);
+    frExcludes:   Result := not DateTimeToStr(dataValue).Contains(value);
+  end;
+end;
+
 function TMMColumn_Time.DoRender(data: TMsgMonMessage): string;
 begin
   Result := FormatDateTime('yyyy-mm-dd hh:nn:ss', GetData(data));
@@ -688,6 +770,45 @@ end;
 function TMMColumn_Window.DoCompare(d1, d2: TMsgMonMessage): Integer;
 begin
   Result := Integer(GetData(d1)) - Integer(GetData(d2));
+end;
+
+function TMMColumn_Window.DoFilter(data: TMsgMonMessage;
+  relation: TMMFilterRelation; const value: string): Boolean;
+var
+  ws: TMsgMonWindows;
+  w: TMsgMonWindow;
+  dataValue: string;
+  filterValueInt: Integer;
+  dataValueInt: Cardinal;
+begin
+  dataValueInt := GetData(data);
+  dataValue := DoRender(data); // TODO we could be nuanced here
+  if TryStrToInt(value, filterValueInt) then
+  begin
+    case relation of
+      frIs:         Result := filterValueInt = dataValueInt;
+      frIsNot:      Result := filterValueInt <> dataValueInt;
+      frLessThan:   Result := filterValueInt < dataValueInt;
+      frMoreThan:   Result := filterValueInt > dataValueInt;
+      frBeginsWith: Result := IntToStr(dataValueInt).StartsWith(value);
+      frEndsWith:   Result := IntToStr(dataValueInt).EndsWith(value);
+      frContains:   Result := IntToStr(dataValueInt).Contains(value);
+      frExcludes:   Result := not IntToStr(dataValueInt).Contains(value);
+    end;
+  end
+  else
+  begin
+    case relation of
+      frIs:         Result := SameText(value, dataValue);
+      frIsNot:      Result := not SameText(value, dataValue);
+      frLessThan:   Result := CompareText(value, dataValue) < 0;
+      frMoreThan:   Result := CompareText(value, dataValue) > 0;
+      frBeginsWith: Result := dataValue.StartsWith(value, True); // not strictly same as CompareText but good enough
+      frEndsWith:   Result := dataValue.EndsWith(value, True); // not strictly same as CompareText but good enough
+      frContains:   Result := ContainsText(dataValue, value);
+      frExcludes:   Result := not ContainsText(dataValue, value);
+    end;
+  end;
 end;
 
 function TMMColumn_Window.DoRender(data: TMsgMonMessage): string;

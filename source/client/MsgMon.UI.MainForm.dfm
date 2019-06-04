@@ -1,7 +1,7 @@
-object Form1: TForm1
+object MMMainForm: TMMMainForm
   Left = 0
   Top = 0
-  Caption = 'Message Monitor (x86)'
+  Caption = 'Message Monitor'
   ClientHeight = 299
   ClientWidth = 635
   Color = clBtnFace
@@ -10,6 +10,7 @@ object Form1: TForm1
   Font.Height = -11
   Font.Name = 'Tahoma'
   Font.Style = []
+  Menu = menu
   OldCreateOrder = False
   OnCreate = FormCreate
   OnDestroy = FormDestroy
@@ -25,46 +26,45 @@ object Form1: TForm1
       item
         Control = cmdStartStopTrace
         ImageIndex = -1
-        Width = 103
+        Width = 107
       end
       item
         Break = False
         Control = cmdClear
         ImageIndex = -1
-        Width = 83
+        Width = 89
       end
       item
         Break = False
         Control = cmdFlushLibraries
         ImageIndex = -1
-        Width = 75
+        Width = 81
       end
       item
         Break = False
         ImageIndex = -1
-        Width = 356
+        Width = 340
       end>
     object cmdStartStopTrace: TButton
       Left = 11
       Top = 0
-      Width = 90
+      Width = 94
       Height = 25
       Caption = '&Start Trace'
       TabOrder = 0
-      OnClick = cmdStartStopTraceClick
     end
     object cmdClear: TButton
-      Left = 118
+      Left = 122
       Top = 0
-      Width = 70
+      Width = 76
       Height = 25
       Caption = '&Clear'
       TabOrder = 1
     end
     object cmdFlushLibraries: TButton
-      Left = 205
+      Left = 215
       Top = 0
-      Width = 62
+      Width = 68
       Height = 25
       Caption = 'Flush libs'
       TabOrder = 2
@@ -114,5 +114,121 @@ object Form1: TForm1
     Width = 635
     Height = 19
     Panels = <>
+  end
+  object menu: TMainMenu
+    Left = 312
+    Top = 152
+    object mnuFile: TMenuItem
+      Caption = '&File'
+      object mnuFileOpen: TMenuItem
+        Caption = '&Open...'
+        Enabled = False
+        ShortCut = 16463
+        OnClick = mnuFileOpenClick
+      end
+      object mnuFileSave: TMenuItem
+        Caption = '&Save...'
+        Enabled = False
+        ShortCut = 16467
+      end
+      object N1: TMenuItem
+        Caption = '-'
+      end
+      object mnuFileCaptureEvents: TMenuItem
+        Caption = '&Capture Events'
+        ShortCut = 16453
+        OnClick = mnuFileCaptureEventsClick
+      end
+      object N2: TMenuItem
+        Caption = '-'
+      end
+      object mnuFileExit: TMenuItem
+        Caption = 'E&xit'
+        OnClick = mnuFileExitClick
+      end
+    end
+    object mnuEdit: TMenuItem
+      Caption = '&Edit'
+      object mnuEditCopy: TMenuItem
+        Caption = '&Copy'
+        Enabled = False
+        ShortCut = 16451
+      end
+      object mnuEditFind: TMenuItem
+        Caption = '&Find...'
+        Enabled = False
+        ShortCut = 16454
+      end
+      object mnuEditFindHighlight: TMenuItem
+        Caption = 'Find &Highlight'
+        Enabled = False
+        ShortCut = 115
+      end
+      object mnuEditFindBookmark: TMenuItem
+        Caption = 'Find &Bookmark'
+        Enabled = False
+        ShortCut = 117
+      end
+      object N3: TMenuItem
+        Caption = '-'
+      end
+      object mnuEditAutoScroll: TMenuItem
+        Caption = '&Auto Scroll'
+        Enabled = False
+        ShortCut = 16449
+      end
+      object N4: TMenuItem
+        Caption = '-'
+      end
+      object mnuEditClearDisplay: TMenuItem
+        Caption = 'C&lear Display'
+        ShortCut = 16472
+        OnClick = mnuEditClearDisplayClick
+      end
+    end
+    object mnuMessage: TMenuItem
+      Caption = '&Message'
+      Enabled = False
+    end
+    object mnuFilter: TMenuItem
+      Caption = 'Fi&lter'
+      object mnuFilterFilter: TMenuItem
+        Caption = '&Filter...'
+        ShortCut = 16460
+        OnClick = mnuFilterFilterClick
+      end
+      object mnuFilterResetFilter: TMenuItem
+        Caption = 'Reset Filter'
+        ShortCut = 16466
+      end
+      object mnuFilterLoad: TMenuItem
+        Caption = 'Load Filter'
+      end
+      object mnuFilterSave: TMenuItem
+        Caption = 'Save Filter...'
+      end
+      object mnuFilterOrganize: TMenuItem
+        Caption = 'Organize Filters...'
+      end
+      object N5: TMenuItem
+        Caption = '-'
+      end
+      object mnuFilterDropFilteredEvents: TMenuItem
+        Caption = 'Drop Filtered Events'
+      end
+      object N6: TMenuItem
+        Caption = '-'
+      end
+      object mnuFilterHighlight: TMenuItem
+        Caption = 'Highlight...'
+        ShortCut = 16456
+      end
+    end
+    object mnuHelp: TMenuItem
+      Caption = '&Help'
+      object mnuHelpAbout: TMenuItem
+        Caption = '&About...'
+      end
+    end
   end
 end

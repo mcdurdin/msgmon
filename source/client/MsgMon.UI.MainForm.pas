@@ -10,29 +10,65 @@ uses
 
   MsgMon.System.Data.Column,
   MsgMon.System.Data.Context,
+  MsgMon.System.Data.Filter,
   MsgMon.System.Data.Message,
   MsgMon.System.Data.MessageName,
   MsgMon.System.Data.Process,
-  MsgMon.System.Data.Window;
+  MsgMon.System.Data.Window, Vcl.Menus;
 
 type
-  TForm1 = class(TForm)
+  TMMMainForm = class(TForm)
     CoolBar1: TCoolBar;
     cmdStartStopTrace: TButton;
     cmdClear: TButton;
     lvMessages: TListView;
     statusBar: TStatusBar;
     cmdFlushLibraries: TButton;
+    menu: TMainMenu;
+    mnuFile: TMenuItem;
+    mnuFileExit: TMenuItem;
+    mnuFileOpen: TMenuItem;
+    mnuFileSave: TMenuItem;
+    N1: TMenuItem;
+    mnuFileCaptureEvents: TMenuItem;
+    N2: TMenuItem;
+    mnuEdit: TMenuItem;
+    mnuEditCopy: TMenuItem;
+    mnuEditFind: TMenuItem;
+    mnuEditFindHighlight: TMenuItem;
+    mnuEditFindBookmark: TMenuItem;
+    N3: TMenuItem;
+    mnuEditAutoScroll: TMenuItem;
+    N4: TMenuItem;
+    mnuEditClearDisplay: TMenuItem;
+    mnuMessage: TMenuItem;
+    mnuFilter: TMenuItem;
+    mnuFilterFilter: TMenuItem;
+    mnuFilterResetFilter: TMenuItem;
+    mnuFilterLoad: TMenuItem;
+    mnuFilterSave: TMenuItem;
+    mnuFilterOrganize: TMenuItem;
+    N5: TMenuItem;
+    mnuFilterDropFilteredEvents: TMenuItem;
+    N6: TMenuItem;
+    mnuFilterHighlight: TMenuItem;
+    mnuHelp: TMenuItem;
+    mnuHelpAbout: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
-    procedure cmdStartStopTraceClick(Sender: TObject);
     procedure lvMessagesData(Sender: TObject; Item: TListItem);
     procedure cmdFlushLibrariesClick(Sender: TObject);
+    procedure mnuFileExitClick(Sender: TObject);
+    procedure mnuFileOpenClick(Sender: TObject);
+    procedure mnuFileCaptureEventsClick(Sender: TObject);
+    procedure mnuEditClearDisplayClick(Sender: TObject);
+    procedure mnuFilterFilterClick(Sender: TObject);
   private
     doc: IXMLDOMDocument3;
-    messages: TMsgMonMessages;
+
     context: TMsgMonContext;
-    columns: TMMColumns;
+    displayColumns: TMMColumns;
+    filters: TMMFilters;
 
     x64Thread: Cardinal;
 
@@ -49,6 +85,7 @@ type
     procedure BeginLogProcesses;
     procedure EndLogProcesses;
     procedure PrepareView;
+    procedure ApplyFilter;
 
     // Trace consumer
     { Private declarations }
@@ -57,7 +94,7 @@ type
   end;
 
 var
-  Form1: TForm1;
+  MMMainForm: TMMMainForm;
 
 
 const
@@ -75,6 +112,7 @@ implementation
 uses
   Winapi.ActiveX,
   Winapi.Tlhelp32,
+  MsgMon.UI.FilterForm,
   MsgMon.System.ExecProcess;
 
 const
@@ -123,18 +161,12 @@ const
 
   MsgMonProviderGuid: TGUID = '{082E6CC6-239C-4B96-9475-159AA241B4AB}';
 
-procedure TForm1.cmdFlushLibrariesClick(Sender: TObject);
+procedure TMMMainForm.cmdFlushLibrariesClick(Sender: TObject);
 begin
   FlushLibrary;
 end;
 
-procedure TForm1.cmdStartStopTraceClick(Sender: TObject);
-begin
-  FTracing := not FTracing;
-  EnableDisableTrace;
-end;
-
-procedure TForm1.BeginLogProcesses;
+procedure TMMMainForm.BeginLogProcesses;
 {$IFDEF RUNX64}
 var
   app: string;
@@ -162,7 +194,7 @@ begin
   BeginLog;
 end;
 
-procedure TForm1.EndLogProcesses;
+procedure TMMMainForm.EndLogProcesses;
 var
   h: THandle;
 begin
@@ -178,11 +210,13 @@ begin
   FlushLibrary;
 end;
 
-procedure TForm1.EnableDisableTrace;
+procedure TMMMainForm.EnableDisableTrace;
 var
   params: TENABLE_TRACE_PARAMETERS;
   status: ULONG;
 begin
+  mnuFileCaptureEvents.Checked := FTracing;
+
   if FTracing then
   begin
     BeginLogProcesses;
@@ -234,17 +268,17 @@ begin
   end;
 end;
 
-procedure TForm1.FormCreate(Sender: TObject);
+procedure TMMMainForm.FormCreate(Sender: TObject);
 begin
   CoInitializeEx(nil, COINIT_APARTMENTTHREADED);
 
   context := TMsgMonContext.Create;
-  messages := TMsgMonMessages.Create;
-  columns := TMMColumns.Create(context);
+  filters := TMMFilters.Create(context);
+  displayColumns := TMMColumns.Create(context);
 
   if FileExists(LOGSESSION_COLUMNS_FILENAME)
-    then columns.LoadFromFile(LOGSESSION_COLUMNS_FILENAME)
-    else columns.LoadDefaultView;
+    then displayColumns.LoadFromFile(LOGSESSION_COLUMNS_FILENAME)
+    else displayColumns.LoadDefaultView;
 //  LoadColumns;
   // Load last session
 
@@ -253,7 +287,7 @@ begin
   LoadData;
 end;
 
-procedure TForm1.FormDestroy(Sender: TObject);
+procedure TMMMainForm.FormDestroy(Sender: TObject);
 begin
   if FTracing then
   begin
@@ -264,7 +298,7 @@ begin
   CoUninitialize;
 end;
 
-procedure TForm1.FlushLibrary;
+procedure TMMMainForm.FlushLibrary;
 var
   h: THandle;
   te: TThreadEntry32;
@@ -304,14 +338,13 @@ end;
 
 { Grid control and display }
 
-procedure TForm1.PrepareView;
+procedure TMMMainForm.PrepareView;
 var
-  i: Integer;
   c: TMMColumn;
   lvc: TListColumn;
 begin
   lvMessages.Columns.Clear;
-  for c in columns do
+  for c in displayColumns do
   begin
     lvc := lvMessages.Columns.Add;
     lvc.Caption := c.Caption;
@@ -319,26 +352,69 @@ begin
   end;
 end;
 
-procedure TForm1.lvMessagesData(Sender: TObject; Item: TListItem);
+procedure TMMMainForm.lvMessagesData(Sender: TObject; Item: TListItem);
 var
   m: TMsgMonMessage;
-  ws: TMsgMonWindows;
-  w: TMsgMonWindow;
-  s: string;
-  ps: TMsgMonProcesses;
-  p: TMsgMonProcess;
-  mn: TMsgMonMessageName;
   i: Integer;
 begin
-  m := messages[Item.Index];
-  m.Fill(context);
+  m := context.FilteredMessages[Item.Index];
+  m.Fill(context.Processes, context.Windows, context.MessageNames);
 
-  if columns.Count = 0 then
+  if displayColumns.Count = 0 then
     Exit;
 
-  Item.Caption := columns[0].Render(m);
-  for i := 1 to columns.Count - 1 do
-    Item.SubItems.Add(columns[i].Render(m));
+  Item.Caption := displayColumns[0].Render(m);
+  for i := 1 to displayColumns.Count - 1 do
+    Item.SubItems.Add(displayColumns[i].Render(m));
+end;
+
+procedure TMMMainForm.mnuEditClearDisplayClick(Sender: TObject);
+begin
+  context.Clear;
+  ApplyFilter;
+  // context.MessageNames.Clear;
+end;
+
+procedure TMMMainForm.mnuFileCaptureEventsClick(Sender: TObject);
+begin
+  FTracing := not FTracing;
+  EnableDisableTrace;
+end;
+
+procedure TMMMainForm.mnuFileExitClick(Sender: TObject);
+begin
+  Close;
+end;
+
+procedure TMMMainForm.mnuFileOpenClick(Sender: TObject);
+begin
+//  if dlgOpen.Execute then
+//  begin
+//    LoadData(dlgOpen.Filename);
+//  end;
+end;
+
+procedure TMMMainForm.ApplyFilter;
+begin
+  // We need to ensure that we have the data complete
+  filters.Apply;  // applies to current context
+
+  lvMessages.Items.Count := context.FilteredMessages.Count;
+  lvMessages.Invalidate;
+  // For each record, build a new index :)
+end;
+
+procedure TMMMainForm.mnuFilterFilterClick(Sender: TObject);
+begin
+  with TMMFilterForm.Create(Self, Context, Filters) do
+  try
+    if ShowModal = mrOk then
+    begin
+      ApplyFilter;
+    end;
+  finally
+    Free;
+  end;
 end;
 
 function StringBufferSize(const s: string): Integer;
@@ -346,7 +422,7 @@ begin
   Result := (Length(s) + 1) * sizeof(WCHAR);
 end;
 
-procedure TForm1.Controller_StartTrace;
+procedure TMMMainForm.Controller_StartTrace;
 var
   BufferSize: ULONG;
   status: ULONG;
@@ -393,7 +469,7 @@ begin
     RaiseLastOSError;}
 end;
 
-procedure TForm1.Controller_StopTrace;
+procedure TMMMainForm.Controller_StopTrace;
 var
   status: ULONG;
 begin
@@ -425,7 +501,7 @@ begin
     RaiseLastOSError;}
 end;
 
-procedure TForm1.PrepData;
+procedure TMMMainForm.PrepData;
 begin
   if FileExists(LOGSESSION_XML_FILENAME) then
     DeleteFile(LOGSESSION_XML_FILENAME);
@@ -441,7 +517,7 @@ begin
   Result := p.selectSingleNode('./*[local-name() = '''+name+''']');
 end;
 
-procedure TForm1.LoadData;
+procedure TMMMainForm.LoadData;
 var
   events: IXMLDOMNodeList;// XMLNodeList;
   m: TMsgMonMessage;
@@ -457,59 +533,19 @@ begin
   if not FileExists(LOGSESSION_XML_FILENAME) then
     Exit;
 
-(*
-  r := CreateXmlFileReader(LOGSESSION_XML_FILENAME);
-  while r.Read(nodeType) = S_OK do
-  begin
-    if nodeType = XmlNodeType_Element then
-    begin
-      r.GetLocalName(LocalName, LocalNameLen);
-      if state = '' then
-      begin
-        if LocalName = 'Event' then
-        begin
-          state := 'Event';
-        end;
-      end
-      else if state = 'Event' then
-      begin
-        if LocalName = 'System' then
-        begin
-          state := 'System';
-        end;
-      end
-      else if state = 'System' then
-      begin
-        if LocalName = 'Provider' then
-        begin
+  context.Clear;
 
-        end;
-      end;
-    end
-    else if nodeType = XmlNodeType_EndElement then
-    begin
-      if state = 'Event' then
-        state := '';
-  end;
-*)
-  // Load the XML data
   doc := CoDOMDocument60.Create;
-//  doc.
-//  doc.namespaces.add();
   doc.load(LOGSESSION_XML_FILENAME);
-//  for i := 0 to doc.namespaces.length - 1 do
-//    showmessage(doc.namespaces.));
-//  doc :=  LoadXMLDocument(LOGSESSION_XML_FILENAME);
   events := doc.DocumentElement.ChildNodes;
   event := events.nextNode;
-  messages.Clear;
+  context.messages.Clear;
   while event <> nil do
   begin
     try
-//      event.childNodes.
       system := selectNode(event, 'System');
       if not Assigned(system) then Continue;
-      provider := selectNode(system, 'Provider');// ChildNodes.FindNode('Provider');
+      provider := selectNode(system, 'Provider');
       if not Assigned(provider) then Continue;
       nameAttr := provider.attributes.getNamedItem('Name');
       if not Assigned(nameAttr) then Continue;
@@ -525,12 +561,12 @@ begin
       if eventID = '1' then
       begin
         stack := selectNode(system, 'Stack');
-        m := TMsgMonMessage.Create(messages.Count, eventData, stack);
-        messages.Add(m);
+        m := TMsgMonMessage.Create(context.messages.Count, eventData, stack);
+        context.messages.Add(m);
       end
       else if eventID = '2' then
       begin
-        w := TMsgMonWindow.Create(eventData, messages.Count);
+        w := TMsgMonWindow.Create(eventData, context.messages.Count);
         if not context.windows.TryGetValue(w.hwnd, ws) then
         begin
           ws := TMsgMonWindows.Create;
@@ -540,7 +576,7 @@ begin
       end
       else if eventID = '3' then
       begin
-        p := TMsgMonProcess.Create(eventData, messages.Count);
+        p := TMsgMonProcess.Create(eventData, context.messages.Count);
         if not context.processes.TryGetValue(p.pid, ps) then
         begin
           ps := TMsgMonProcesses.Create;
@@ -553,8 +589,7 @@ begin
     end;
   end;
 
-  lvMessages.Items.Count := messages.Count;
-  lvMessages.Invalidate;
+  ApplyFilter;
 end;
 
 end.

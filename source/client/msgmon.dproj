@@ -145,7 +145,7 @@
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
         <DCCReference Include="MsgMon.UI.MainForm.pas">
-            <Form>Form1</Form>
+            <Form>MMMainForm</Form>
             <FormType>dfm</FormType>
         </DCCReference>
         <DCCReference Include="MsgMon.System.ExecProcess.pas"/>
@@ -155,6 +155,11 @@
         <DCCReference Include="MsgMon.System.Data.MessageName.pas"/>
         <DCCReference Include="MsgMon.System.Data.Column.pas"/>
         <DCCReference Include="MsgMon.System.Data.Context.pas"/>
+        <DCCReference Include="MsgMon.UI.FilterForm.pas">
+            <Form>MMFilterForm</Form>
+            <FormType>dfm</FormType>
+        </DCCReference>
+        <DCCReference Include="MsgMon.System.Data.Filter.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>

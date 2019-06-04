@@ -23,6 +23,7 @@ type
     procedure AddDefault(id: Integer; const name: string; const scope: TMessageNameScope);
   public
     constructor Create;
+    procedure FillDefault;
   end;
 
 implementation
@@ -56,6 +57,11 @@ end;
 constructor TMsgMonMessageNameDictionary.Create;
 begin
   inherited Create;
+  FillDefault;
+end;
+
+procedure TMsgMonMessageNameDictionary.FillDefault;
+begin
   AddDefault(WM_NULL, 'WM_NULL', mnsGlobal);
   AddDefault(WM_CREATE, 'WM_CREATE', mnsGlobal);
   AddDefault(WM_DESTROY, 'WM_DESTROY', mnsGlobal);
