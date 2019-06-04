@@ -2,8 +2,8 @@ object MMMainForm: TMMMainForm
   Left = 0
   Top = 0
   Caption = 'Message Monitor'
-  ClientHeight = 299
-  ClientWidth = 635
+  ClientHeight = 357
+  ClientWidth = 701
   Color = clBtnFace
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
@@ -17,59 +17,70 @@ object MMMainForm: TMMMainForm
   OnResize = FormResize
   OnShow = FormShow
   DesignSize = (
-    635
-    299)
+    701
+    357)
   PixelsPerInch = 96
   TextHeight = 13
+  object splitterDetail: TSplitter
+    Left = 0
+    Top = 181
+    Width = 701
+    Height = 3
+    Cursor = crVSplit
+    Align = alBottom
+    ExplicitTop = 6
+    ExplicitWidth = 633
+  end
   object CoolBar1: TCoolBar
     Left = 0
     Top = 0
-    Width = 635
+    Width = 701
     Height = 29
     AutoSize = True
     Bands = <
       item
         Control = cmdStartStopTrace
         ImageIndex = -1
-        Width = 181
+        Width = 186
       end
       item
         Break = False
         Control = cmdClear
         ImageIndex = -1
-        Width = 107
+        Width = 113
       end
       item
         Break = False
         Control = cmdFlushLibraries
         ImageIndex = -1
-        Width = 105
+        Width = 111
       end
       item
         Break = False
         ImageIndex = -1
-        Width = 224
+        Width = 273
       end>
+    ExplicitWidth = 635
     object cmdStartStopTrace: TButton
       Left = 11
       Top = 0
-      Width = 168
+      Width = 173
       Height = 25
       Caption = '&Start Trace'
       TabOrder = 0
     end
     object cmdClear: TButton
-      Left = 196
+      Left = 201
       Top = 0
-      Width = 94
+      Width = 100
       Height = 25
       Caption = '&Clear'
       TabOrder = 1
     end
     object cmdFlushLibraries: TButton
-      Left = 307
+      Left = 318
       Top = 0
-      Width = 92
+      Width = 98
       Height = 25
       Caption = 'Flush libs'
       TabOrder = 2
@@ -79,42 +90,137 @@ object MMMainForm: TMMMainForm
   object lvMessages: TListView
     Left = 0
     Top = 29
-    Width = 635
-    Height = 251
+    Width = 701
+    Height = 152
     Align = alClient
     Columns = <>
     GridLines = True
     OwnerData = True
     ReadOnly = True
     RowSelect = True
+    PopupMenu = mnuItem
     TabOrder = 1
     ViewStyle = vsReport
     OnData = lvMessagesData
+    OnSelectItem = lvMessagesSelectItem
+    ExplicitWidth = 635
+    ExplicitHeight = 251
   end
   object statusBar: TStatusBar
     Left = 0
-    Top = 280
-    Width = 635
+    Top = 338
+    Width = 701
     Height = 19
     Panels = <
       item
         Width = 250
       end>
+    ExplicitTop = 280
+    ExplicitWidth = 635
   end
   object progress: TProgressBar
     Left = 309
-    Top = 282
-    Width = 277
+    Top = 340
+    Width = 343
     Height = 16
     Anchors = [akLeft, akRight, akBottom]
     TabOrder = 3
     Visible = False
+    ExplicitTop = 282
+    ExplicitWidth = 277
+  end
+  object panDetail: TPanel
+    Left = 0
+    Top = 184
+    Width = 701
+    Height = 154
+    Align = alBottom
+    BevelOuter = bvNone
+    TabOrder = 4
+    object PageControl1: TPageControl
+      Left = 0
+      Top = 0
+      Width = 701
+      Height = 154
+      ActivePage = tabMessageDetail
+      Align = alClient
+      TabOrder = 0
+      object tabMessageDetail: TTabSheet
+        Caption = 'Message Details'
+        ExplicitLeft = 8
+        DesignSize = (
+          693
+          126)
+        object lblParentWindow: TLabel
+          Left = 13
+          Top = 16
+          Width = 71
+          Height = 13
+          Caption = 'Parent window'
+        end
+        object lblOwnerWindow: TLabel
+          Left = 13
+          Top = 43
+          Width = 71
+          Height = 13
+          Caption = 'Owner window'
+        end
+        object lblMessageDetail: TLabel
+          Left = 242
+          Top = 5
+          Width = 71
+          Height = 13
+          Caption = 'Message detail'
+        end
+        object editParentWindow: TEdit
+          Left = 90
+          Top = 13
+          Width = 135
+          Height = 21
+          ReadOnly = True
+          TabOrder = 0
+        end
+        object editOwnerWindow: TEdit
+          Left = 90
+          Top = 40
+          Width = 135
+          Height = 21
+          ReadOnly = True
+          TabOrder = 1
+        end
+        object memoMessageDetail: TMemo
+          Left = 242
+          Top = 24
+          Width = 448
+          Height = 99
+          Anchors = [akLeft, akTop, akRight, akBottom]
+          ReadOnly = True
+          TabOrder = 2
+        end
+      end
+      object TabSheet2: TTabSheet
+        Caption = 'Call Stack'
+        ImageIndex = 1
+        DesignSize = (
+          693
+          126)
+        object memoCallStack: TMemo
+          Left = 0
+          Top = 0
+          Width = 693
+          Height = 126
+          Anchors = [akLeft, akTop, akRight, akBottom]
+          TabOrder = 0
+        end
+      end
+    end
   end
   object menu: TMainMenu
-    Left = 312
-    Top = 152
+    Left = 112
+    Top = 104
     object mnuFile: TMenuItem
       Caption = '&File'
+      OnClick = mnuFileClick
       object mnuFileOpen: TMenuItem
         Caption = '&Open...'
         Enabled = False
@@ -183,7 +289,11 @@ object MMMainForm: TMMMainForm
     end
     object mnuMessage: TMenuItem
       Caption = '&Message'
-      Enabled = False
+      OnClick = mnuMessageClick
+      object mnuMessageViewDetailPane: TMenuItem
+        Caption = 'View &Detail Pane'
+        OnClick = mnuMessageViewDetailPaneClick
+      end
     end
     object mnuFilter: TMenuItem
       Caption = 'Fi&lter'
@@ -231,6 +341,30 @@ object MMMainForm: TMMMainForm
         Caption = '&About...'
         OnClick = mnuHelpAboutClick
       end
+    end
+  end
+  object mnuItem: TPopupMenu
+    OnPopup = mnuItemPopup
+    Left = 40
+    Top = 112
+    object mnuPopupFilterInclude: TMenuItem
+      Caption = '&Include '#39'<>'#39
+      OnClick = mnuPopupFilterIncludeClick
+    end
+    object mnuPopupFilterExclude: TMenuItem
+      Caption = 'E&xclude '#39'<>'#39
+      OnClick = mnuPopupFilterExcludeClick
+    end
+    object mnuPopupCopy: TMenuItem
+      Caption = '&Copy '#39'<>'#39
+      OnClick = mnuPopupCopyClick
+    end
+    object N7: TMenuItem
+      Caption = '-'
+    end
+    object mnuPopupFilterEdit: TMenuItem
+      Caption = 'Edit Filter '#39'<>'#39'...'
+      OnClick = mnuPopupFilterEditClick
     end
   end
 end

@@ -841,10 +841,7 @@ begin
 
   if Assigned(w) then
   begin
-    Result := w.ClassName;
-
-    if w.RealClassName <> w.ClassName
-      then Result := Result + ' ('+w.RealClassName+')';
+    Result := w.Render(False);
   end
   else
     Result := IntToStr(hwnd);

@@ -16,7 +16,8 @@ uses
   MsgMon.System.Data.Process,
   MsgMon.System.Data.Session,
   MsgMon.System.Data.Window,
-  Vcl.Menus;
+  Vcl.Menus, Vcl.ExtCtrls, Vcl.ActnMenus, System.Actions, Vcl.ActnList,
+  Vcl.StdActns, Vcl.PlatformDefaultStyleActnCtrls, Vcl.ActnMan, Vcl.ActnCtrls;
 
 type
   TMMMainForm = class(TForm)
@@ -57,6 +58,25 @@ type
     mnuHelp: TMenuItem;
     mnuHelpAbout: TMenuItem;
     progress: TProgressBar;
+    panDetail: TPanel;
+    splitterDetail: TSplitter;
+    mnuMessageViewDetailPane: TMenuItem;
+    PageControl1: TPageControl;
+    tabMessageDetail: TTabSheet;
+    editParentWindow: TEdit;
+    lblParentWindow: TLabel;
+    editOwnerWindow: TEdit;
+    lblOwnerWindow: TLabel;
+    lblMessageDetail: TLabel;
+    memoMessageDetail: TMemo;
+    TabSheet2: TTabSheet;
+    memoCallStack: TMemo;
+    mnuItem: TPopupMenu;
+    mnuPopupFilterInclude: TMenuItem;
+    mnuPopupFilterExclude: TMenuItem;
+    N7: TMenuItem;
+    mnuPopupFilterEdit: TMenuItem;
+    mnuPopupCopy: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure lvMessagesData(Sender: TObject; Item: TListItem);
@@ -70,6 +90,16 @@ type
     procedure mnuHelpAboutClick(Sender: TObject);
     procedure mnuFilterResetFilterClick(Sender: TObject);
     procedure FormShow(Sender: TObject);
+    procedure mnuMessageClick(Sender: TObject);
+    procedure mnuFileClick(Sender: TObject);
+    procedure mnuMessageViewDetailPaneClick(Sender: TObject);
+    procedure lvMessagesSelectItem(Sender: TObject; Item: TListItem;
+      Selected: Boolean);
+    procedure mnuPopupFilterIncludeClick(Sender: TObject);
+    procedure mnuPopupFilterExcludeClick(Sender: TObject);
+    procedure mnuPopupCopyClick(Sender: TObject);
+    procedure mnuPopupFilterEditClick(Sender: TObject);
+    procedure mnuItemPopup(Sender: TObject);
   private
     doc: IXMLDOMDocument3;
 
@@ -82,6 +112,8 @@ type
     FTracing: Boolean;
     FSessionHandle: TRACEHANDLE;
     pSessionProperties: PEVENT_TRACE_PROPERTIES;
+    PopupContextText: string;
+    PopupContextCol: Integer;
     procedure Controller_StartTrace;
     procedure Controller_StopTrace;
     procedure EnableDisableTrace;
@@ -93,6 +125,8 @@ type
     procedure PrepareView;
     procedure ApplyFilter;
     procedure WMUser(var Message: TMessage); message WM_USER;
+    procedure UpdateMessageDetail(data: TMMMessage);
+    function CreateFilterFromPopup: TMMFilter;
   end;
 
 var
@@ -112,6 +146,7 @@ implementation
 {$R *.dfm}
 
 uses
+  Vcl.Clipbrd,
   Winapi.ActiveX,
   Winapi.Tlhelp32,
   MsgMon.UI.FilterForm,
@@ -217,8 +252,6 @@ var
   params: TENABLE_TRACE_PARAMETERS;
   status: ULONG;
 begin
-  mnuFileCaptureEvents.Checked := FTracing;
-
   if FTracing then
   begin
     BeginLogProcesses;
@@ -386,6 +419,9 @@ var
   m: TMMMessage;
   i: Integer;
 begin
+  if (Item.Index < 0) or (Item.Index >= context.FilteredMessages.Count) then
+    Exit;
+
   m := context.FilteredMessages[Item.Index];
   m.Fill(context.Processes, context.Windows, context.MessageNames);
 
@@ -395,6 +431,53 @@ begin
   Item.Caption := session.displayColumns[0].Render(m);
   for i := 1 to session.displayColumns.Count - 1 do
     Item.SubItems.Add(session.displayColumns[i].Render(m));
+end;
+
+procedure TMMMainForm.lvMessagesSelectItem(Sender: TObject; Item: TListItem;
+  Selected: Boolean);
+begin
+  if Assigned(Item) and (Item.Index >= 0) and (Item.Index < context.FilteredMessages.Count)
+    then UpdateMessageDetail(context.FilteredMessages[Item.Index])
+    else UpdateMessageDetail(nil);
+end;
+
+procedure TMMMainForm.UpdateMessageDetail(data: TMMMessage);
+var
+  ws: TMMWindows;
+  owner, parent, w: TMMWindow;
+begin
+  editOwnerWindow.Text := '';
+  editParentWindow.Text := '';
+  memoMessageDetail.Text := '';
+  memoCallStack.Text := '';
+
+  if panDetail.Visible and Assigned(data) then
+  begin
+    owner := nil;
+    w := nil;
+    parent := nil;
+
+    if context.Windows.TryGetValue(data.hwnd, ws) then
+      w := ws.FromBase(data.index);
+
+    if Assigned(w) then
+    begin
+      if (w.hwndOwner <> 0) and context.Windows.TryGetValue(w.hwndOwner, ws) then
+        owner := ws.FromBase(data.index);
+
+      if (w.hwndParent <> 0) and context.Windows.TryGetValue(w.hwndParent, ws) then
+        parent := ws.FromBase(data.index);
+    end;
+
+    if Assigned(owner) then
+      editOwnerWindow.Text := owner.Render(True);
+
+    if Assigned(parent) then
+      editParentWindow.Text := parent.Render(True);
+
+    memoMessageDetail.Text := data.detail;
+    memoCallStack.Text := data.stack;
+  end;
 end;
 
 procedure TMMMainForm.mnuEditClearDisplayClick(Sender: TObject);
@@ -408,6 +491,11 @@ procedure TMMMainForm.mnuFileCaptureEventsClick(Sender: TObject);
 begin
   FTracing := not FTracing;
   EnableDisableTrace;
+end;
+
+procedure TMMMainForm.mnuFileClick(Sender: TObject);
+begin
+  mnuFileCaptureEvents.Checked := FTracing;
 end;
 
 procedure TMMMainForm.mnuFileExitClick(Sender: TObject);
@@ -424,12 +512,33 @@ begin
 end;
 
 procedure TMMMainForm.ApplyFilter;
+var
+  s: TListItem;
+  index: Integer;
+  i: Integer;
 begin
-  session.filters.Apply;  // applies to current context
+  // Remember selected item
+  s := lvMessages.Selected;
+  if Assigned(s) and (s.Index >= 0) and (s.index < context.FilteredMessages.Count)
+    then index := context.FilteredMessages[s.Index].index
+    else index := -1;
 
+  // Apply the filter
+  session.filters.Apply;  // applies to current context
   lvMessages.Items.Count := context.FilteredMessages.Count;
   lvMessages.Invalidate;
 
+  // Select previously selected item or nearest
+  for i := 0 to context.FilteredMessages.Count - 1 do
+  begin
+    if context.FilteredMessages[i].index >= index then
+    begin
+      lvMessages.Selected := lvMessages.Items[i];
+      Break;
+    end;
+  end;
+
+  // Refresh status
   statusBar.Panels[0].Text := 'Showing '+IntToStr(context.FilteredMessages.Count)+' of total '+IntToStr(context.Messages.Count)+' messages';
 end;
 
@@ -455,6 +564,21 @@ end;
 procedure TMMMainForm.mnuHelpAboutClick(Sender: TObject);
 begin
   ShowMessage('Message Monitor v0.1');
+end;
+
+procedure TMMMainForm.mnuMessageClick(Sender: TObject);
+begin
+  mnuMessageViewDetailPane.Checked := panDetail.Visible;
+end;
+
+procedure TMMMainForm.mnuMessageViewDetailPaneClick(Sender: TObject);
+begin
+  panDetail.Visible := not panDetail.Visible;
+  if panDetail.Height < 48 then
+    panDetail.Height := 48;
+  splitterDetail.Visible := panDetail.Visible;
+  panDetail.Top := 0; // Force detail pane above status bar
+  splitterDetail.Top := 0; // Enforce splitter above detail panel
 end;
 
 function StringBufferSize(const s: string): Integer;
@@ -648,6 +772,112 @@ begin
     end;
   end;
 
+  ApplyFilter;
+end;
+
+//
+// Context menu
+//
+
+procedure TMMMainForm.mnuItemPopup(Sender: TObject);
+var
+  pt: TPoint;
+  ht: TListItem;
+  i: Integer;
+  w: Integer;
+begin
+  mnuPopupFilterInclude.Enabled := False;
+  mnuPopupFilterExclude.Enabled := False;
+  mnuPopupCopy.Enabled := False;
+  mnuPopupFilterEdit.Enabled := False;
+  PopupContextText := '';
+
+  pt := lvMessages.ScreenToClient(Mouse.CursorPos);
+  ht := lvMessages.GetItemAt(pt.X, pt.Y);
+  if not Assigned(ht) then
+    Exit;
+
+  PopupContextCol := -1; w := 0;
+  for i := 0 to lvMessages.Columns.Count - 1 do
+  begin
+    w := w + lvMessages.Columns[i].Width;
+    if pt.X < w then
+    begin
+      PopupContextCol := i;
+      Break;
+    end;
+  end;
+
+  if PopupContextCol < 0 then
+    Exit;
+
+  if PopupContextCol = 0 then
+    PopupContextText := ht.Caption
+  else if PopupContextCol - 1 < ht.SubItems.Count then
+    PopupContextText := ht.SubItems[PopupContextCol - 1]
+  else
+    Exit;
+
+  mnuPopupFilterInclude.Caption := '&Include '''+PopupContextText+'''';
+  mnuPopupFilterInclude.Enabled := True;
+  mnuPopupFilterExclude.Caption := 'Ex&clude '''+PopupContextText+'''';
+  mnuPopupFilterExclude.Enabled := True;
+  mnuPopupCopy.Caption := '&Copy '''+PopupContextText+'''';
+  mnuPopupCopy.Enabled := True;
+  mnuPopupFilterEdit.Caption := '&Edit Filter '''+PopupContextText+'''...';
+  mnuPopupFilterEdit.Enabled := True;
+end;
+
+procedure TMMMainForm.mnuPopupCopyClick(Sender: TObject);
+begin
+  Clipboard.AsText := PopupContextText;
+end;
+
+function TMMMainForm.CreateFilterFromPopup: TMMFilter;
+begin
+  Result := TMMFilter.Create;
+  Result.column := session.filters.Columns.FindClassName(session.displayColumns[PopupContextCol].ClassName);
+  Assert(Assigned(Result.column));
+  Result.relation := frIs;
+  Result.value := PopupContextText;
+  Result.action := faInclude;
+end;
+
+procedure TMMMainForm.mnuPopupFilterEditClick(Sender: TObject);
+var
+  f: TMMFilter;
+begin
+  f := CreateFilterFromPopup;
+  with TMMFilterForm.Create(Self, session) do
+  try
+    cbColumn.ItemIndex := cbColumn.Items.IndexOfObject(f.column);
+    cbRelation.ItemIndex := 0; // frIs
+    cbValue.Text := f.value;
+    cbAction.ItemIndex := 0; // faInclude
+    if ShowModal = mrOk then
+      ApplyFilter;
+  finally
+    Free;
+    f.Free;
+  end;
+end;
+
+procedure TMMMainForm.mnuPopupFilterExcludeClick(Sender: TObject);
+var
+  f: TMMFilter;
+begin
+  f := CreateFilterFromPopup;
+  f.action := faExclude;
+  session.filters.Add(f);
+  ApplyFilter;
+end;
+
+procedure TMMMainForm.mnuPopupFilterIncludeClick(Sender: TObject);
+var
+  f: TMMFilter;
+begin
+  f := CreateFilterFromPopup;
+  session.filters.Add(f);
   ApplyFilter;
 end;
 

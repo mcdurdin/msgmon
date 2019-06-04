@@ -15,6 +15,7 @@ type
     hwndOwner, hwndParent: DWORD;
     ClassName, RealClassName: string;
     constructor Create(AEventData: IXMLDOMNode; ABase: Integer);
+    function Render(IncludeHandle: Boolean): string;
   end;
 
   TMMWindows = class(TObjectList<TMMWindow>)
@@ -79,6 +80,16 @@ begin
   if Count = 0 then
     Exit(nil);
   Result := Items[0];
+end;
+
+function TMMWindow.Render(IncludeHandle: Boolean): string;
+begin
+  Result := ClassName;
+
+  if IncludeHandle then
+    Result := Result + ' ['+IntToStr(hwnd)+']'
+  else if RealClassName <> ClassName
+    then Result := Result + ' ('+RealClassName+')';
 end;
 
 end.
