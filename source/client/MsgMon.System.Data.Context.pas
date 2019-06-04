@@ -9,7 +9,7 @@ uses
   MsgMon.System.Data.Window;
 
 type
-  TMMContext = class
+  TMMDataContext = class
   private
     FProcesses: TMMProcessDictionary;
     FMessageNames: TMMMessageNameDictionary;
@@ -31,7 +31,7 @@ implementation
 
 { TMsgMonContext }
 
-procedure TMMContext.Clear;
+procedure TMMDataContext.Clear;
 begin
   FFilteredMessages.Clear;
   FMessages.Clear;
@@ -41,7 +41,7 @@ begin
   FWindows.Clear;
 end;
 
-constructor TMMContext.Create;
+constructor TMMDataContext.Create;
 begin
   inherited Create;
   FMessages := TMMMessages.Create;
@@ -51,7 +51,7 @@ begin
   FWindows := TMMWindowDictionary.Create;
 end;
 
-destructor TMMContext.Destroy;
+destructor TMMDataContext.Destroy;
 begin
   FWindows.Free;
   FProcesses.Free;

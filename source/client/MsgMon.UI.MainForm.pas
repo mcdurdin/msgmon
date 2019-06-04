@@ -14,7 +14,9 @@ uses
   MsgMon.System.Data.Message,
   MsgMon.System.Data.MessageName,
   MsgMon.System.Data.Process,
-  MsgMon.System.Data.Window, Vcl.Menus;
+  MsgMon.System.Data.Session,
+  MsgMon.System.Data.Window,
+  Vcl.Menus;
 
 type
   TMMMainForm = class(TForm)
@@ -68,9 +70,9 @@ type
     procedure mnuFilterResetFilterClick(Sender: TObject);
   private
     doc: IXMLDOMDocument3;
-    context: TMMContext;
-    displayColumns: TMMColumns;
-    filters: TMMFilters;
+
+    context: TMMDataContext;
+    session: TMMSession;
 
     x64Thread: Cardinal;
 
@@ -269,14 +271,14 @@ procedure TMMMainForm.FormCreate(Sender: TObject);
 begin
   CoInitializeEx(nil, COINIT_APARTMENTTHREADED);
 
-  context := TMMContext.Create;
-  filters := TMMFilters.Create(context);
-  displayColumns := TMMColumns.Create(context);
+  context := TMMDataContext.Create;
+  session := TMMSession.Create(context);
 
   if FileExists(LOGSESSION_COLUMNS_FILENAME)
-    then displayColumns.LoadFromFile(LOGSESSION_COLUMNS_FILENAME)
-    else displayColumns.LoadDefaultView;
-//  LoadColumns;
+    then session.displayColumns.LoadFromFile(LOGSESSION_COLUMNS_FILENAME)
+    else session.displayColumns.LoadDefaultView;
+
+    //  LoadColumns;
   // Load last session
 
   PrepareView;
@@ -351,11 +353,11 @@ begin
     lvMessages.Columns.Clear;
     ColumnWidths := 0;
 
-    for c in displayColumns do
+    for c in session.displayColumns do
       if c.Width >= 0 then
         ColumnWidths := ColumnWidths + c.Width;
 
-    for c in displayColumns do
+    for c in session.displayColumns do
     begin
       lvc := lvMessages.Columns.Add;
       lvc.Caption := c.Caption;
@@ -376,12 +378,12 @@ begin
   m := context.FilteredMessages[Item.Index];
   m.Fill(context.Processes, context.Windows, context.MessageNames);
 
-  if displayColumns.Count = 0 then
+  if session.displayColumns.Count = 0 then
     Exit;
 
-  Item.Caption := displayColumns[0].Render(m);
-  for i := 1 to displayColumns.Count - 1 do
-    Item.SubItems.Add(displayColumns[i].Render(m));
+  Item.Caption := session.displayColumns[0].Render(m);
+  for i := 1 to session.displayColumns.Count - 1 do
+    Item.SubItems.Add(session.displayColumns[i].Render(m));
 end;
 
 procedure TMMMainForm.mnuEditClearDisplayClick(Sender: TObject);
@@ -412,7 +414,7 @@ end;
 
 procedure TMMMainForm.ApplyFilter;
 begin
-  filters.Apply;  // applies to current context
+  session.filters.Apply;  // applies to current context
 
   lvMessages.Items.Count := context.FilteredMessages.Count;
   lvMessages.Invalidate;
@@ -422,7 +424,7 @@ end;
 
 procedure TMMMainForm.mnuFilterFilterClick(Sender: TObject);
 begin
-  with TMMFilterForm.Create(Self, Context, Filters) do
+  with TMMFilterForm.Create(Self, Session) do
   try
     if ShowModal = mrOk then
     begin
@@ -435,7 +437,7 @@ end;
 
 procedure TMMMainForm.mnuFilterResetFilterClick(Sender: TObject);
 begin
-  filters.Clear;
+  session.filters.Clear;
   ApplyFilter;
 end;
 

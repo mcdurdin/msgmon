@@ -7,8 +7,8 @@ uses
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ComCtrls, Vcl.StdCtrls,
 
   MsgMon.System.Data.Column,
-  MsgMon.System.Data.Context,
-  MsgMon.System.Data.Filter;
+  MsgMon.System.Data.Filter,
+  MsgMon.System.Data.Session;
 
 type
   TMMFilterForm = class(TForm)
@@ -29,11 +29,10 @@ type
     procedure cmdAddClick(Sender: TObject);
     procedure cmdRemoveClick(Sender: TObject);
   private
-    FContext: TMMContext;
     FFilters: TMMFilters;
     procedure FillFilterView;
   public
-    constructor Create(AOwner: TComponent; AContext: TMMContext; AFilters: TMMFilters); reintroduce;
+    constructor Create(AOwner: TComponent; ASession: TMMSession); reintroduce;
   end;
 
 implementation
@@ -77,17 +76,14 @@ begin
   FillFilterView;
 end;
 
-constructor TMMFilterForm.Create(AOwner: TComponent; AContext: TMMContext;
-  AFilters: TMMFilters);
+constructor TMMFilterForm.Create(AOwner: TComponent; ASession: TMMSession);
 var
-  cols: TMMColumns;
   c: TMMColumn;
   r: TMMFilterRelation;
   a: TMMFilterAction;
 begin
   inherited Create(AOwner);
-  FFilters := AFilters;
-  FContext := AContext;
+  FFilters := ASession.filters;
 
   // Prepare lookups
 

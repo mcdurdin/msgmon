@@ -21,7 +21,7 @@ type
   TMMColumn = class
   private
     FWidth: Integer;
-    FContext: TMMContext;
+    FContext: TMMDataContext;
   protected
     function DefaultWidth: Integer; virtual;
     function GetCaption: string; virtual;
@@ -31,7 +31,7 @@ type
     function DoCompare(d1, d2: TMMMessage): Integer; virtual; abstract;
     function DoFilter(data: TMMMessage; relation: TMMFilterRelation; const value: string): Boolean; virtual; abstract;
   public
-    constructor Create(context: TMMContext);
+    constructor Create(context: TMMDataContext);
     function Load(o: TJSONObject): Boolean;
     procedure Save(o: TJSONObject);
     function Render(data: TMMMessage): string;
@@ -43,9 +43,9 @@ type
 
   TMMColumns = class(TObjectList<TMMColumn>)
   private
-    FContext: TMMContext;
+    FContext: TMMDataContext;
   public
-    constructor Create(context: TMMContext);
+    constructor Create(context: TMMDataContext);
     procedure LoadFromFile(const Filename: string);
     procedure SaveToFile(const Filename: string);
     procedure LoadDefaultView;
@@ -251,7 +251,7 @@ begin
   Result := DoCompare(d1, d2);
 end;
 
-constructor TMMColumn.Create(context: TMMContext);
+constructor TMMColumn.Create(context: TMMDataContext);
 begin
   inherited Create;
   FContext := context;
@@ -652,7 +652,7 @@ end;
 
 { TMMColumns }
 
-constructor TMMColumns.Create(context: TMMContext);
+constructor TMMColumns.Create(context: TMMDataContext);
 begin
   inherited Create;
   FContext := context;
