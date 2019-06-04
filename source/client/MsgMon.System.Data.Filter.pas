@@ -4,6 +4,7 @@ interface
 
 uses
   System.Generics.Collections,
+  System.JSON,
 
   MsgMon.System.Data.Column,
   MsgMon.System.Data.Context;
@@ -13,8 +14,7 @@ type
   public
     column: TMMColumn;
     relation: TMMFilterRelation;
-    valueStr: string;
-    valueInt: Integer;
+    value: string;
     action: TMMFilterAction;
   end;
 
@@ -26,6 +26,9 @@ type
     constructor Create(AContext: TMMDataContext);
     destructor Destroy; override;
     procedure Apply;
+    procedure LoadDefault;
+    procedure LoadFromJSON(o: TJSONObject);
+    procedure SaveToJSON(o: TJSONObject);
     property Columns: TMMColumns read FColumns;
   end;
 
@@ -57,7 +60,7 @@ begin
     v := True;
     for f in Self do
     begin
-      v := f.column.Filter(m, f.relation, f.valueStr, f.action);
+      v := f.column.Filter(m, f.relation, f.value, f.action);
       if not v then
         Break;
     end;
@@ -78,6 +81,31 @@ destructor TMMFilters.Destroy;
 begin
   FColumns.Free;
   inherited Destroy;
+end;
+
+procedure TMMFilters.LoadDefault;
+var
+  f: TMMFilter;
+begin
+  // Exclude msgmon by default
+  Clear;
+  f := TMMFilter.Create;
+  f.column := FColumns.FindClassName(TMMColumn_ProcessName.ClassName);
+  Assert(Assigned(f.column));
+  f.relation := frBeginsWith;
+  f.value := 'msgmon';
+  f.action := faExclude;
+  Add(f);
+end;
+
+procedure TMMFilters.LoadFromJSON(o: TJSONObject);
+begin
+
+end;
+
+procedure TMMFilters.SaveToJSON(o: TJSONObject);
+begin
+
 end;
 
 end.

@@ -15,6 +15,10 @@ object MMMainForm: TMMMainForm
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   OnResize = FormResize
+  OnShow = FormShow
+  DesignSize = (
+    635
+    299)
   PixelsPerInch = 96
   TextHeight = 13
   object CoolBar1: TCoolBar
@@ -27,45 +31,45 @@ object MMMainForm: TMMMainForm
       item
         Control = cmdStartStopTrace
         ImageIndex = -1
-        Width = 108
+        Width = 181
       end
       item
         Break = False
         Control = cmdClear
         ImageIndex = -1
-        Width = 91
+        Width = 107
       end
       item
         Break = False
         Control = cmdFlushLibraries
         ImageIndex = -1
-        Width = 83
+        Width = 105
       end
       item
         Break = False
         ImageIndex = -1
-        Width = 335
+        Width = 224
       end>
     object cmdStartStopTrace: TButton
       Left = 11
       Top = 0
-      Width = 95
+      Width = 168
       Height = 25
       Caption = '&Start Trace'
       TabOrder = 0
     end
     object cmdClear: TButton
-      Left = 123
+      Left = 196
       Top = 0
-      Width = 78
+      Width = 94
       Height = 25
       Caption = '&Clear'
       TabOrder = 1
     end
     object cmdFlushLibraries: TButton
-      Left = 218
+      Left = 307
       Top = 0
-      Width = 70
+      Width = 92
       Height = 25
       Caption = 'Flush libs'
       TabOrder = 2
@@ -96,6 +100,15 @@ object MMMainForm: TMMMainForm
       item
         Width = 250
       end>
+  end
+  object progress: TProgressBar
+    Left = 309
+    Top = 282
+    Width = 277
+    Height = 16
+    Anchors = [akLeft, akRight, akBottom]
+    TabOrder = 3
+    Visible = False
   end
   object menu: TMainMenu
     Left = 312

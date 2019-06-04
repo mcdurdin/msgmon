@@ -60,8 +60,7 @@ begin
   f := TMMFilter.Create;
   f.column := cbColumn.Items.Objects[cbColumn.ItemIndex] as TMMColumn;
   f.relation := TMMFilterRelation(cbRelation.Items.Objects[cbRelation.ItemIndex]);
-  f.valueStr := cbValue.Text;
-  f.valueInt := StrToIntDef(f.valueStr, 0);
+  f.value := cbValue.Text;
   f.action := TMMFilterAction(cbAction.Items.Objects[cbAction.ItemIndex]);
   FFilters.Add(f);
   FillFilterView;
@@ -115,7 +114,7 @@ begin
     item.Data := filter;
     item.Caption := filter.column.Caption;
     item.SubItems.Add(MMFilterRelationName[filter.relation]);
-    item.SubItems.Add(filter.valueStr);
+    item.SubItems.Add(filter.value);
     item.SubItems.Add(MMFilterActionName[filter.action]);
   end;
 end;

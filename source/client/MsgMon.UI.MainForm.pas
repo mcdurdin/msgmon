@@ -56,6 +56,7 @@ type
     mnuFilterHighlight: TMenuItem;
     mnuHelp: TMenuItem;
     mnuHelpAbout: TMenuItem;
+    progress: TProgressBar;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure lvMessagesData(Sender: TObject; Item: TListItem);
@@ -68,6 +69,7 @@ type
     procedure FormResize(Sender: TObject);
     procedure mnuHelpAboutClick(Sender: TObject);
     procedure mnuFilterResetFilterClick(Sender: TObject);
+    procedure FormShow(Sender: TObject);
   private
     doc: IXMLDOMDocument3;
 
@@ -90,6 +92,7 @@ type
     procedure EndLogProcesses;
     procedure PrepareView;
     procedure ApplyFilter;
+    procedure WMUser(var Message: TMessage); message WM_USER;
   end;
 
 var
@@ -102,7 +105,7 @@ const
   //  LOGSESSION_1_FILENAME = 'c:\temp\msgmon1.etl';
   LOGSESSION_FILENAME = 'c:\temp\msgmon.etl';
   LOGSESSION_XML_FILENAME = 'c:\temp\msgmon.xml';
-  LOGSESSION_COLUMNS_FILENAME = 'c:\temp\msgmon.col';
+  LOGSESSION_SESSION_FILENAME = 'c:\temp\msgmon.col';
 
 implementation
 
@@ -274,16 +277,11 @@ begin
   context := TMMDataContext.Create;
   session := TMMSession.Create(context);
 
-  if FileExists(LOGSESSION_COLUMNS_FILENAME)
-    then session.displayColumns.LoadFromFile(LOGSESSION_COLUMNS_FILENAME)
-    else session.displayColumns.LoadDefaultView;
-
-    //  LoadColumns;
-  // Load last session
+  if FileExists(LOGSESSION_SESSION_FILENAME)
+    then session.LoadFromFile(LOGSESSION_SESSION_FILENAME)
+    else session.LoadDefault;
 
   PrepareView;
-
-  LoadData;
 end;
 
 procedure TMMMainForm.FormDestroy(Sender: TObject);
@@ -300,6 +298,19 @@ end;
 procedure TMMMainForm.FormResize(Sender: TObject);
 begin
   PrepareView;
+end;
+
+procedure TMMMainForm.FormShow(Sender: TObject);
+begin
+  // Delay after shown
+  PostMessage(Handle, WM_USER, 0, 0);
+end;
+
+procedure TMMMainForm.WMUser(var Message: TMessage);
+begin
+  progress.Visible := True;
+  LoadData;
+  progress.Visible := False;
 end;
 
 procedure TMMMainForm.FlushLibrary;
@@ -558,15 +569,27 @@ var
   node: IXMLDOMNode;
   ws: TMMWindows;
   ps: TMMProcesses;
+  pos: Integer;
 begin
   if not FileExists(LOGSESSION_XML_FILENAME) then
     Exit;
 
   context.Clear;
 
+  statusbar.panels[0].Text := 'Loading XML document';
+  statusbar.Update;
+
   doc := CoDOMDocument60.Create;
   doc.load(LOGSESSION_XML_FILENAME);
+
+  statusbar.panels[0].Text := 'Parsing XML document';
+  statusbar.Update;
+
   events := doc.DocumentElement.ChildNodes;
+
+  pos := 0;
+  progress.Max := events.length;
+
   event := events.nextNode;
   context.messages.Clear;
   while event <> nil do
@@ -612,7 +635,14 @@ begin
           context.processes.Add(p.pid, ps);
         end;
         ps.Add(p);
-      end
+      end;
+
+      Inc(pos);
+      if (pos mod 100) = 0 then
+      begin
+        progress.Position := pos;
+        Application.ProcessMessages;
+      end;
     finally
       event := event.NextSibling;
     end;

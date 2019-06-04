@@ -16,6 +16,9 @@ type
     displayColumns: TMMColumns;
     constructor Create(AContext: TMMDataContext);
     destructor Destroy; override;
+    procedure LoadFromFile(const Filename: string);
+    procedure SaveToFile(const Filename: string);
+    procedure LoadDefault;
   end;
 
 implementation
@@ -34,6 +37,22 @@ destructor TMMSession.Destroy;
 begin
   displayColumns.Free;
   filters.Free;
+end;
+
+procedure TMMSession.LoadDefault;
+begin
+  displayColumns.LoadDefault;
+  filters.LoadDefault;
+end;
+
+procedure TMMSession.LoadFromFile(const Filename: string);
+begin
+
+end;
+
+procedure TMMSession.SaveToFile(const Filename: string);
+begin
+
 end;
 
 end.

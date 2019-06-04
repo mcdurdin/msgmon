@@ -46,10 +46,11 @@ type
     FContext: TMMDataContext;
   public
     constructor Create(context: TMMDataContext);
-    procedure LoadFromFile(const Filename: string);
-    procedure SaveToFile(const Filename: string);
-    procedure LoadDefaultView;
+    procedure LoadFromJSON(o: TJSONObject);
+    procedure SaveToJSON(o: TJSONObject);
+    procedure LoadDefault;
     procedure LoadAll;
+    function FindClassName(ClassName: string): TMMColumn;
   end;
 
   TMMColumn_Integer = class(TMMColumn)
@@ -658,6 +659,15 @@ begin
   FContext := context;
 end;
 
+function TMMColumns.FindClassName(ClassName: string): TMMColumn;
+begin
+  for Result in Self do
+    if Result.ClassNameIs(ClassName) then
+      Exit;
+
+  Result := nil;
+end;
+
 procedure TMMColumns.LoadAll;
 begin
   Clear;
@@ -682,7 +692,7 @@ begin
   Add(TMMColumn_hWndMoveSize.Create(FContext));
 end;
 
-procedure TMMColumns.LoadDefaultView;
+procedure TMMColumns.LoadDefault;
 begin
   Clear;
   Add(TMMColumn_Sequence.Create(FContext));
@@ -700,12 +710,12 @@ begin
   Add(TMMColumn_Detail.Create(FContext));
 end;
 
-procedure TMMColumns.LoadFromFile(const Filename: string);
+procedure TMMColumns.LoadFromJSON(o: TJSONObject);
 begin
 
 end;
 
-procedure TMMColumns.SaveToFile(const Filename: string);
+procedure TMMColumns.SaveToJSON(o: TJSONObject);
 begin
 
 end;
