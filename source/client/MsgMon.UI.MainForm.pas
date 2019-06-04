@@ -4,14 +4,12 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-//  Xml.XmlIntf,
-//  Xml.XmlDoc,
-//  Xml.XmlDom,
-Winapi.msxml,
-Winapi.MSXMLIntf,
+  Winapi.msxml, Winapi.MSXMLIntf,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.AppEvnts, Vcl.ToolWin,
   Vcl.ComCtrls, JwaEventTracing, JwaEvntCons, JwaEventDefs, JwaWmistr, System.Generics.Collections,
 
+  MsgMon.System.Data.Column,
+  MsgMon.System.Data.Context,
   MsgMon.System.Data.Message,
   MsgMon.System.Data.MessageName,
   MsgMon.System.Data.Process,
@@ -33,9 +31,8 @@ type
   private
     doc: IXMLDOMDocument3;
     messages: TMsgMonMessages;
-    messagenames: TMsgMonMessageNameDictionary;
-    windows: TMsgMonWindowDictionary;
-    processes: TMsgMonProcessDictionary;
+    context: TMsgMonContext;
+    columns: TMMColumns;
 
     x64Thread: Cardinal;
 
@@ -51,6 +48,7 @@ type
     procedure FlushLibrary;
     procedure BeginLogProcesses;
     procedure EndLogProcesses;
+    procedure PrepareView;
 
     // Trace consumer
     { Private declarations }
@@ -61,12 +59,20 @@ type
 var
   Form1: TForm1;
 
+
+const
+  LOGSESSION_NAME = 'MsgMon_Session';
+  // TODO Use temp paths
+  //  LOGSESSION_1_FILENAME = 'c:\temp\msgmon1.etl';
+  LOGSESSION_FILENAME = 'c:\temp\msgmon.etl';
+  LOGSESSION_XML_FILENAME = 'c:\temp\msgmon.xml';
+  LOGSESSION_COLUMNS_FILENAME = 'c:\temp\msgmon.col';
+
 implementation
 
 {$R *.dfm}
 
 uses
-  XmlLite,
   Winapi.ActiveX,
   Winapi.Tlhelp32,
   MsgMon.System.ExecProcess;
@@ -232,11 +238,18 @@ procedure TForm1.FormCreate(Sender: TObject);
 begin
   CoInitializeEx(nil, COINIT_APARTMENTTHREADED);
 
+  context := TMsgMonContext.Create;
   messages := TMsgMonMessages.Create;
-  windows := TMsgMonWindowDictionary.Create;
-  processes := TMsgMonProcessDictionary.Create;
-  messagenames := TMsgMonMessageNameDictionary.Create;
+  columns := TMMColumns.Create(context);
+
+  if FileExists(LOGSESSION_COLUMNS_FILENAME)
+    then columns.LoadFromFile(LOGSESSION_COLUMNS_FILENAME)
+    else columns.LoadDefaultView;
+//  LoadColumns;
   // Load last session
+
+  PrepareView;
+
   LoadData;
 end;
 
@@ -289,6 +302,23 @@ begin
   end;
 end;
 
+{ Grid control and display }
+
+procedure TForm1.PrepareView;
+var
+  i: Integer;
+  c: TMMColumn;
+  lvc: TListColumn;
+begin
+  lvMessages.Columns.Clear;
+  for c in columns do
+  begin
+    lvc := lvMessages.Columns.Add;
+    lvc.Caption := c.Caption;
+    lvc.Width := c.Width;
+  end;
+end;
+
 procedure TForm1.lvMessagesData(Sender: TObject; Item: TListItem);
 var
   m: TMsgMonMessage;
@@ -298,63 +328,23 @@ var
   ps: TMsgMonProcesses;
   p: TMsgMonProcess;
   mn: TMsgMonMessageName;
+  i: Integer;
 begin
   m := messages[Item.Index];
-  m.Fill;
+  m.Fill(context);
 
-  if processes.TryGetValue(m.pid, ps)
-    then p := ps.FromBase(Item.Index)
-    else p := nil;
+  if columns.Count = 0 then
+    Exit;
 
-  if not Assigned(p) then
-  begin
-    Item.Caption := IntToStr(m.pid);
-  end
-  else
-    Item.Caption := p.processName + ' ('+IntToStr(m.pid)+')';
-
-  Item.SubItems.Add(IntToStr(m.tid));
-
-  if windows.TryGetValue(m.hwnd, ws)
-    then w := ws.FromBase(Item.Index)
-    else w := nil;
-
-  if not Assigned(w) then
-  begin
-    Item.SubItems.Add(IntToStr(m.hwnd));
-  end
-  else
-  begin
-    s := w.ClassName;
-    if w.ClassName <> w.RealClassName then
-      s := s  + ' ['+w.RealClassName+']';
-    s := s + ' ('+IntToStr(m.hwnd)+')';
-    Item.SubItems.Add(s);
-  end;
-
-  if messagenames.TryGetValue(m.message, mn) then
-  begin
-    Item.SubItems.Add(mn.name)
-  end
-  else
-    Item.SubItems.Add(IntToStr(m.message));
-
-  Item.SubItems.Add(IntToStr(m.wParam));
-  Item.SubItems.Add(IntToStr(m.lParam));
-  Item.SubItems.Add(IntToStr(m.lResult));
+  Item.Caption := columns[0].Render(m);
+  for i := 1 to columns.Count - 1 do
+    Item.SubItems.Add(columns[i].Render(m));
 end;
 
 function StringBufferSize(const s: string): Integer;
 begin
   Result := (Length(s) + 1) * sizeof(WCHAR);
 end;
-
-const
-  LOGSESSION_NAME = 'MsgMon_Session';
-  // TODO Use temp paths
-  //  LOGSESSION_1_FILENAME = 'c:\temp\msgmon1.etl';
-  LOGSESSION_FILENAME = 'c:\temp\msgmon.etl';
-  LOGSESSION_XML_FILENAME = 'c:\temp\msgmon.xml';
 
 procedure TForm1.Controller_StartTrace;
 var
@@ -385,7 +375,7 @@ begin
   status := StartTrace(@FSessionHandle, PWideChar(LOGSESSION_NAME), pSessionProperties^);
   if ERROR_ALREADY_EXISTS = status then
   begin
-    // The trace was already started, perhaps Keyman did not close down cleanly
+    // The trace was already started, perhaps it did not close down cleanly
     // We'll stop it and restart it
     status := ControlTraceW(FSessionHandle, PWideChar(LOGSESSION_NAME), pSessionProperties^, EVENT_TRACE_CONTROL_STOP);
     if ERROR_SUCCESS <> status then
@@ -461,12 +451,6 @@ var
   p: TMsgMonProcess;
   nameAttr: IXMLDOMNode;
   node: IXMLDOMNode;
-  i: Integer;
-  r: IXMLReader;
-  LocalName: PWideChar;
-  LocalNameLen: Cardinal;
-  nodeType: Integer;
-  state: string;
   ws: TMsgMonWindows;
   ps: TMsgMonProcesses;
 begin
@@ -541,26 +525,26 @@ begin
       if eventID = '1' then
       begin
         stack := selectNode(system, 'Stack');
-        m := TMsgMonMessage.Create(eventData, stack);
+        m := TMsgMonMessage.Create(messages.Count, eventData, stack);
         messages.Add(m);
       end
       else if eventID = '2' then
       begin
         w := TMsgMonWindow.Create(eventData, messages.Count);
-        if not windows.TryGetValue(w.hwnd, ws) then
+        if not context.windows.TryGetValue(w.hwnd, ws) then
         begin
           ws := TMsgMonWindows.Create;
-          windows.Add(w.hwnd, ws);
+          context.windows.Add(w.hwnd, ws);
         end;
         ws.Add(w);
       end
       else if eventID = '3' then
       begin
         p := TMsgMonProcess.Create(eventData, messages.Count);
-        if not processes.TryGetValue(p.pid, ps) then
+        if not context.processes.TryGetValue(p.pid, ps) then
         begin
           ps := TMsgMonProcesses.Create;
-          processes.Add(p.pid, ps);
+          context.processes.Add(p.pid, ps);
         end;
         ps.Add(p);
       end

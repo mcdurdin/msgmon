@@ -5,13 +5,20 @@ interface
 uses
   System.Generics.Collections,
   Winapi.Windows,
-  Winapi.msxml;
+  Winapi.msxml,
+
+  MsgMon.System.Data.Context,
+  MsgMon.System.Data.MessageName,
+  MsgMon.System.Data.Process,
+  MsgMon.System.Data.Window;
 
 type
   TMsgMonMessage = class
   strict private
     FEventData, FStackData: IXMLDOMNode;
   public
+    index: Integer;
+
     pid, tid: DWORD;
     hwndFocus,
     hwndActive,
@@ -29,8 +36,13 @@ type
     mode: DWORD;
     detail: string;
     stack: string;
-    procedure Fill;
-    constructor Create(AEventData, AStackData: IXMLDOMNode);
+
+    process: TMsgMonProcess;
+    window: TMsgMonWindow;
+    messageName: TMsgMonMessageName;
+
+    procedure Fill(context: TMsgMonContext);
+    constructor Create(AIndex: Integer; AEventData, AStackData: IXMLDOMNode);
   end;
 
 type
@@ -45,19 +57,22 @@ uses
 
 { TMsgMonMessage }
 
-constructor TMsgMonMessage.Create(AEventData, AStackData: IXMLDOMNode);
+constructor TMsgMonMessage.Create(AIndex: Integer; AEventData, AStackData: IXMLDOMNode);
 begin
   inherited Create;
+  index := AIndex;
   FEventData := AEventData;
   FStackData := AStackData;
   Assert(FEventData <> nil);
 end;
 
-procedure TMsgMonMessage.Fill;
+procedure TMsgMonMessage.Fill(context: TMsgMonContext);
 var
   name, value: string;
   valueInt: Int64;
   nameAttr: IXMLDOMNode;
+  ps: TMsgMonProcesses;
+  ws: TMsgMonWindows;
 begin
   if not Assigned(FEventData) then
     // Already populated
@@ -91,6 +106,8 @@ begin
       else if name = 'lResult' then Self.lResult := valueInt
       else if name = 'Mode' then Self.Mode := valueInt
       else if name = 'Detail' then Self.Detail := value;
+      // TODO: extradetail
+      // TODO: messagetime etc
     end;
 
     FEventData := FEventData.NextSibling;
@@ -100,6 +117,19 @@ begin
 
   if Assigned(FStackData) then
     stack := FStackData.XML;
+
+  // Lookup data from context
+
+  if context.Processes.TryGetValue(pid, ps)
+    then process := ps.FromBase(index)
+    else process := nil;
+
+  if context.Windows.TryGetValue(hwnd, ws)
+    then window := ws.FromBase(index)
+    else window := nil;
+
+  if not context.MessageNames.TryGetValue(message, messageName)
+    then messageName := nil;
 end;
 
 end.

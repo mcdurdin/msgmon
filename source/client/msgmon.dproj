@@ -153,6 +153,8 @@
         <DCCReference Include="MsgMon.System.Data.Window.pas"/>
         <DCCReference Include="MsgMon.System.Data.Process.pas"/>
         <DCCReference Include="MsgMon.System.Data.MessageName.pas"/>
+        <DCCReference Include="MsgMon.System.Data.Column.pas"/>
+        <DCCReference Include="MsgMon.System.Data.Context.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>

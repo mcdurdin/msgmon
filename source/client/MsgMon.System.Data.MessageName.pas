@@ -14,6 +14,7 @@ type
     id: Integer;
     name: string;
     scope: TMessageNameScope;
+    ScopeName: string;
     constructor Create(id: Integer; const name: string; const scope: TMessageNameScope);
   end;
 
@@ -26,6 +27,9 @@ type
 
 implementation
 
+uses
+  System.TypInfo;
+
 { TMessageName }
 
 constructor TMsgMonMessageName.Create(id: Integer; const name: string;
@@ -35,6 +39,7 @@ begin
   Self.id := id;
   Self.name := name;
   Self.scope := scope;
+  Self.ScopeName := Copy(GetEnumName(TypeInfo(TMessageNameScope), Ord(scope)), 4, MaxInt);
 end;
 
 {----------------------------------------}

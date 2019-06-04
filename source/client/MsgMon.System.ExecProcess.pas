@@ -113,7 +113,7 @@ begin
           if b > 0 then
           begin
             ReadFile(hsoutread, buf, High(buf), b, nil);
-            FLogText := FLogText + Copy(buf, 1, b);
+            FLogText := FLogText + String(Copy(buf, 1, b));
           end;
           if not GetExitCodeProcess(pi.hProcess, ec) then ec := 0;
         end;
@@ -124,7 +124,7 @@ begin
         if b > 0 then
         begin
           ReadFile(hsoutread, buf, High(buf), b, nil);
-          FLogText := FLogText + Copy(buf, 1, b);
+          FLogText := FLogText + String(Copy(buf, 1, b));
         end;
       until b = 0;
 
