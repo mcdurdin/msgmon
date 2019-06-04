@@ -14,6 +14,7 @@ object MMMainForm: TMMMainForm
   OldCreateOrder = False
   OnCreate = FormCreate
   OnDestroy = FormDestroy
+  OnResize = FormResize
   PixelsPerInch = 96
   TextHeight = 13
   object CoolBar1: TCoolBar
@@ -26,45 +27,45 @@ object MMMainForm: TMMMainForm
       item
         Control = cmdStartStopTrace
         ImageIndex = -1
-        Width = 107
+        Width = 108
       end
       item
         Break = False
         Control = cmdClear
         ImageIndex = -1
-        Width = 89
+        Width = 91
       end
       item
         Break = False
         Control = cmdFlushLibraries
         ImageIndex = -1
-        Width = 81
+        Width = 83
       end
       item
         Break = False
         ImageIndex = -1
-        Width = 340
+        Width = 335
       end>
     object cmdStartStopTrace: TButton
       Left = 11
       Top = 0
-      Width = 94
+      Width = 95
       Height = 25
       Caption = '&Start Trace'
       TabOrder = 0
     end
     object cmdClear: TButton
-      Left = 122
+      Left = 123
       Top = 0
-      Width = 76
+      Width = 78
       Height = 25
       Caption = '&Clear'
       TabOrder = 1
     end
     object cmdFlushLibraries: TButton
-      Left = 215
+      Left = 218
       Top = 0
-      Width = 68
+      Width = 70
       Height = 25
       Caption = 'Flush libs'
       TabOrder = 2
@@ -77,29 +78,7 @@ object MMMainForm: TMMMainForm
     Width = 635
     Height = 251
     Align = alClient
-    Columns = <
-      item
-        Caption = 'PID'
-      end
-      item
-        Caption = 'TID'
-      end
-      item
-        Caption = 'hwnd'
-      end
-      item
-        Caption = 'msg'
-        Width = 150
-      end
-      item
-        Caption = 'wParam'
-      end
-      item
-        Caption = 'lParam'
-      end
-      item
-        Caption = 'details'
-      end>
+    Columns = <>
     GridLines = True
     OwnerData = True
     ReadOnly = True
@@ -200,27 +179,33 @@ object MMMainForm: TMMMainForm
       object mnuFilterResetFilter: TMenuItem
         Caption = 'Reset Filter'
         ShortCut = 16466
+        OnClick = mnuFilterResetFilterClick
       end
       object mnuFilterLoad: TMenuItem
         Caption = 'Load Filter'
+        Enabled = False
       end
       object mnuFilterSave: TMenuItem
         Caption = 'Save Filter...'
+        Enabled = False
       end
       object mnuFilterOrganize: TMenuItem
         Caption = 'Organize Filters...'
+        Enabled = False
       end
       object N5: TMenuItem
         Caption = '-'
       end
       object mnuFilterDropFilteredEvents: TMenuItem
         Caption = 'Drop Filtered Events'
+        Enabled = False
       end
       object N6: TMenuItem
         Caption = '-'
       end
       object mnuFilterHighlight: TMenuItem
         Caption = 'Highlight...'
+        Enabled = False
         ShortCut = 16456
       end
     end
@@ -228,6 +213,7 @@ object MMMainForm: TMMMainForm
       Caption = '&Help'
       object mnuHelpAbout: TMenuItem
         Caption = '&About...'
+        OnClick = mnuHelpAboutClick
       end
     end
   end

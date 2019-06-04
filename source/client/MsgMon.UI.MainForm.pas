@@ -63,9 +63,11 @@ type
     procedure mnuFileCaptureEventsClick(Sender: TObject);
     procedure mnuEditClearDisplayClick(Sender: TObject);
     procedure mnuFilterFilterClick(Sender: TObject);
+    procedure FormResize(Sender: TObject);
+    procedure mnuHelpAboutClick(Sender: TObject);
+    procedure mnuFilterResetFilterClick(Sender: TObject);
   private
     doc: IXMLDOMDocument3;
-
     context: TMsgMonContext;
     displayColumns: TMMColumns;
     filters: TMMFilters;
@@ -86,11 +88,6 @@ type
     procedure EndLogProcesses;
     procedure PrepareView;
     procedure ApplyFilter;
-
-    // Trace consumer
-    { Private declarations }
-  public
-    { Public declarations }
   end;
 
 var
@@ -298,6 +295,11 @@ begin
   CoUninitialize;
 end;
 
+procedure TMMMainForm.FormResize(Sender: TObject);
+begin
+  PrepareView;
+end;
+
 procedure TMMMainForm.FlushLibrary;
 var
   h: THandle;
@@ -342,13 +344,27 @@ procedure TMMMainForm.PrepareView;
 var
   c: TMMColumn;
   lvc: TListColumn;
+  ColumnWidths: Integer;
 begin
-  lvMessages.Columns.Clear;
-  for c in displayColumns do
-  begin
-    lvc := lvMessages.Columns.Add;
-    lvc.Caption := c.Caption;
-    lvc.Width := c.Width;
+  lvMessages.Items.BeginUpdate;
+  try
+    lvMessages.Columns.Clear;
+    ColumnWidths := 0;
+
+    for c in displayColumns do
+      if c.Width >= 0 then
+        ColumnWidths := ColumnWidths + c.Width;
+
+    for c in displayColumns do
+    begin
+      lvc := lvMessages.Columns.Add;
+      lvc.Caption := c.Caption;
+      if c.Width < 0
+        then lvc.Width := lvMessages.ClientWidth - ColumnWidths
+        else lvc.Width := c.Width;
+    end;
+  finally
+    lvMessages.Items.EndUpdate;
   end;
 end;
 
@@ -396,12 +412,10 @@ end;
 
 procedure TMMMainForm.ApplyFilter;
 begin
-  // We need to ensure that we have the data complete
   filters.Apply;  // applies to current context
 
   lvMessages.Items.Count := context.FilteredMessages.Count;
   lvMessages.Invalidate;
-  // For each record, build a new index :)
 end;
 
 procedure TMMMainForm.mnuFilterFilterClick(Sender: TObject);
@@ -410,11 +424,22 @@ begin
   try
     if ShowModal = mrOk then
     begin
-      ApplyFilter;
+      Self.ApplyFilter;
     end;
   finally
     Free;
   end;
+end;
+
+procedure TMMMainForm.mnuFilterResetFilterClick(Sender: TObject);
+begin
+  filters.Clear;
+  ApplyFilter;
+end;
+
+procedure TMMMainForm.mnuHelpAboutClick(Sender: TObject);
+begin
+  ShowMessage('Message Monitor v0.1');
 end;
 
 function StringBufferSize(const s: string): Integer;
@@ -519,7 +544,7 @@ end;
 
 procedure TMMMainForm.LoadData;
 var
-  events: IXMLDOMNodeList;// XMLNodeList;
+  events: IXMLDOMNodeList;
   m: TMsgMonMessage;
   stack, event, eventData, system, provider: IXMLDOMNode;
   w: TMsgMonWindow;
