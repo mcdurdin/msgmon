@@ -429,13 +429,14 @@ begin
   if session.displayColumns.Count = 0 then
     Exit;
 
-  Item.SubItems.BeginUpdate;
+//  lvMessages.Items.BeginUpdate;
+//  Item.SubItems.BeginUpdate;
   try
     Item.Caption := session.displayColumns[0].Render(m);
     for i := 1 to session.displayColumns.Count - 1 do
       Item.SubItems.Add(session.displayColumns[i].Render(m));
   finally
-    Item.SubItems.EndUpdate;
+//    lvMessages.Items.EndUpdate;
   end;
 end;
 
