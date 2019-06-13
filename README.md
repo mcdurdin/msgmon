@@ -24,8 +24,7 @@ Windows user message monitor in the style of procmon
 - should we use int64 for integer values?
 - When saving a context, include session. However, session can also be saved separately.
 - Allow separate hwnd-int, classname, realclassname columns for each hwnd referenced
-- 
- 
+
 # TODO FOR THE FUTURE:
  - bundle into single executable for deployment (extract to same folder or temp folder on run?)
  - avoid need for wevtutil im (with tracelogging)

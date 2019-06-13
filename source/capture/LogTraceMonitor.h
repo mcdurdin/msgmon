@@ -2,24 +2,36 @@
 
 #include <unordered_map>
 
-// This must be kept in sync with number of descriptors used below and in .man
-#define MAX_DESCRIPTORS_MESSAGE 16
-#define MAX_DESCRIPTORS_WINDOW 7
-#define MAX_DESCRIPTORS_PROCESS 4
+
+// Forward-declare the g_hMyComponentProvider variable that you will use for tracing in this component
+TRACELOGGING_DECLARE_PROVIDER(g_Provider);
 
 // {082E6CC6-239C-4B96-9475-159AA241B4AB}
 //static const GUID guid_EtwProviderId =
 //{ 0x82e6cc6, 0x239c, 0x4b96,{ 0x94, 0x75, 0x15, 0x9a, 0xa2, 0x41, 0xb4, 0xab } };
 
-// MESSAGE maps
+#define EVENT_MESSAGE "Message"
+#define EVENT_WINDOW   "Window"
+#define EVENT_PROCESS  "Process"
+
+#define READ_KEYWORD 0x1
+
+//#ifndef TRACE_LEVEL_INFORMATION
+#define TRACE_LEVEL_INFORMATION 4
+//#endif
+
+//extern const int v_TRACE_LEVEL_INFORMATION;
+
+// PLATFORM maps
 #define PLATFORM_X86	1
 #define PLATFORM_X64	2
 
+// MESSAGE maps
 #define MODE_POST		1
 #define MODE_SEND		2
 #define MODE_RETURN		3
 
-// WINDOW maps?
+// WINDOW maps
 
 
 //
@@ -72,9 +84,9 @@ struct WINDOWEVENTDATA {
 
 class THREADDATA {
 public:
-	REGHANDLE etwRegHandle;
+	//REGHANDLE etwRegHandle;
 	BOOL inProc;
-  BOOL processLogged;
+	BOOL processLogged;
 	std::unordered_map<HWND, PWINDOWCONSTANTDATA> *windows;
 	THREADDATA() {
 		windows = new std::unordered_map<HWND, PWINDOWCONSTANTDATA>;
@@ -118,3 +130,4 @@ void LogProcess();
 
 PTHREADDATA ThreadData();
 PPROCESSDATA ProcessData();
+

@@ -89,8 +89,8 @@ begin
       name := VarToStr(nameAttr.text);
       value := Trim(VarToStr(FEventData.text));
       valueInt := StrToIntDef(value, 0);
-      if name = 'PID' then pid := valueInt
-      else if name = 'TID' then tid := valueInt
+      if name = 'pid' then pid := valueInt
+      else if name = 'tid' then tid := valueInt
       else if name = 'hwndFocus' then Self.hwndFocus := valueInt
       else if name = 'hwndActive' then Self.hwndActive := valueInt
       else if name = 'hwndCapture' then Self.hwndCapture := valueInt
@@ -103,8 +103,8 @@ begin
       else if name = 'wParam' then Self.wParam := valueInt
       else if name = 'lParam' then Self.lParam := valueInt
       else if name = 'lResult' then Self.lResult := valueInt
-      else if name = 'Mode' then Self.Mode := valueInt
-      else if name = 'Detail' then Self.Detail := value;
+      else if name = 'mode' then Self.Mode := valueInt
+      else if name = 'detail' then Self.Detail := value;
       // TODO: extradetail
       // TODO: messagetime etc
     end;

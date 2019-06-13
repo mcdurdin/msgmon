@@ -54,10 +54,10 @@ begin
       name := VarToStr(nameAttr.text);
       value := Trim(VarToStr(AEventData.text));
       valueInt := StrToIntDef(value, 0);
-      if name = 'PID' then pid := valueInt
-      else if name = 'Platform' then platform_ := valueInt
-      else if name = 'Process' then Self.processPath := value
-      else if name = 'CommandLine' then Self.commandLine := value;
+      if name = 'pid' then pid := valueInt
+      else if name = 'platform' then platform_ := valueInt
+      else if name = 'process' then Self.processPath := value
+      else if name = 'commandLine' then Self.commandLine := value;
     end;
 
     AEventData := AEventData.NextSibling;

@@ -429,9 +429,14 @@ begin
   if session.displayColumns.Count = 0 then
     Exit;
 
-  Item.Caption := session.displayColumns[0].Render(m);
-  for i := 1 to session.displayColumns.Count - 1 do
-    Item.SubItems.Add(session.displayColumns[i].Render(m));
+  Item.SubItems.BeginUpdate;
+  try
+    Item.Caption := session.displayColumns[0].Render(m);
+    for i := 1 to session.displayColumns.Count - 1 do
+      Item.SubItems.Add(session.displayColumns[i].Render(m));
+  finally
+    Item.SubItems.EndUpdate;
+  end;
 end;
 
 procedure TMMMainForm.lvMessagesSelectItem(Sender: TObject; Item: TListItem;
@@ -688,7 +693,7 @@ var
   m: TMMMessage;
   stack, event, eventData, system, provider: IXMLDOMNode;
   w: TMMWindow;
-  eventID: string;
+  eventName: string;
   p: TMMProcess;
   nameAttr: IXMLDOMNode;
   node: IXMLDOMNode;
@@ -731,17 +736,21 @@ begin
       eventData := selectNode(event, 'EventData');
       if not Assigned(eventData) then Continue;
 
-      node := selectNode(system, 'EventID');
+      // TODO: Consider moving this to OpCode or event data
+      node := selectNode(event, 'RenderingInfo');
+      if not Assigned(node) then Continue;
+      node := selectNode(node, 'Task');
       if not Assigned(node) then Continue;
 
-      eventID := VarToStr(node.text);
-      if eventID = '1' then
+
+      eventName := VarToStr(node.text);
+      if eventName = 'Message' then
       begin
         stack := selectNode(system, 'Stack');
         m := TMMMessage.Create(context.messages.Count, eventData, stack);
         context.messages.Add(m);
       end
-      else if eventID = '2' then
+      else if eventName = 'Window' then
       begin
         w := TMMWindow.Create(eventData, context.messages.Count);
         if not context.windows.TryGetValue(w.hwnd, ws) then
@@ -751,7 +760,7 @@ begin
         end;
         ws.Add(w);
       end
-      else if eventID = '3' then
+      else if eventName = 'Process' then
       begin
         p := TMMProcess.Create(eventData, context.messages.Count);
         if not context.processes.TryGetValue(p.pid, ps) then

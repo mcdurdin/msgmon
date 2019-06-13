@@ -41,46 +41,45 @@ object MMMainForm: TMMMainForm
       item
         Control = cmdStartStopTrace
         ImageIndex = -1
-        Width = 186
+        Width = 187
       end
       item
         Break = False
         Control = cmdClear
         ImageIndex = -1
-        Width = 113
+        Width = 115
       end
       item
         Break = False
         Control = cmdFlushLibraries
         ImageIndex = -1
-        Width = 111
+        Width = 113
       end
       item
         Break = False
         ImageIndex = -1
-        Width = 273
+        Width = 268
       end>
-    ExplicitWidth = 635
     object cmdStartStopTrace: TButton
       Left = 11
       Top = 0
-      Width = 173
+      Width = 174
       Height = 25
       Caption = '&Start Trace'
       TabOrder = 0
     end
     object cmdClear: TButton
-      Left = 201
+      Left = 202
       Top = 0
-      Width = 100
+      Width = 102
       Height = 25
       Caption = '&Clear'
       TabOrder = 1
     end
     object cmdFlushLibraries: TButton
-      Left = 318
+      Left = 321
       Top = 0
-      Width = 98
+      Width = 100
       Height = 25
       Caption = 'Flush libs'
       TabOrder = 2
@@ -103,8 +102,6 @@ object MMMainForm: TMMMainForm
     ViewStyle = vsReport
     OnData = lvMessagesData
     OnSelectItem = lvMessagesSelectItem
-    ExplicitWidth = 635
-    ExplicitHeight = 251
   end
   object statusBar: TStatusBar
     Left = 0
@@ -115,8 +112,6 @@ object MMMainForm: TMMMainForm
       item
         Width = 250
       end>
-    ExplicitTop = 280
-    ExplicitWidth = 635
   end
   object progress: TProgressBar
     Left = 309
@@ -126,8 +121,6 @@ object MMMainForm: TMMMainForm
     Anchors = [akLeft, akRight, akBottom]
     TabOrder = 3
     Visible = False
-    ExplicitTop = 282
-    ExplicitWidth = 277
   end
   object panDetail: TPanel
     Left = 0
@@ -147,7 +140,6 @@ object MMMainForm: TMMMainForm
       TabOrder = 0
       object tabMessageDetail: TTabSheet
         Caption = 'Message Details'
-        ExplicitLeft = 8
         DesignSize = (
           693
           126)

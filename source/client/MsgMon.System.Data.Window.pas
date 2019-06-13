@@ -56,12 +56,12 @@ begin
       value := Trim(VarToStr(AEventData.text));
       valueInt := StrToIntDef(value, 0);
       if name = 'hwnd' then Self.hwnd := valueInt
-      else if name = 'PID' then pid := valueInt
-      else if name = 'TID' then tid := valueInt
+      else if name = 'pid' then pid := valueInt
+      else if name = 'tid' then tid := valueInt
       else if name = 'hwndOwner' then Self.hwndOwner := valueInt
       else if name = 'hwndParent' then Self.hwndParent := valueInt
-      else if name = 'ClassName' then Self.ClassName := value
-      else if name = 'RealClassName' then Self.RealClassName := value;
+      else if name = 'className' then Self.ClassName := value
+      else if name = 'realClassName' then Self.RealClassName := value;
     end;
 
     AEventData := AEventData.NextSibling;
