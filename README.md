@@ -27,6 +27,10 @@ I've already used this successfully to capture a trace of a focus problem in a m
 - Add events for process start / stop, thread start / stop (using ETW kernel events)
 
 - Some messages have only partial data. Why?
+- multi-line copy and paste
+- bookmarks
+- multiple window view
+- trace comparisons
 
 - In-memory buffering for data is not workable. A 30 second trace generated a 165MB ETL file, which turned into a 700MB XML, which crashed MsgMon (2GB+ limit)
   - Rewrite backing to use file storage; binary format.
