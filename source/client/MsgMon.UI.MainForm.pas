@@ -679,6 +679,7 @@ begin
 
   // Use tracerpt to generate an xml file which we load. This could be rewritten into
   // a direct load with ProcessTrace in the future, but this saves a lot of dev time!
+  // NOTE: This does not work on Server 2012 R2. To be investigated...
   if not TExecProcess.WaitForProcess('tracerpt "'+LOGSESSION_FILENAME+'" -o "'+LOGSESSION_XML_FILENAME+'" -of XML', GetCurrentDir) then
     RaiseLastOSError;
 end;
