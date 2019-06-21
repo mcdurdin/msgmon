@@ -41,46 +41,45 @@ object MMMainForm: TMMMainForm
       item
         Control = cmdStartStopTrace
         ImageIndex = -1
-        Width = 186
+        Width = 202
       end
       item
         Break = False
         Control = cmdClear
         ImageIndex = -1
-        Width = 113
+        Width = 129
       end
       item
         Break = False
         Control = cmdFlushLibraries
         ImageIndex = -1
-        Width = 111
+        Width = 127
       end
       item
         Break = False
         ImageIndex = -1
-        Width = 273
+        Width = 225
       end>
-    ExplicitWidth = 635
     object cmdStartStopTrace: TButton
       Left = 11
       Top = 0
-      Width = 173
+      Width = 189
       Height = 25
       Caption = '&Start Trace'
       TabOrder = 0
     end
     object cmdClear: TButton
-      Left = 201
+      Left = 217
       Top = 0
-      Width = 100
+      Width = 116
       Height = 25
       Caption = '&Clear'
       TabOrder = 1
     end
     object cmdFlushLibraries: TButton
-      Left = 318
+      Left = 350
       Top = 0
-      Width = 98
+      Width = 114
       Height = 25
       Caption = 'Flush libs'
       TabOrder = 2
@@ -94,10 +93,13 @@ object MMMainForm: TMMMainForm
     Height = 152
     Align = alClient
     Columns = <>
+    DoubleBuffered = False
     GridLines = True
+    StyleElements = []
     OwnerData = True
     ReadOnly = True
     RowSelect = True
+    ParentDoubleBuffered = False
     PopupMenu = mnuItem
     TabOrder = 1
     ViewStyle = vsReport

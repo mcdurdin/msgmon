@@ -12,13 +12,16 @@ uses
   MsgMon.System.Data.Context in 'MsgMon.System.Data.Context.pas',
   MsgMon.UI.FilterForm in 'MsgMon.UI.FilterForm.pas' {MMFilterForm},
   MsgMon.System.Data.Filter in 'MsgMon.System.Data.Filter.pas',
-  MsgMon.System.Data.Session in 'MsgMon.System.Data.Session.pas';
+  MsgMon.System.Data.Session in 'MsgMon.System.Data.Session.pas',
+  Vcl.Themes,
+  Vcl.Styles;
 
 {$R *.res}
 
 begin
   Application.Initialize;
   Application.MainFormOnTaskbar := True;
+  TStyleManager.TrySetStyle('Windows10');
   Application.CreateForm(TMMMainForm, MMMainForm);
   Application.Run;
 end.
