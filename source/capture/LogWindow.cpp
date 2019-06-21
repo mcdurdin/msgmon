@@ -1,5 +1,4 @@
 #include "stdafx.h"
-#include <winmeta.h>
 
 //
 // Log a message
@@ -7,7 +6,7 @@
 
 void LogWindow(HWND hwnd) {
 	PTHREADDATA pThreadData = ThreadData();
-	if (pThreadData == NULL || pThreadData->etwRegHandle == NULL) {
+	if (pThreadData == NULL) {
 		// We'll silently fail so we don't spam debug console
 		return;
 	}
@@ -17,9 +16,9 @@ void LogWindow(HWND hwnd) {
 		return;
 	}
 
-  if (!EventProviderEnabled(pThreadData->etwRegHandle, WINEVENT_LEVEL_INFO, READ_KEYWORD)) {
-    return;
-  }
+	if (!TraceLoggingProviderEnabled(g_Provider, WINEVENT_LEVEL_INFO, READ_KEYWORD)) {
+		return;
+	}
 
 	// First time we've seen this window. Collect details about it and log an event about it
 
@@ -27,29 +26,18 @@ void LogWindow(HWND hwnd) {
 
 	(*pThreadData->windows)[hwnd] = w;
 
-	EVENT_DATA_DESCRIPTOR Descriptors[MAX_DESCRIPTORS_WINDOW];
-
-	// These must match the manifest template in logtrace.man
-
-	// Event metadata
-	EventDataDescCreate(&Descriptors[0], (PDWORD)&hwnd, sizeof(DWORD)); // <data name="hwnd" inType="win:UInt32" />
-	EventDataDescCreate(&Descriptors[1], &w->pid, sizeof(DWORD)); //  <data name = "PID" inType = "win:UInt32" / >
-	EventDataDescCreate(&Descriptors[2], &w->tid, sizeof(DWORD)); //  <data name = "TID" inType = "win:UInt32" / >
-	EventDataDescCreate(&Descriptors[3], (PDWORD)&w->hwndOwner, sizeof(DWORD)); //  <data name = "hwndOwner" inType = "win:UInt32" / >
-	EventDataDescCreate(&Descriptors[4], (PDWORD)&w->hwndParent, sizeof(DWORD)); //  <data name = "hwndParent" inType = "win:UInt32" / >
-	EventDataDescCreate(&Descriptors[5], w->className.c_str(), (ULONG)(w->className.size() + 1) * sizeof(WCHAR)); //  <data name = "ClassName" inType = "win:UnicodeString" / >
-	EventDataDescCreate(&Descriptors[6], w->realClassName.c_str(), (ULONG)(w->realClassName.size() + 1) * sizeof(WCHAR)); //  <data name = "RealClassName" inType = "win:UnicodeString" / >
-#if MAX_DESCRIPTORS_WINDOW != 7
-#error MAX_DESCRIPTORS_WINDOW must match the number of fields in the .man file
-  // because we are building this up here, this is a bit of a safety valve
-  // when we update the event descriptors, reminding us to keep the constant,
-  // the code here, and the .man file in sync (ugh!)
-#endif
-  
-	DWORD dwErr = EventWrite(pThreadData->etwRegHandle, &MsgMonWindowEvent, (ULONG)MAX_DESCRIPTORS_WINDOW, &Descriptors[0]);
-	if (dwErr != ERROR_SUCCESS) {
-		OutputDebugError(L"Log", L"EventWrite", dwErr);
-	}
+	TraceLoggingWrite(g_Provider, EVENT_WINDOW,
+		TraceLoggingLevel(TRACE_LEVEL_INFORMATION),
+		TraceLoggingKeyword(READ_KEYWORD),
+		//TraceLoggingValue(EVENT_WINDOW, "eventType"),
+		TraceLoggingValue((UINT64)hwnd, "hwnd"),
+		TraceLoggingValue(w->pid, "pid"),
+		TraceLoggingValue(w->tid, "tid"),
+		TraceLoggingValue((UINT64)w->hwndOwner, "hwndOwner"),
+		TraceLoggingValue((UINT64)w->hwndParent, "hwndParent"),
+		TraceLoggingValue(w->className.c_str(), "className"),
+		TraceLoggingValue(w->realClassName.c_str(), "realClassName")
+	);
 }
 
 WINDOWCONSTANTDATA::WINDOWCONSTANTDATA(HWND hwnd) {

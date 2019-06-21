@@ -105,8 +105,6 @@ object MMMainForm: TMMMainForm
     ViewStyle = vsReport
     OnData = lvMessagesData
     OnSelectItem = lvMessagesSelectItem
-    ExplicitWidth = 635
-    ExplicitHeight = 251
   end
   object statusBar: TStatusBar
     Left = 0
@@ -117,8 +115,6 @@ object MMMainForm: TMMMainForm
       item
         Width = 250
       end>
-    ExplicitTop = 280
-    ExplicitWidth = 635
   end
   object progress: TProgressBar
     Left = 309
@@ -128,8 +124,6 @@ object MMMainForm: TMMMainForm
     Anchors = [akLeft, akRight, akBottom]
     TabOrder = 3
     Visible = False
-    ExplicitTop = 282
-    ExplicitWidth = 277
   end
   object panDetail: TPanel
     Left = 0
@@ -149,7 +143,6 @@ object MMMainForm: TMMMainForm
       TabOrder = 0
       object tabMessageDetail: TTabSheet
         Caption = 'Message Details'
-        ExplicitLeft = 8
         DesignSize = (
           693
           126)

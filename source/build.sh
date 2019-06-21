@@ -83,34 +83,6 @@ if [ "$X64_BUILD" = true ]; then
 fi
 popd
 
-# Install latest msgmon.man, updating paths accordingly
-
-pushd ../build/bin/$CONFIG
-
-WARNACCESS=0
-MANFILESRCPATH=../../../source/capture/MsgMon.man
-MANFILEBINPATH=./MsgMon.source.man
-
-cmp --silent $MANFILESRCPATH $MANFILEBINPATH || {
-    # If the file has 
-    cp $MANFILESRCPATH $MANFILEBINPATH
-
-    MANFILEPATH=$(pwd | sed -e 's/^\///' -e 's/\//\\/g' -e 's/^./\0:/')
-    MANFILEPATHESC=$(echo "$MANFILEPATH" | sed -e 's/\\/\\\\/'g)
-    sed -e "s/msgmon.capture.x86.dll/$MANFILEPATHESC\\\\\\0/g" < $MANFILEBINPATH > ./MsgMon.man
-
-    # If we fail to install because of permissions, we don't kill the script
-    # we just warn at the end.
-    wevtutil um MsgMon.man || [ $? -eq 5 ] && WARNACCESS=1
-    [ $WARNACCESS -eq 0 ] && wevtutil im MsgMon.man || [ $? -eq 5 ] && WARNACCESS=1
-    if [[ WARNACCESS -eq 0 ]]; then
-        # Successfully installed so let's just record that success
-        cp $MANFILESRCPATH $MANFILEBINPATH
-    fi
-}
-
-popd
-
 # Build x86 client app
 
 pushd client
@@ -130,16 +102,3 @@ if [ "$X64_BUILD" = true ]; then
 fi
 
 popd
-
-if [ $WARNACCESS -ne 0 ]; then
-    echo ""
-    echo "==============================================================================="
-    echo "WARNING"
-    echo "-------"
-    echo "The manifest was not installed due to insufficient permissions. If you have not"
-    echo "already installed it, start an Administrative terminal and either run this"
-    echo "script again, or run: "
-    echo "  wevtutil um $MANFILEPATH\\MsgMon.man"
-    echo "  wevtutil im $MANFILEPATH\\MsgMon.man"
-    echo "==============================================================================="
-fi

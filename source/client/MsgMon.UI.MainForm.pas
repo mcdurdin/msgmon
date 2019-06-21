@@ -429,9 +429,15 @@ begin
   if session.displayColumns.Count = 0 then
     Exit;
 
-  Item.Caption := session.displayColumns[0].Render(m);
-  for i := 1 to session.displayColumns.Count - 1 do
-    Item.SubItems.Add(session.displayColumns[i].Render(m));
+//  lvMessages.Items.BeginUpdate;
+//  Item.SubItems.BeginUpdate;
+  try
+    Item.Caption := session.displayColumns[0].Render(m);
+    for i := 1 to session.displayColumns.Count - 1 do
+      Item.SubItems.Add(session.displayColumns[i].Render(m));
+  finally
+//    lvMessages.Items.EndUpdate;
+  end;
 end;
 
 procedure TMMMainForm.lvMessagesSelectItem(Sender: TObject; Item: TListItem;
@@ -673,6 +679,7 @@ begin
 
   // Use tracerpt to generate an xml file which we load. This could be rewritten into
   // a direct load with ProcessTrace in the future, but this saves a lot of dev time!
+  // NOTE: This does not work on Server 2012 R2. To be investigated...
   if not TExecProcess.WaitForProcess('tracerpt "'+LOGSESSION_FILENAME+'" -o "'+LOGSESSION_XML_FILENAME+'" -of XML', GetCurrentDir) then
     RaiseLastOSError;
 end;
@@ -688,7 +695,7 @@ var
   m: TMMMessage;
   stack, event, eventData, system, provider: IXMLDOMNode;
   w: TMMWindow;
-  eventID: string;
+  eventName: string;
   p: TMMProcess;
   nameAttr: IXMLDOMNode;
   node: IXMLDOMNode;
@@ -731,17 +738,21 @@ begin
       eventData := selectNode(event, 'EventData');
       if not Assigned(eventData) then Continue;
 
-      node := selectNode(system, 'EventID');
+      // TODO: Consider moving this to OpCode or event data
+      node := selectNode(event, 'RenderingInfo');
+      if not Assigned(node) then Continue;
+      node := selectNode(node, 'Task');
       if not Assigned(node) then Continue;
 
-      eventID := VarToStr(node.text);
-      if eventID = '1' then
+
+      eventName := VarToStr(node.text);
+      if eventName = 'Message' then
       begin
         stack := selectNode(system, 'Stack');
         m := TMMMessage.Create(context.messages.Count, eventData, stack);
         context.messages.Add(m);
       end
-      else if eventID = '2' then
+      else if eventName = 'Window' then
       begin
         w := TMMWindow.Create(eventData, context.messages.Count);
         if not context.windows.TryGetValue(w.hwnd, ws) then
@@ -751,7 +762,7 @@ begin
         end;
         ws.Add(w);
       end
-      else if eventID = '3' then
+      else if eventName = 'Process' then
       begin
         p := TMMProcess.Create(eventData, context.messages.Count);
         if not context.processes.TryGetValue(p.pid, ps) then
