@@ -613,10 +613,11 @@ begin
   pSessionProperties.Wnode.Flags := WNODE_FLAG_TRACED_GUID;
   pSessionProperties.Wnode.ClientContext := 1; //QPC clock resolution
   pSessionProperties.Wnode.Guid := MsgMonProviderGuid;
-  pSessionProperties.LogFileMode := EVENT_TRACE_FILE_MODE_SEQUENTIAL;
+  pSessionProperties.LogFileMode := EVENT_TRACE_FILE_MODE_SEQUENTIAL; //EVENT_TRACE_REAL_TIME_MODE; //
   pSessionProperties.MaximumFileSize := 256;  // 256 MB
   pSessionProperties.LoggerNameOffset := sizeof(EVENT_TRACE_PROPERTIES);
   pSessionProperties.LogFileNameOffset := sizeof(EVENT_TRACE_PROPERTIES) + sizeof(LOGSESSION_NAME);
+//  StrPCopy(PWideChar(PByte(pSessionProperties) + pSessionProperties.LoggerNameOffset), LOGSESSION_NAME);
   StrPCopy(PWideChar(PByte(pSessionProperties) + pSessionProperties.LogFileNameOffset), LOGSESSION_FILENAME);
 
   status := StartTrace(@FSessionHandle, PWideChar(LOGSESSION_NAME), pSessionProperties^);

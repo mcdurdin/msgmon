@@ -41,45 +41,45 @@ object MMMainForm: TMMMainForm
       item
         Control = cmdStartStopTrace
         ImageIndex = -1
-        Width = 202
+        Width = 205
       end
       item
         Break = False
         Control = cmdClear
         ImageIndex = -1
-        Width = 129
+        Width = 134
       end
       item
         Break = False
         Control = cmdFlushLibraries
         ImageIndex = -1
-        Width = 127
+        Width = 132
       end
       item
         Break = False
         ImageIndex = -1
-        Width = 225
+        Width = 212
       end>
     object cmdStartStopTrace: TButton
       Left = 11
       Top = 0
-      Width = 189
+      Width = 192
       Height = 25
       Caption = '&Start Trace'
       TabOrder = 0
     end
     object cmdClear: TButton
-      Left = 217
+      Left = 220
       Top = 0
-      Width = 116
+      Width = 121
       Height = 25
       Caption = '&Clear'
       TabOrder = 1
     end
     object cmdFlushLibraries: TButton
-      Left = 350
+      Left = 358
       Top = 0
-      Width = 114
+      Width = 119
       Height = 25
       Caption = 'Flush libs'
       TabOrder = 2
