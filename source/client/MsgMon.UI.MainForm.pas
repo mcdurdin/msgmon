@@ -4,7 +4,6 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Winapi.msxml, Winapi.MSXMLIntf,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.AppEvnts, Vcl.ToolWin,
   Vcl.ComCtrls, JwaEventTracing, JwaEvntCons, JwaEventDefs, JwaWmistr, System.Generics.Collections,
 
@@ -17,7 +16,8 @@ uses
   MsgMon.System.Data.Session,
   MsgMon.System.Data.Window,
   Vcl.Menus, Vcl.ExtCtrls, Vcl.ActnMenus, System.Actions, Vcl.ActnList,
-  Vcl.StdActns, Vcl.PlatformDefaultStyleActnCtrls, Vcl.ActnMan, Vcl.ActnCtrls;
+  Vcl.StdActns, Vcl.PlatformDefaultStyleActnCtrls, Vcl.ActnMan, Vcl.ActnCtrls,
+  SQLite3, SQLite3Wrap;
 
 type
   TMMMainForm = class(TForm)
@@ -101,12 +101,14 @@ type
     procedure mnuPopupFilterEditClick(Sender: TObject);
     procedure mnuItemPopup(Sender: TObject);
   private
-    doc: IXMLDOMDocument3;
+    db: TSQLite3Database;
 
     context: TMMDataContext;
     session: TMMSession;
 
     x64Thread: Cardinal;
+
+    FRowCount: Integer;
 
     // Trace controller
     FTracing: Boolean;
@@ -135,10 +137,8 @@ var
 
 const
   LOGSESSION_NAME = 'MsgMon_Session';
-  // TODO Use temp paths
-  //  LOGSESSION_1_FILENAME = 'c:\temp\msgmon1.etl';
+  LOGSESSION_DB_FILENAME = 'c:\temp\msgmon.db';
   LOGSESSION_FILENAME = 'c:\temp\msgmon.etl';
-  LOGSESSION_XML_FILENAME = 'c:\temp\msgmon.xml';
   LOGSESSION_SESSION_FILENAME = 'c:\temp\msgmon.col';
 
 implementation
@@ -675,117 +675,144 @@ end;
 
 procedure TMMMainForm.PrepData;
 begin
-  if FileExists(LOGSESSION_XML_FILENAME) then
-    DeleteFile(LOGSESSION_XML_FILENAME);
+  if FileExists(LOGSESSION_DB_FILENAME) then
+    DeleteFile(LOGSESSION_DB_FILENAME);
 
-  // Use tracerpt to generate an xml file which we load. This could be rewritten into
-  // a direct load with ProcessTrace in the future, but this saves a lot of dev time!
-  // NOTE: This does not work on Server 2012 R2. To be investigated...
-  if not TExecProcess.WaitForProcess('tracerpt "'+LOGSESSION_FILENAME+'" -o "'+LOGSESSION_XML_FILENAME+'" -of XML', GetCurrentDir) then
+  if not TExecProcess.WaitForProcess('msgmon.recorder.exe "'+LOGSESSION_FILENAME+'"', GetCurrentDir) then
     RaiseLastOSError;
-end;
-
-function selectNode(p: IXMLDOMNode; const name: string): IXMLDOMNode;
-begin
-  Result := p.selectSingleNode('./*[local-name() = '''+name+''']');
 end;
 
 procedure TMMMainForm.LoadData;
 var
-  events: IXMLDOMNodeList;
   m: TMMMessage;
-  stack, event, eventData, system, provider: IXMLDOMNode;
   w: TMMWindow;
   eventName: string;
-  p: TMMProcess;
-  nameAttr: IXMLDOMNode;
-  node: IXMLDOMNode;
+//  p: TMMProcess;
   ws: TMMWindows;
-  ps: TMMProcesses;
+//  ps: TMMProcesses;
   pos: Integer;
+  stmt: TSQLite3Statement;
+  i: Integer;
 begin
-  if not FileExists(LOGSESSION_XML_FILENAME) then
+  if not FileExists(LOGSESSION_DB_FILENAME) then
     Exit;
+
+  statusbar.panels[0].Text := 'Opening database';
+  statusbar.Update;
+
+  db := TSQLite3Database.Create;
+  db.Open(LOGSESSION_DB_FILENAME, SQLITE_OPEN_READONLY);
+
+  stmt := TSQLite3Statement.Create(db, 'SELECT COUNT(*) FROM Messages');
+  try
+    stmt.Step;
+    FRowCount := stmt.ColumnInt64(0);
+  finally
+    stmt.Free;
+  end;
 
   context.Clear;
 
-  statusbar.panels[0].Text := 'Loading XML document';
-  statusbar.Update;
+  // Load windows
 
-  doc := CoDOMDocument60.Create;
-  doc.load(LOGSESSION_XML_FILENAME);
+  stmt := TSQLite3Statement.Create(db, 'SELECT * FROM Window');
+  try
+    Assert(stmt.ColumnCount = 7);
+    Assert(stmt.ColumnName(0) = 'hwnd');
+    Assert(stmt.ColumnName(1) = 'pid');
+    Assert(stmt.ColumnName(2) = 'tid');
+    Assert(stmt.ColumnName(3) = 'hwndOwner');
+    Assert(stmt.ColumnName(4) = 'hwndParent');
+    Assert(stmt.ColumnName(5) = 'className');
+    Assert(stmt.ColumnName(6) = 'realClassName');
 
-  statusbar.panels[0].Text := 'Parsing XML document';
-  statusbar.Update;
-
-  events := doc.DocumentElement.ChildNodes;
-
-  pos := 0;
-  progress.Max := events.length;
-
-  event := events.nextNode;
-  context.messages.Clear;
-  while event <> nil do
-  begin
-    try
-      system := selectNode(event, 'System');
-      if not Assigned(system) then Continue;
-      provider := selectNode(system, 'Provider');
-      if not Assigned(provider) then Continue;
-      nameAttr := provider.attributes.getNamedItem('Name');
-      if not Assigned(nameAttr) then Continue;
-      if nameAttr.nodeValue <> 'MsgMon' then Continue;
-
-      eventData := selectNode(event, 'EventData');
-      if not Assigned(eventData) then Continue;
-
-      // TODO: Consider moving this to OpCode or event data
-      node := selectNode(event, 'RenderingInfo');
-      if not Assigned(node) then Continue;
-      node := selectNode(node, 'Task');
-      if not Assigned(node) then Continue;
-
-
-      eventName := VarToStr(node.text);
-      if eventName = 'Message' then
+    while stmt.Step <> SQLITE_DONE do
+    begin
+      for i := 0 to stmt.ColumnCount - 1 do
       begin
-        stack := selectNode(system, 'Stack');
-        m := TMMMessage.Create(context.messages.Count, eventData, stack);
-        context.messages.Add(m);
-      end
-      else if eventName = 'Window' then
-      begin
-        w := TMMWindow.Create(eventData, context.messages.Count);
-        if not context.windows.TryGetValue(w.hwnd, ws) then
+        w := TMMWindow.Create(
+          stmt.ColumnInt(0),
+          stmt.ColumnInt(1),
+          stmt.ColumnInt(2),
+          stmt.ColumnInt(3),
+          stmt.ColumnInt(4),
+          stmt.ColumnText(5),
+          stmt.ColumnText(6)
+          , 0 // TODO: add base offset to database
+        );
+        if not context.Windows.TryGetValue(stmt.ColumnInt(0), ws) then
         begin
           ws := TMMWindows.Create;
-          context.windows.Add(w.hwnd, ws);
+          context.Windows.Add(stmt.ColumnInt(0), ws);
         end;
         ws.Add(w);
-      end
-      else if eventName = 'Process' then
-      begin
-        p := TMMProcess.Create(eventData, context.messages.Count);
-        if not context.processes.TryGetValue(p.pid, ps) then
-        begin
-          ps := TMMProcesses.Create;
-          context.processes.Add(p.pid, ps);
-        end;
-        ps.Add(p);
+//        context.Windows.Add(stmt.ColumnInt(0), ws);
+//        ws.Add(w);
       end;
-
-      Inc(pos);
-      if (pos mod 100) = 0 then
-      begin
-        progress.Position := pos;
-        Application.ProcessMessages;
-      end;
-    finally
-      event := event.NextSibling;
     end;
+  finally
+    stmt.Free;
+  end;
+
+  // TODO: Load processes
+
+  // Load Messages<!>
+
+  stmt := TSQLite3Statement.Create(db, 'SELECT * FROM Message');
+  try
+    Assert(stmt.ColumnCount = 16);
+    Assert(stmt.ColumnName(0) = 'pid');
+    Assert(stmt.ColumnName(1) = 'tid');
+    Assert(stmt.ColumnName(2) = 'hwndFocus');
+    Assert(stmt.ColumnName(3) = 'hwndActive');
+    Assert(stmt.ColumnName(4) = 'hwndCapture');
+    Assert(stmt.ColumnName(5) = 'hwndCaret');
+    Assert(stmt.ColumnName(6) = 'hwndMenuOwner');
+    Assert(stmt.ColumnName(7) = 'hwndMoveSize');
+    Assert(stmt.ColumnName(8) = 'activeHKL');
+    Assert(stmt.ColumnName(9) = 'hwnd');
+    Assert(stmt.ColumnName(10) = 'message');
+    Assert(stmt.ColumnName(11) = 'wParam');
+    Assert(stmt.ColumnName(12) = 'lParam');
+    Assert(stmt.ColumnName(13) = 'lResult');
+    Assert(stmt.ColumnName(14) = 'mode');
+    Assert(stmt.ColumnName(15) = 'detail');
+
+    while stmt.Step <> SQLITE_DONE do
+    begin
+      for i := 0 to stmt.ColumnCount - 1 do
+      begin
+        m := TMMMessage.Create(
+          i,
+          stmt.ColumnInt(0),
+          stmt.ColumnInt(1),
+          stmt.ColumnInt(2),
+          stmt.ColumnInt(3),
+          stmt.ColumnInt(4),
+          stmt.ColumnInt(5),
+          stmt.ColumnInt(6),
+          stmt.ColumnInt(7),
+          stmt.ColumnInt(8),
+          stmt.ColumnInt(9),
+          stmt.ColumnInt(10),
+          stmt.ColumnInt64(11),
+          stmt.ColumnInt64(12),
+          stmt.ColumnInt64(13),
+          stmt.ColumnInt(14),
+          stmt.ColumnText(15)
+        );
+        context.Messages.Add(m);
+//        context.Windows.Add(stmt.ColumnInt(0), ws);
+//        ws.Add(w);
+      end;
+    end;
+  finally
+    stmt.Free;
   end;
 
   ApplyFilter;
+  statusbar.panels[0].Text := '';
+  statusbar.Update;
 end;
 
 //

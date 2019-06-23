@@ -5,7 +5,6 @@ interface
 uses
   System.Generics.Collections,
   Winapi.Windows,
-  Winapi.msxml,
 
   MsgMon.System.Data.MessageName,
   MsgMon.System.Data.Process,
@@ -14,7 +13,6 @@ uses
 type
   TMMMessage = class
   strict private
-    FEventData, FStackData: IXMLDOMNode;
   public
     index: Integer;
 
@@ -41,7 +39,24 @@ type
     messageName: TMMMessageName;
 
     procedure Fill(processes: TMMProcessDictionary; windows: TMMWindowDictionary; messageNames: TMMMessageNameDictionary);
-    constructor Create(AIndex: Integer; AEventData, AStackData: IXMLDOMNode);
+    constructor Create(AIndex: Integer;
+      pid,
+      tid,
+      hwndFocus,
+      hwndActive,
+      hwndCapture,
+      hwndCaret,
+      hwndMenuOwner,
+      hwndMoveSize,
+      activeHKL,
+      hwnd,
+      message: Integer;
+      wParam,
+      lParam,
+      lResult: Int64;
+      mode: Integer;
+      const detail: string
+    );
   end;
 
 type
@@ -56,66 +71,60 @@ uses
 
 { TMsgMonMessage }
 
-constructor TMMMessage.Create(AIndex: Integer; AEventData, AStackData: IXMLDOMNode);
+
+
+
+
+
+constructor TMMMessage.Create(AIndex: Integer;
+  pid,
+  tid,
+  hwndFocus,
+  hwndActive,
+  hwndCapture,
+  hwndCaret,
+  hwndMenuOwner,
+  hwndMoveSize,
+  activeHKL,
+  hwnd,
+  message: Integer;
+  wParam,
+  lParam,
+  lResult: Int64;
+  mode: Integer;
+  const detail: string
+);
 begin
   inherited Create;
   index := AIndex;
-  FEventData := AEventData;
-  FStackData := AStackData;
-  Assert(FEventData <> nil);
+
+  Self.pid := pid;
+  Self.tid := tid;
+  Self.hwndFocus := hwndFocus;
+  Self.hwndActive := hwndActive;
+  Self.hwndCapture := hwndCapture;
+  Self.hwndCaret := hwndCaret;
+  Self.hwndMenuOwner := hwndMenuOwner;
+  Self.hwndMoveSize := hwndMoveSize;
+  Self.activeHKL := activeHKL;
+  Self.hwnd := hwnd;
+  Self.message := message;
+  Self.wParam := wParam;
+  Self.lParam := lParam;
+  Self.lResult := lResult;
+  Self.mode := mode;
+  Self.detail := detail;
 end;
 
 procedure TMMMessage.Fill(processes: TMMProcessDictionary; windows: TMMWindowDictionary; messageNames: TMMMessageNameDictionary);
 var
   name, value: string;
   valueInt: Int64;
-  nameAttr: IXMLDOMNode;
   ps: TMMProcesses;
   ws: TMMWindows;
 begin
-  if not Assigned(FEventData) then
-    // Already populated
+  if process <> nil then
     Exit;
-
-  if not Assigned(FEventData.ChildNodes) then
-    Exit;
-
-  FEventData := FEventData.ChildNodes.nextNode;
-  while Assigned(FEventData) do
-  begin
-    nameAttr := FEventData.attributes.getNamedItem('Name');
-    if Assigned(nameAttr) then
-    begin
-      name := VarToStr(nameAttr.text);
-      value := Trim(VarToStr(FEventData.text));
-      valueInt := StrToIntDef(value, 0);
-      if name = 'pid' then pid := valueInt
-      else if name = 'tid' then tid := valueInt
-      else if name = 'hwndFocus' then Self.hwndFocus := valueInt
-      else if name = 'hwndActive' then Self.hwndActive := valueInt
-      else if name = 'hwndCapture' then Self.hwndCapture := valueInt
-      else if name = 'hwndCaret' then Self.hwndCaret := valueInt
-      else if name = 'hwndMenuOwner' then Self.hwndMenuOwner := valueInt
-      else if name = 'hwndMoveSize' then Self.hwndMoveSize := valueInt
-      else if name = 'hklActive' then Self.activeHKL := valueInt
-      else if name = 'hwnd' then Self.hwnd := valueInt
-      else if name = 'message' then Self.message := valueInt
-      else if name = 'wParam' then Self.wParam := valueInt
-      else if name = 'lParam' then Self.lParam := valueInt
-      else if name = 'lResult' then Self.lResult := valueInt
-      else if name = 'mode' then Self.Mode := valueInt
-      else if name = 'detail' then Self.Detail := value;
-      // TODO: extradetail
-      // TODO: messagetime etc
-    end;
-
-    FEventData := FEventData.NextSibling;
-  end;
-
-  FEventData := nil;
-
-  if Assigned(FStackData) then
-    stack := FStackData.XML;
 
   // Lookup data from context
 

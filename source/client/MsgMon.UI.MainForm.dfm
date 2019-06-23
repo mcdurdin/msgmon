@@ -41,19 +41,19 @@ object MMMainForm: TMMMainForm
       item
         Control = cmdStartStopTrace
         ImageIndex = -1
-        Width = 205
+        Width = 206
       end
       item
         Break = False
         Control = cmdClear
         ImageIndex = -1
-        Width = 134
+        Width = 135
       end
       item
         Break = False
         Control = cmdFlushLibraries
         ImageIndex = -1
-        Width = 132
+        Width = 133
       end
       item
         Break = False
@@ -143,6 +143,10 @@ object MMMainForm: TMMMainForm
       TabOrder = 0
       object tabMessageDetail: TTabSheet
         Caption = 'Message Details'
+        ExplicitLeft = 0
+        ExplicitTop = 0
+        ExplicitWidth = 0
+        ExplicitHeight = 0
         DesignSize = (
           693
           126)
@@ -196,6 +200,10 @@ object MMMainForm: TMMMainForm
       object TabSheet2: TTabSheet
         Caption = 'Call Stack'
         ImageIndex = 1
+        ExplicitLeft = 0
+        ExplicitTop = 0
+        ExplicitWidth = 0
+        ExplicitHeight = 0
         DesignSize = (
           693
           126)

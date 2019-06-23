@@ -4,8 +4,7 @@ interface
 
 uses
   System.Generics.Collections,
-  Winapi.Windows,
-  Winapi.msxml;
+  Winapi.Windows;
 
 type
   TMMWindow = class
@@ -14,7 +13,7 @@ type
     pid, tid: DWORD;
     hwndOwner, hwndParent: DWORD;
     ClassName, RealClassName: string;
-    constructor Create(AEventData: IXMLDOMNode; ABase: Integer);
+    constructor Create(hwnd, pid, tid, hwndOwner, hwndParent: Integer; className, realClassName: string; ABase: Integer);
     function Render(IncludeHandle: Boolean): string;
   end;
 
@@ -33,39 +32,27 @@ uses
 
 { TMsgMonWindow }
 
-constructor TMMWindow.Create(AEventData: IXMLDOMNode; ABase: Integer);
+
+
+
+
+
+constructor TMMWindow.Create(hwnd, pid, tid, hwndOwner, hwndParent: Integer; className, realClassName: string; ABase: Integer);
 var
   name, value: string;
   valueInt: Int64;
-  nameAttr: IXMLDOMNode;
 begin
   inherited Create;
 
-  base := ABase;
+  Self.hwnd := hwnd;
+  Self.pid := pid;
+  Self.tid := tid;
+  Self.hwndOwner := hwndOwner;
+  Self.hwndParent := hwndParent;
+  Self.ClassName := className;
+  Self.RealClassName := realClassName;
 
-  if not Assigned(AEventData.ChildNodes) then
-    Exit;
-
-  AEventData := AEventData.ChildNodes.nextNode;
-  while Assigned(AEventData) do
-  begin
-    nameAttr := AEventData.attributes.getNamedItem('Name');
-    if Assigned(nameAttr) then
-    begin
-      name := VarToStr(nameAttr.text);
-      value := Trim(VarToStr(AEventData.text));
-      valueInt := StrToIntDef(value, 0);
-      if name = 'hwnd' then Self.hwnd := valueInt
-      else if name = 'pid' then pid := valueInt
-      else if name = 'tid' then tid := valueInt
-      else if name = 'hwndOwner' then Self.hwndOwner := valueInt
-      else if name = 'hwndParent' then Self.hwndParent := valueInt
-      else if name = 'className' then Self.ClassName := value
-      else if name = 'realClassName' then Self.RealClassName := value;
-    end;
-
-    AEventData := AEventData.NextSibling;
-  end;
+  Self.base := ABase;
 end;
 
 { TMsgMonWindows }
