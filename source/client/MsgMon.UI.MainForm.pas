@@ -15,10 +15,11 @@ uses
   MsgMon.System.Data.Process,
   MsgMon.System.Data.Session,
   MsgMon.System.Data.Window,
+  MsgMon.Data.Database,
   Vcl.Themes,
   Vcl.Menus, Vcl.ExtCtrls, Vcl.ActnMenus, System.Actions, Vcl.ActnList,
   Vcl.StdActns, Vcl.PlatformDefaultStyleActnCtrls, Vcl.ActnMan, Vcl.ActnCtrls,
-  SQLite3, SQLite3Wrap, Vcl.Grids, Vcl.ComCtrls;
+  Vcl.Grids, Vcl.ComCtrls;
 
 type
   TMMMainForm = class(TForm)
@@ -98,14 +99,12 @@ type
       ARect: TRect; AState: TGridDrawState);
     procedure gridMessagesClick(Sender: TObject);
   private
-    db: TSQLite3Database;
+    db: TMMDatabase;
 
-    context: TMMDataContext;
-    session: TMMSession;
+//    context: TMMDataContext;
+//    session: TMMSession;
 
     x64Thread: Cardinal;
-
-    FRowCount: Integer;
 
     // Trace controller
     FTracing: Boolean;
@@ -113,7 +112,6 @@ type
     pSessionProperties: PEVENT_TRACE_PROPERTIES;
     PopupContextText: string;
     PopupContextCol: Integer;
-    stmtMessage: TSQLite3Statement;
     LastIndex: Integer;
     currentMessage: TMMMessage;
 //    LastCaption: string;
@@ -313,14 +311,9 @@ begin
   LastIndex := -1;
 //  LastSubItems := TStringList.Create;
 
-  context := TMMDataContext.Create;
-  session := TMMSession.Create(context);
+//  context := TMMDataContext.Create;
+//  session := TMMSession.Create(context);
 
-  if FileExists(LOGSESSION_SESSION_FILENAME)
-    then session.LoadFromFile(LOGSESSION_SESSION_FILENAME)
-    else session.LoadDefault;
-
-  PrepareView;
 end;
 
 procedure TMMMainForm.FormDestroy(Sender: TObject);
@@ -336,7 +329,8 @@ end;
 
 procedure TMMMainForm.FormResize(Sender: TObject);
 begin
-  PrepareView;
+  if Assigned(db) then
+    PrepareView;
 end;
 
 procedure TMMMainForm.FormShow(Sender: TObject);
@@ -362,18 +356,18 @@ var
   index: Integer;
   t: string;
 begin
-  if (ARow < 0) or (ARow >= FRowCount) then
+  if (ARow < 0) or (ARow >= db.FilteredRowCount) then
     Exit;
 
   if ARow = 0 then
   begin
-    t := session.displayColumns[ACol].Caption;
+    t := db.session.displayColumns[ACol].Caption;
   end
   else
   begin
     index := ARow - 1;
     if not LoadMessageRow(index) then Exit;
-    t := session.displayColumns[ACol].Render(currentMessage);
+    t := db.session.displayColumns[ACol].Render(currentMessage);
   end;
 
   if StyleServices.Enabled then
@@ -390,38 +384,12 @@ function TMMMainForm.LoadMessageRow(index: Integer): Boolean;
 var
   m: TMMMessage;
 begin
-  if index = LastIndex then Exit(True);
+  if index = LastIndex then
+    Exit(True);
 
-  stmtMessage.BindInt(1, index);
-  if stmtMessage.Step <> SQLITE_ROW then
-  begin
-    raise Exception.Create('Invalid');
-  end;
-
-  m := TMMMessage.Create(
-    stmtMessage.ColumnInt(0),          //'row');
-    stmtMessage.ColumnInt(1),          //'pid');
-    stmtMessage.ColumnInt(2),          //'tid');
-    stmtMessage.ColumnInt(3),          //'hwndFocus');
-    stmtMessage.ColumnInt(4),          //'hwndActive');
-    stmtMessage.ColumnInt(5),          //'hwndCapture');
-    stmtMessage.ColumnInt(6),          //'hwndCaret');
-    stmtMessage.ColumnInt(7),          //'hwndMenuOwner');
-    stmtMessage.ColumnInt(8),          //'hwndMoveSize');
-    stmtMessage.ColumnInt(9),          //'activeHKL');
-    stmtMessage.ColumnInt(10),         // 'hwnd');
-    stmtMessage.ColumnInt(11),         // 'message');
-    stmtMessage.ColumnInt64(12),       // 'wParam');
-    stmtMessage.ColumnInt64(13),       // 'lParam');
-    stmtMessage.ColumnInt64(14),       // 'lResult');
-    stmtMessage.ColumnInt(15),         // 'mode');
-    stmtMessage.ColumnText(16)         // 'detail');
-  );
-
-  stmtMessage.Reset;
-
-//  m := context.FilteredMessages[Item.Index];
-  m.Fill(context.Processes, context.Windows, context.MessageNames);
+  m := db.LoadMessageRow(index);
+  if not Assigned(m) then
+    Exit(False);
 
   FreeAndNil(currentMessage);
   currentMessage := m;
@@ -487,14 +455,14 @@ begin
 //    lvMessages.Columns.Clear;
     ColumnWidths := 0;
 
-    gridMessages.ColCount := session.displayColumns.Count;
+    gridMessages.ColCount := db.session.displayColumns.Count;
 
-    for c in session.displayColumns do
+    for c in db.session.displayColumns do
       if c.Width >= 0 then
         ColumnWidths := ColumnWidths + c.Width;
 
     i := 0;
-    for c in session.displayColumns do
+    for c in db.session.displayColumns do
     begin
       if c.Width < 0
         then gridMessages.ColWidths[i] := gridMessages.ClientWidth - ColumnWidths
@@ -523,15 +491,15 @@ begin
     w := nil;
     parent := nil;
 
-    if context.Windows.TryGetValue(data.hwnd, ws) then
+    if db.context.Windows.TryGetValue(data.hwnd, ws) then
       w := ws.FromBase(data.index);
 
     if Assigned(w) then
     begin
-      if (w.hwndOwner <> 0) and context.Windows.TryGetValue(w.hwndOwner, ws) then
+      if (w.hwndOwner <> 0) and db.context.Windows.TryGetValue(w.hwndOwner, ws) then
         owner := ws.FromBase(data.index);
 
-      if (w.hwndParent <> 0) and context.Windows.TryGetValue(w.hwndParent, ws) then
+      if (w.hwndParent <> 0) and db.context.Windows.TryGetValue(w.hwndParent, ws) then
         parent := ws.FromBase(data.index);
     end;
 
@@ -548,7 +516,7 @@ end;
 
 procedure TMMMainForm.mnuEditClearDisplayClick(Sender: TObject);
 begin
-  context.Clear;
+  db.context.Clear;
   ApplyFilter;
   // context.MessageNames.Clear;
 end;
@@ -578,42 +546,20 @@ begin
 end;
 
 procedure TMMMainForm.ApplyFilter;
-var
-  index: Integer;
-  i: Integer;
 begin
-  // Remember selected item
-{
-  s := lvMessages.Selected;
-  if Assigned(s) and (s.Index >= 0) and (s.index < context.FilteredMessages.Count)
-    then index := context.FilteredMessages[s.Index].index
-    else index := -1;
+  // TODO: Remember selected item by index
 
-  // Apply the filter
-  session.filters.Apply;  // applies to current context
-  lvMessages.Items.Count := context.FilteredMessages.Count;
-  lvMessages.Invalidate;
-
-  // Select previously selected item or nearest
-  for i := 0 to context.FilteredMessages.Count - 1 do
-  begin
-    if context.FilteredMessages[i].index >= index then
-    begin
-      lvMessages.Selected := lvMessages.Items[i];
-      Break;
-    end;
-  end;
+  db.ApplyFilter;
 
   // Refresh status
-  statusBar.Panels[0].Text := 'Showing '+IntToStr(context.FilteredMessages.Count)+' of total '+IntToStr(context.Messages.Count)+' messages';
-  }
-  gridMessages.RowCount := FRowCount + 1;
-//  lvMessages.Items.Count := FRowCount;
+  statusBar.Panels[0].Text := 'Showing '+IntToStr(db.FilteredRowCount)+' of total '+IntToStr(db.TotalRowCount)+' messages';
+  gridMessages.RowCount := db.FilteredRowCount + 1;
+  gridMessages.Invalidate;
 end;
 
 procedure TMMMainForm.mnuFilterFilterClick(Sender: TObject);
 begin
-  with TMMFilterForm.Create(Self, Session) do
+  with TMMFilterForm.Create(Self, db.session) do
   try
     if ShowModal = mrOk then
     begin
@@ -626,7 +572,7 @@ end;
 
 procedure TMMMainForm.mnuFilterResetFilterClick(Sender: TObject);
 begin
-  session.filters.Clear;
+  db.session.filters.Clear;
   ApplyFilter;
 end;
 
@@ -746,11 +692,6 @@ end;
 
 procedure TMMMainForm.LoadData;
 var
-  w: TMMWindow;
-  p: TMMProcess;
-  ws: TMMWindows;
-  ps: TMMProcesses;
-  stmt: TSQLite3Statement;
   i: Integer;
 begin
   if not FileExists(LOGSESSION_DB_FILENAME) then
@@ -759,120 +700,13 @@ begin
   statusbar.panels[0].Text := 'Opening database';
   statusbar.Update;
 
-  db := TSQLite3Database.Create;
-  db.Open(LOGSESSION_DB_FILENAME, SQLITE_OPEN_READONLY);
+  db := TMMDatabase.Create(LOGSESSION_DB_FILENAME);
 
-  stmt := TSQLite3Statement.Create(db, 'SELECT COUNT(*) FROM Message');
-  try
-    stmt.Step;
-    FRowCount := stmt.ColumnInt(0);
-  finally
-    stmt.Free;
-  end;
-
-  context.Clear;
-
-  // Load windows
-
-  stmt := TSQLite3Statement.Create(db, 'SELECT * FROM Window');
-  try
-    Assert(stmt.ColumnCount = 8);
-    Assert(stmt.ColumnName(0) = 'row');
-    Assert(stmt.ColumnName(1) = 'hwnd');
-    Assert(stmt.ColumnName(2) = 'pid');
-    Assert(stmt.ColumnName(3) = 'tid');
-    Assert(stmt.ColumnName(4) = 'hwndOwner');
-    Assert(stmt.ColumnName(5) = 'hwndParent');
-    Assert(stmt.ColumnName(6) = 'className');
-    Assert(stmt.ColumnName(7) = 'realClassName');
-
-    while stmt.Step <> SQLITE_DONE do
-    begin
-      for i := 0 to stmt.ColumnCount - 1 do
-      begin
-        w := TMMWindow.Create(
-          stmt.ColumnInt(1),
-          stmt.ColumnInt(2),
-          stmt.ColumnInt(3),
-          stmt.ColumnInt(4),
-          stmt.ColumnInt(5),
-          stmt.ColumnText(6),
-          stmt.ColumnText(7)
-          , 0 // TODO: add base offset to database
-        );
-        if not context.Windows.TryGetValue(stmt.ColumnInt(1), ws) then
-        begin
-          ws := TMMWindows.Create;
-          context.Windows.Add(stmt.ColumnInt(1), ws);
-        end;
-        ws.Add(w);
-//        context.Windows.Add(stmt.ColumnInt(0), ws);
-//        ws.Add(w);
-      end;
-    end;
-  finally
-    stmt.Free;
-  end;
-
-  stmt := TSQLite3Statement.Create(db, 'SELECT * FROM Process');
-  try
-    Assert(stmt.ColumnCount = 5);
-    Assert(stmt.ColumnName(0) = 'row');
-    Assert(stmt.ColumnName(1) = 'pid');
-    Assert(stmt.ColumnName(2) = 'platform');
-    Assert(stmt.ColumnName(3) = 'process');
-    Assert(stmt.ColumnName(4) = 'commandLine');
-
-    while stmt.Step <> SQLITE_DONE do
-    begin
-      for i := 0 to stmt.ColumnCount - 1 do
-      begin
-        p := TMMProcess.Create(
-          stmt.ColumnInt(1),
-          stmt.ColumnInt(2),
-          stmt.ColumnText(3),
-          stmt.ColumnText(4)
-          , 0 // TODO: add base offset to database
-        );
-        if not context.Processes.TryGetValue(stmt.ColumnInt(1), ps) then
-        begin
-          ps := TMMProcesses.Create;
-          context.Processes.Add(stmt.ColumnInt(1), ps);
-        end;
-        ps.Add(p);
-//        context.Windows.Add(stmt.ColumnInt(0), ws);
-//        ws.Add(w);
-      end;
-    end;
-  finally
-    stmt.Free;
-  end;
-
-  // Load Messages<!>
-
-  stmtMessage := TSQLite3Statement.Create(db, 'SELECT * FROM Message WHERE row = ?');
-  Assert(stmtMessage.ColumnCount = 17);
-  Assert(stmtMessage.ColumnName(0) = 'row');
-  Assert(stmtMessage.ColumnName(1) = 'pid');
-  Assert(stmtMessage.ColumnName(2) = 'tid');
-  Assert(stmtMessage.ColumnName(3) = 'hwndFocus');
-  Assert(stmtMessage.ColumnName(4) = 'hwndActive');
-  Assert(stmtMessage.ColumnName(5) = 'hwndCapture');
-  Assert(stmtMessage.ColumnName(6) = 'hwndCaret');
-  Assert(stmtMessage.ColumnName(7) = 'hwndMenuOwner');
-  Assert(stmtMessage.ColumnName(8) = 'hwndMoveSize');
-  Assert(stmtMessage.ColumnName(9) = 'activeHKL');
-  Assert(stmtMessage.ColumnName(10) = 'hwnd');
-  Assert(stmtMessage.ColumnName(11) = 'message');
-  Assert(stmtMessage.ColumnName(12) = 'wParam');
-  Assert(stmtMessage.ColumnName(13) = 'lParam');
-  Assert(stmtMessage.ColumnName(14) = 'lResult');
-  Assert(stmtMessage.ColumnName(15) = 'mode');
-  Assert(stmtMessage.ColumnName(16) = 'detail');
-
-  ApplyFilter;
   statusbar.panels[0].Text := '';
   statusbar.Update;
+
+  PrepareView;
+  ApplyFilter;
 end;
 
 //
@@ -902,7 +736,8 @@ begin
   if not LoadMessageRow(ARow-1) then
     Exit;
 
-  PopupContextText := session.displayColumns[ACol].Render(currentMessage);
+  PopupContextCol := ACol;
+  PopupContextText := db.session.displayColumns[ACol].Render(currentMessage);
 
   mnuPopupFilterInclude.Caption := '&Include '''+PopupContextText+'''';
   mnuPopupFilterInclude.Enabled := True;
@@ -922,7 +757,7 @@ end;
 function TMMMainForm.CreateFilterFromPopup: TMMFilter;
 begin
   Result := TMMFilter.Create;
-  Result.column := session.filters.Columns.FindClassName(session.displayColumns[PopupContextCol].ClassName);
+  Result.column := db.session.filters.Columns.FindClassName(db.session.displayColumns[PopupContextCol].ClassName);
   Assert(Assigned(Result.column));
   Result.relation := frIs;
   Result.value := PopupContextText;
@@ -934,7 +769,7 @@ var
   f: TMMFilter;
 begin
   f := CreateFilterFromPopup;
-  with TMMFilterForm.Create(Self, session) do
+  with TMMFilterForm.Create(Self, db.session) do
   try
     cbColumn.ItemIndex := cbColumn.Items.IndexOfObject(f.column);
     cbRelation.ItemIndex := 0; // frIs
@@ -954,7 +789,7 @@ var
 begin
   f := CreateFilterFromPopup;
   f.action := faExclude;
-  session.filters.Add(f);
+  db.session.filters.Add(f);
   ApplyFilter;
 end;
 
@@ -963,7 +798,7 @@ var
   f: TMMFilter;
 begin
   f := CreateFilterFromPopup;
-  session.filters.Add(f);
+  db.session.filters.Add(f);
   ApplyFilter;
 end;
 

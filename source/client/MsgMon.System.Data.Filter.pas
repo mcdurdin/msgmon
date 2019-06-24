@@ -25,7 +25,6 @@ type
   public
     constructor Create(AContext: TMMDataContext);
     destructor Destroy; override;
-    procedure Apply;
     procedure LoadDefault;
     procedure LoadFromJSON(o: TJSONObject);
     procedure SaveToJSON(o: TJSONObject);
@@ -45,29 +44,6 @@ uses
   MsgMon.System.Data.Message;
 
 { TMMFilters }
-
-procedure TMMFilters.Apply;
-var
-  m: TMMMessage;
-  f: TMMFilter;
-  v: Boolean;
-begin
-  FContext.FilteredMessages.Clear;
-  for m in FContext.Messages do
-  begin
-    m.Fill(FContext.Processes, FContext.Windows, FContext.MessageNames);
-
-    v := True;
-    for f in Self do
-    begin
-      v := f.column.Filter(m, f.relation, f.value, f.action);
-      if not v then
-        Break;
-    end;
-    if v then
-      FContext.FilteredMessages.Add(m);
-  end;
-end;
 
 constructor TMMFilters.Create(AContext: TMMDataContext);
 begin

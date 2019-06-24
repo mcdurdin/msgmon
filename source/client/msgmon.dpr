@@ -16,7 +16,7 @@ uses
   SQLite3 in '..\..\tools\sqlite\SQLite3-Delphi-FPC-master\SQLite3-Delphi-FPC-master\Source\SQLite3.pas',
   SQLite3Utils in '..\..\tools\sqlite\SQLite3-Delphi-FPC-master\SQLite3-Delphi-FPC-master\Source\SQLite3Utils.pas',
   SQLite3Wrap in '..\..\tools\sqlite\SQLite3-Delphi-FPC-master\SQLite3-Delphi-FPC-master\Source\SQLite3Wrap.pas',
-  Vcl.ComCtrls in 'c:\program files (x86)\embarcadero\studio\19.0\SOURCE\VCL\Vcl.ComCtrls.pas';
+  MsgMon.Data.Database in 'MsgMon.Data.Database.pas';
 
 {$R *.res}
 

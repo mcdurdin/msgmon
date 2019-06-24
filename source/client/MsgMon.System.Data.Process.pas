@@ -31,9 +31,6 @@ uses
 { TMsgMonProcess }
 
 constructor TMMProcess.Create(pid, platform_: DWORD; const processPath, commandLine: string; ABase: Integer);
-var
-  name, value: string;
-  valueInt: Int64;
 begin
   inherited Create;
 

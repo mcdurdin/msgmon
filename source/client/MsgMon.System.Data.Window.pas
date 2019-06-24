@@ -32,9 +32,6 @@ uses
 { TMsgMonWindow }
 
 constructor TMMWindow.Create(hwnd, pid, tid, hwndOwner, hwndParent: Integer; className, realClassName: string; ABase: Integer);
-var
-  name, value: string;
-  valueInt: Int64;
 begin
   inherited Create;
 

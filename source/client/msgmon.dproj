@@ -165,8 +165,10 @@
         <DCCReference Include="MsgMon.System.Data.Session.pas"/>
         <DCCReference Include="..\..\tools\sqlite\SQLite3-Delphi-FPC-master\SQLite3-Delphi-FPC-master\Source\SQLite3.pas"/>
         <DCCReference Include="..\..\tools\sqlite\SQLite3-Delphi-FPC-master\SQLite3-Delphi-FPC-master\Source\SQLite3Utils.pas"/>
-        <DCCReference Include="..\..\tools\sqlite\SQLite3-Delphi-FPC-master\SQLite3-Delphi-FPC-master\Source\SQLite3Wrap.pas"/>
-        <DCCReference Include="c:\program files (x86)\embarcadero\studio\19.0\SOURCE\VCL\Vcl.ComCtrls.pas"/>
+        <DCCReference Include="..\..\tools\sqlite\SQLite3-Delphi-FPC-master\SQLite3-Delphi-FPC-master\Source\SQLite3Wrap.pas">
+            <Form>$R *.res</Form>
+        </DCCReference>
+        <DCCReference Include="MsgMon.Data.Database.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>

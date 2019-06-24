@@ -112,8 +112,6 @@ end;
 
 procedure TMMMessage.Fill(processes: TMMProcessDictionary; windows: TMMWindowDictionary; messageNames: TMMMessageNameDictionary);
 var
-  name, value: string;
-  valueInt: Int64;
   ps: TMMProcesses;
   ws: TMMWindows;
 begin
