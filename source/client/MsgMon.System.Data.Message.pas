@@ -66,15 +66,9 @@ type
 implementation
 
 uses
-  System.SysUtils,
-  System.Variants;
+  System.SysUtils;
 
 { TMsgMonMessage }
-
-
-
-
-
 
 constructor TMMMessage.Create(AIndex: Integer;
   pid,

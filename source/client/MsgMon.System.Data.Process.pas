@@ -4,8 +4,7 @@ interface
 
 uses
   System.Generics.Collections,
-  Winapi.Windows,
-  Winapi.msxml;
+  Winapi.Windows;
 
 type
   TMMProcess = class
@@ -14,7 +13,7 @@ type
     platform_: DWORD;
     processPath, commandLine: string;
     processName: string;
-    constructor Create(AEventData: IXMLDOMNode; ABase: Integer);
+    constructor Create(pid, platform_: DWORD; const processPath, commandLine: string; ABase: Integer);
   end;
 
   TMMProcesses = class(TObjectList<TMMProcess>)
@@ -27,41 +26,22 @@ type
 implementation
 
 uses
-  System.SysUtils,
-  System.Variants;
+  System.SysUtils;
 
 { TMsgMonProcess }
 
-constructor TMMProcess.Create(AEventData: IXMLDOMNode; ABase: Integer);
+constructor TMMProcess.Create(pid, platform_: DWORD; const processPath, commandLine: string; ABase: Integer);
 var
   name, value: string;
   valueInt: Int64;
-  nameAttr: IXMLDOMNode;
 begin
   inherited Create;
 
+  Self.pid := pid;
+  Self.platform_ := platform_;
+  Self.processPath := processPath;
+  Self.commandLine := commandLine;
   base := ABase;
-
-  if not Assigned(AEventData.ChildNodes) then
-    Exit;
-
-  AEventData := AEventData.ChildNodes.nextNode;
-  while Assigned(AEventData) do
-  begin
-    nameAttr := AEventData.attributes.getNamedItem('Name');
-    if Assigned(nameAttr) then
-    begin
-      name := VarToStr(nameAttr.text);
-      value := Trim(VarToStr(AEventData.text));
-      valueInt := StrToIntDef(value, 0);
-      if name = 'pid' then pid := valueInt
-      else if name = 'platform' then platform_ := valueInt
-      else if name = 'process' then Self.processPath := value
-      else if name = 'commandLine' then Self.commandLine := value;
-    end;
-
-    AEventData := AEventData.NextSibling;
-  end;
 
   processName := ExtractFileName(processPath);
 end;

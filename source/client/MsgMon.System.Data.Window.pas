@@ -27,15 +27,9 @@ type
 implementation
 
 uses
-  System.SysUtils,
-  System.Variants;
+  System.SysUtils;
 
 { TMsgMonWindow }
-
-
-
-
-
 
 constructor TMMWindow.Create(hwnd, pid, tid, hwndOwner, hwndParent: Integer; className, realClassName: string; ABase: Integer);
 var

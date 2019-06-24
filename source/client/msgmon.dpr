@@ -12,7 +12,11 @@ uses
   MsgMon.System.Data.Context in 'MsgMon.System.Data.Context.pas',
   MsgMon.UI.FilterForm in 'MsgMon.UI.FilterForm.pas' {MMFilterForm},
   MsgMon.System.Data.Filter in 'MsgMon.System.Data.Filter.pas',
-  MsgMon.System.Data.Session in 'MsgMon.System.Data.Session.pas';
+  MsgMon.System.Data.Session in 'MsgMon.System.Data.Session.pas',
+  SQLite3 in '..\..\tools\sqlite\SQLite3-Delphi-FPC-master\SQLite3-Delphi-FPC-master\Source\SQLite3.pas',
+  SQLite3Utils in '..\..\tools\sqlite\SQLite3-Delphi-FPC-master\SQLite3-Delphi-FPC-master\Source\SQLite3Utils.pas',
+  SQLite3Wrap in '..\..\tools\sqlite\SQLite3-Delphi-FPC-master\SQLite3-Delphi-FPC-master\Source\SQLite3Wrap.pas',
+  Vcl.ComCtrls in 'c:\program files (x86)\embarcadero\studio\19.0\SOURCE\VCL\Vcl.ComCtrls.pas';
 
 {$R *.res}
 

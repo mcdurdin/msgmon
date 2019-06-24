@@ -31,81 +31,6 @@ object MMMainForm: TMMMainForm
     ExplicitTop = 6
     ExplicitWidth = 633
   end
-  object CoolBar1: TCoolBar
-    Left = 0
-    Top = 0
-    Width = 701
-    Height = 29
-    AutoSize = True
-    Bands = <
-      item
-        Control = cmdStartStopTrace
-        ImageIndex = -1
-        Width = 206
-      end
-      item
-        Break = False
-        Control = cmdClear
-        ImageIndex = -1
-        Width = 135
-      end
-      item
-        Break = False
-        Control = cmdFlushLibraries
-        ImageIndex = -1
-        Width = 133
-      end
-      item
-        Break = False
-        ImageIndex = -1
-        Width = 212
-      end>
-    object cmdStartStopTrace: TButton
-      Left = 11
-      Top = 0
-      Width = 192
-      Height = 25
-      Caption = '&Start Trace'
-      TabOrder = 0
-    end
-    object cmdClear: TButton
-      Left = 220
-      Top = 0
-      Width = 121
-      Height = 25
-      Caption = '&Clear'
-      TabOrder = 1
-    end
-    object cmdFlushLibraries: TButton
-      Left = 358
-      Top = 0
-      Width = 119
-      Height = 25
-      Caption = 'Flush libs'
-      TabOrder = 2
-      OnClick = cmdFlushLibrariesClick
-    end
-  end
-  object lvMessages: TListView
-    Left = 0
-    Top = 29
-    Width = 701
-    Height = 152
-    Align = alClient
-    Columns = <>
-    DoubleBuffered = False
-    GridLines = True
-    StyleElements = []
-    OwnerData = True
-    ReadOnly = True
-    RowSelect = True
-    ParentDoubleBuffered = False
-    PopupMenu = mnuItem
-    TabOrder = 1
-    ViewStyle = vsReport
-    OnData = lvMessagesData
-    OnSelectItem = lvMessagesSelectItem
-  end
   object statusBar: TStatusBar
     Left = 0
     Top = 338
@@ -122,7 +47,7 @@ object MMMainForm: TMMMainForm
     Width = 343
     Height = 16
     Anchors = [akLeft, akRight, akBottom]
-    TabOrder = 3
+    TabOrder = 1
     Visible = False
   end
   object panDetail: TPanel
@@ -132,7 +57,7 @@ object MMMainForm: TMMMainForm
     Height = 154
     Align = alBottom
     BevelOuter = bvNone
-    TabOrder = 4
+    TabOrder = 2
     object PageControl1: TPageControl
       Left = 0
       Top = 0
@@ -143,10 +68,6 @@ object MMMainForm: TMMMainForm
       TabOrder = 0
       object tabMessageDetail: TTabSheet
         Caption = 'Message Details'
-        ExplicitLeft = 0
-        ExplicitTop = 0
-        ExplicitWidth = 0
-        ExplicitHeight = 0
         DesignSize = (
           693
           126)
@@ -200,10 +121,6 @@ object MMMainForm: TMMMainForm
       object TabSheet2: TTabSheet
         Caption = 'Call Stack'
         ImageIndex = 1
-        ExplicitLeft = 0
-        ExplicitTop = 0
-        ExplicitWidth = 0
-        ExplicitHeight = 0
         DesignSize = (
           693
           126)
@@ -217,6 +134,24 @@ object MMMainForm: TMMMainForm
         end
       end
     end
+  end
+  object gridMessages: TDrawGrid
+    Left = 0
+    Top = 0
+    Width = 701
+    Height = 181
+    Align = alClient
+    DefaultRowHeight = 16
+    FixedCols = 0
+    Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRangeSelect, goColSizing, goRowSelect]
+    PopupMenu = mnuItem
+    TabOrder = 3
+    OnClick = gridMessagesClick
+    OnDrawCell = gridMessagesDrawCell
+    ExplicitLeft = 64
+    ExplicitTop = 35
+    ExplicitWidth = 320
+    ExplicitHeight = 120
   end
   object menu: TMainMenu
     Left = 112

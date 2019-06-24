@@ -841,7 +841,7 @@ begin
 
   if Assigned(w) then
   begin
-    Result := w.Render(False);
+    Result := w.Render(True); //False);
   end
   else
     Result := IntToStr(hwnd);
