@@ -234,23 +234,26 @@ begin
           stmt.ColumnInt(15),         // 'mode');
           stmt.ColumnText(16)         // 'detail');
         );
+        try
+    //      stmt.Reset;
 
-  //      stmt.Reset;
+        //  m := context.FilteredMessages[Item.Index];
+          m.Fill(context.Processes, context.Windows, context.MessageNames);
 
-      //  m := context.FilteredMessages[Item.Index];
-        m.Fill(context.Processes, context.Windows, context.MessageNames);
-
-        v := True;
-        for f in session.filters do
-        begin
-          v := f.column.Filter(m, f.relation, f.value, f.action);
-          if not v then
-            Break;
-        end;
-        if v then
-        begin                                                                                   // TODO rename index to row
-          db.Execute('INSERT INTO filter (filter_id, filter_row, row) VALUES (1, '+IntToStr(row)+', '+IntToStr(m.index)+')');
-          Inc(row);
+          v := True;
+          for f in session.filters do
+          begin
+            v := f.column.Filter(m, f.relation, f.value, f.action);
+            if not v then
+              Break;
+          end;
+          if v then
+          begin                                                                                   // TODO rename index to row
+            db.Execute('INSERT INTO filter (filter_id, filter_row, row) VALUES (1, '+IntToStr(row)+', '+IntToStr(m.index)+')');
+            Inc(row);
+          end;
+        finally
+          m.Free;
         end;
       end;
     finally
