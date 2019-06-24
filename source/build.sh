@@ -72,10 +72,14 @@ if [ "$DEBUG_BUILD" = true ]; then
     CONFIG=Debug
 fi
 
+#
+# Build capture DLL for x86 and x64
+#
+
 pushd capture
 
 if [ "$X86_BUILD" = true ]; then
-    "$MSBUILD" //m //p:Configuration="$CONFIG" //p:PLATFORM="x86" || die "Failed to build x86 client"
+    "$MSBUILD" //m //p:Configuration="$CONFIG" //p:PLATFORM="x86" || die "Failed to build x86 capture"
 fi
 
 if [ "$X64_BUILD" = true ]; then
@@ -93,7 +97,18 @@ fi
 
 popd
 
-# Build x64 host app
+# Build x86 recorder app -- loads events into database
+
+pushd recorder
+
+if [ "$X86_BUILD" = true ]; then
+    "$MSBUILD" //m //p:Config="$CONFIG" //p:PLATFORM="x86" || die "Failed to build x86 recorder"
+fi
+
+popd
+
+# TODO: Build x86 capture host app (split out from client app executable)
+# Build x64 capture host app
 
 pushd x64host
 
