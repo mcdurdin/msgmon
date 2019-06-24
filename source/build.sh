@@ -102,7 +102,7 @@ popd
 pushd recorder
 
 if [ "$X86_BUILD" = true ]; then
-    "$MSBUILD" //m //p:Config="$CONFIG" //p:PLATFORM="x86" || die "Failed to build x86 recorder"
+    "$MSBUILD" //m //p:Configuration="$CONFIG" //p:PLATFORM="x86" || die "Failed to build x86 recorder"
 fi
 
 popd
