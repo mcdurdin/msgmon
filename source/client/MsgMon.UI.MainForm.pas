@@ -100,10 +100,6 @@ type
     procedure gridMessagesClick(Sender: TObject);
   private
     db: TMMDatabase;
-
-//    context: TMMDataContext;
-//    session: TMMSession;
-
     x64Thread: Cardinal;
 
     // Trace controller
@@ -114,8 +110,7 @@ type
     PopupContextCol: Integer;
     LastIndex: Integer;
     currentMessage: TMMMessage;
-//    LastCaption: string;
-//    LastSubItems: TStringList;
+
     procedure Controller_StartTrace;
     procedure Controller_StopTrace;
     procedure EnableDisableTrace;
@@ -309,11 +304,6 @@ begin
   CoInitializeEx(nil, COINIT_APARTMENTTHREADED);
 
   LastIndex := -1;
-//  LastSubItems := TStringList.Create;
-
-//  context := TMMDataContext.Create;
-//  session := TMMSession.Create(context);
-
 end;
 
 procedure TMMMainForm.FormDestroy(Sender: TObject);
@@ -449,29 +439,21 @@ var
   c: TMMColumn;
   i, ColumnWidths: Integer;
 begin
-//  grid
-//  lvMessages.Items.BeginUpdate;
-  try
-//    lvMessages.Columns.Clear;
-    ColumnWidths := 0;
+  ColumnWidths := 0;
 
-    gridMessages.ColCount := db.session.displayColumns.Count;
+  gridMessages.ColCount := db.session.displayColumns.Count;
 
-    for c in db.session.displayColumns do
-      if c.Width >= 0 then
-        ColumnWidths := ColumnWidths + c.Width;
+  for c in db.session.displayColumns do
+    if c.Width >= 0 then
+      ColumnWidths := ColumnWidths + c.Width;
 
-    i := 0;
-    for c in db.session.displayColumns do
-    begin
-      if c.Width < 0
-        then gridMessages.ColWidths[i] := gridMessages.ClientWidth - ColumnWidths
-        else gridMessages.ColWidths[i] := c.Width;
-      Inc(i);
-    end;
-  finally
-//    gridMessages.EndU
-//    lvMessages.Items.EndUpdate;
+  i := 0;
+  for c in db.session.displayColumns do
+  begin
+    if c.Width < 0
+      then gridMessages.ColWidths[i] := gridMessages.ClientWidth - ColumnWidths
+      else gridMessages.ColWidths[i] := c.Width;
+    Inc(i);
   end;
 end;
 
@@ -674,11 +656,6 @@ begin
     FreeMem(pSessionProperties);
     pSessionProperties := nil;
   end;
-
-  {if not TExecProcess.WaitForProcess(
-      'xperf.exe -stop "'+LOGSESSION_NAME+'" -stop -d "'+LOGSESSION_FILENAME+'"',
-      GetCurrentDir) then
-    RaiseLastOSError;}
 end;
 
 procedure TMMMainForm.PrepData;

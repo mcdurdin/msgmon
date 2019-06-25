@@ -121,6 +121,10 @@ object MMMainForm: TMMMainForm
       object TabSheet2: TTabSheet
         Caption = 'Call Stack'
         ImageIndex = 1
+        ExplicitLeft = 0
+        ExplicitTop = 0
+        ExplicitWidth = 0
+        ExplicitHeight = 0
         DesignSize = (
           693
           126)
@@ -148,10 +152,6 @@ object MMMainForm: TMMMainForm
     TabOrder = 3
     OnClick = gridMessagesClick
     OnDrawCell = gridMessagesDrawCell
-    ExplicitLeft = 64
-    ExplicitTop = 35
-    ExplicitWidth = 320
-    ExplicitHeight = 120
   end
   object menu: TMainMenu
     Left = 112
