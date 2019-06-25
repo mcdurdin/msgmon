@@ -13,9 +13,9 @@ uses
   MsgMon.UI.FilterForm in 'MsgMon.UI.FilterForm.pas' {MMFilterForm},
   MsgMon.System.Data.Filter in 'MsgMon.System.Data.Filter.pas',
   MsgMon.System.Data.Session in 'MsgMon.System.Data.Session.pas',
-  SQLite3 in '..\..\tools\sqlite\SQLite3-Delphi-FPC-master\SQLite3-Delphi-FPC-master\Source\SQLite3.pas',
-  SQLite3Utils in '..\..\tools\sqlite\SQLite3-Delphi-FPC-master\SQLite3-Delphi-FPC-master\Source\SQLite3Utils.pas',
-  SQLite3Wrap in '..\..\tools\sqlite\SQLite3-Delphi-FPC-master\SQLite3-Delphi-FPC-master\Source\SQLite3Wrap.pas',
+  SQLite3 in '..\ext\sqlite\delphi\Source\SQLite3.pas',
+  SQLite3Utils in '..\ext\sqlite\delphi\Source\SQLite3Utils.pas',
+  SQLite3Wrap in '..\ext\sqlite\delphi\Source\SQLite3Wrap.pas',
   MsgMon.Data.Database in 'MsgMon.Data.Database.pas';
 
 {$R *.res}

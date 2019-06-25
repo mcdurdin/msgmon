@@ -163,11 +163,9 @@
         </DCCReference>
         <DCCReference Include="MsgMon.System.Data.Filter.pas"/>
         <DCCReference Include="MsgMon.System.Data.Session.pas"/>
-        <DCCReference Include="..\..\tools\sqlite\SQLite3-Delphi-FPC-master\SQLite3-Delphi-FPC-master\Source\SQLite3.pas"/>
-        <DCCReference Include="..\..\tools\sqlite\SQLite3-Delphi-FPC-master\SQLite3-Delphi-FPC-master\Source\SQLite3Utils.pas"/>
-        <DCCReference Include="..\..\tools\sqlite\SQLite3-Delphi-FPC-master\SQLite3-Delphi-FPC-master\Source\SQLite3Wrap.pas">
-            <Form>$R *.res</Form>
-        </DCCReference>
+        <DCCReference Include="..\ext\sqlite\delphi\Source\SQLite3.pas"/>
+        <DCCReference Include="..\ext\sqlite\delphi\Source\SQLite3Utils.pas"/>
+        <DCCReference Include="..\ext\sqlite\delphi\Source\SQLite3Wrap.pas"/>
         <DCCReference Include="MsgMon.Data.Database.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>

@@ -668,8 +668,6 @@ begin
 end;
 
 procedure TMMMainForm.LoadData;
-var
-  i: Integer;
 begin
   if not FileExists(LOGSESSION_DB_FILENAME) then
     Exit;
