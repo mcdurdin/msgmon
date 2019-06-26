@@ -97,7 +97,7 @@ fi
 
 popd
 
-# Build x86 recorder app -- loads events into database
+# Build x86 recorder app -- controls event trace and loads events into database
 
 pushd recorder
 
@@ -105,15 +105,12 @@ if [ "$X86_BUILD" = true ]; then
     "$MSBUILD" //m //p:Configuration="$CONFIG" //p:PLATFORM="x86" || die "Failed to build x86 recorder"
 fi
 
-popd
-
-# TODO: Build x86 capture host app (split out from client app executable)
-# Build x64 capture host app
-
-pushd x64host
-
 if [ "$X64_BUILD" = true ]; then
-    "$MSBUILD" //m //p:Config="$CONFIG" //p:PLATFORM="Win64" || die "Failed to build x64 host"
+    "$MSBUILD" //m //p:Configuration="$CONFIG" //p:PLATFORM="x64" || die "Failed to build x64 recorder"
 fi
 
 popd
+
+# Copy sqlite DLL into target folder
+
+cp ext/sqlite/sqlite3.dll ../build/bin/$CONFIG/
