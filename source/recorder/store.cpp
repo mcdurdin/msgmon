@@ -1,89 +1,94 @@
 // msgmon.recorder.cpp : This file contains the 'main' function. Program execution begins and ends there.
 //
 #include "pch.h"
-#define INITGUID
-#include <iostream>
-#include <windows.h>
-#include <evntrace.h>
-#include <evntcons.h>
+#include "recorder.h"
 #include "sqlite3.h"
-#include <tdh.h>
-#include <unordered_map>
 
-BOOL CreateDatabase();
-BOOL LoadTrace(PWCHAR filename);
+BOOL CreateDatabase(PCTSTR szPath, BOOL fOverwrite);
+BOOL LoadTrace(PTSTR szPath);
 BOOL CommitTransaction();
-BOOL FreeStatement();
+BOOL BeginTransaction();
+BOOL FreeStatements();
 BOOL CloseDatabase();
 
 BOOL CreateTable(PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO info);
 BOOL InsertRecord(int index, PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO info);
-
-TRACEHANDLE hTrace = INVALID_PROCESSTRACE_HANDLE;
-
-#define DATABASE_FILE L"c:\\temp\\msgmon.db"
-//#define LOGFILE ""
+void WINAPI EventRecordCallback(PEVENT_RECORD event);
 
 sqlite3 *db = NULL;
-//sqlite3_stmt *stmt = NULL;
 
-int wmain(int argc, wchar_t *argv[])
-{
+LONGLONG recordNum = 0;
+TRACEHANDLE hTrace = INVALID_PROCESSTRACE_HANDLE;
+PTRACE_EVENT_INFO pInfo = NULL;
+DWORD pInfoBufferSize = 0;
+int msgIndex = 0, windowIndex = 0, processIndex = 0;
+
+// Maintain a map of created tables and prepared statements
+std::unordered_map<std::wstring, sqlite3_stmt*> tables;
+
+BOOL Store(wchar_t *logfile, wchar_t *database, BOOL overwrite) {
   DWORD status;
 
-  if (!CreateDatabase()) return 1;
+  if (!CreateDatabase(database, overwrite)) return FALSE;
 
-  PWCHAR logfile = (argc == 1 ? NULL : argv[1]);
   if (!LoadTrace(logfile)) return 2;
 
   status = ProcessTrace(&hTrace, 1, NULL, NULL);
   if (status != ERROR_SUCCESS) {
-    return 3;
+    return FALSE;
   }
 
   CloseTrace(hTrace);
 
   CommitTransaction();
-  FreeStatement();
+  FreeStatements();
   CloseDatabase();
+
+  return 0;
 }
 
-// Define the GUID to use in TraceLoggingProviderRegister 
-// {082E6CC6-239C-4B96-9475-159AA241B4AB}
-DEFINE_GUID(
-  g_Provider,
-  0x082e6cc6, 0x239c, 0x4b96, 0x94, 0x75, 0x15, 0x9a, 0xa2, 0x41, 0xb4, 0xab);
+BOOL LoadTrace(PTSTR szPath) {
+  EVENT_TRACE_LOGFILE trace = { 0 };
+  TCHAR session[] = SESSION_NAME;
 
-LONGLONG n = 0;
+  if (szPath != NULL) {
+    trace.LogFileName = szPath;
+    trace.ProcessTraceMode = PROCESS_TRACE_MODE_EVENT_RECORD;
+  }
+  else {
+    trace.LoggerName = session;
+    trace.ProcessTraceMode = PROCESS_TRACE_MODE_EVENT_RECORD | PROCESS_TRACE_MODE_REAL_TIME;
+  }
 
-PTRACE_EVENT_INFO pInfo = NULL;
-DWORD pInfoBufferSize = 0;
-int msgIndex = 0, windowIndex = 0, processIndex = 0;
+  trace.EventRecordCallback = EventRecordCallback;
 
-void WINAPI ERC(PEVENT_RECORD event) {
+  hTrace = OpenTrace(&trace);
+  if (hTrace == INVALID_PROCESSTRACE_HANDLE) {
+    std::cout << GetLastError() << std::endl;
+    return FALSE;
+  }
+
+  return TRUE;
+}
+
+
+void WINAPI EventRecordCallback(PEVENT_RECORD event) {
   if (!IsEqualGUID(event->EventHeader.ProviderId, g_Provider)) {
     return;
   }
 
-  if (++n % 10000 == 0) {
+  if (++recordNum % 10000 == 0) {
     // This may not be necessary for offline trace but will be for
     // realtime trace, in the future
-    sqlite3_exec(db, "COMMIT TRANSACTION;", NULL, NULL, NULL);
-    sqlite3_exec(db, "BEGIN TRANSACTION;", NULL, NULL, NULL);
-    std::cout << n << std::endl;
+    if (!CommitTransaction()) return;
+    if (!BeginTransaction()) return;
+    std::cout << recordNum << std::endl;
   }
-
-  //TdhGetEventInformation(EventRecord, 0, nil, pInfo, @bufferSize);
-//  sqlite3_bind_int(stmt, 1, event->EventHeader.ProcessId);
-  //sqlite3_bind_int(stmt, 2, event->EventHeader.ThreadId);
-//  sqlite3_step(stmt);
-//  sqlite3_reset(stmt);
-  //
 
   DWORD status = TdhGetEventInformation(event, 0, NULL, pInfo, &pInfoBufferSize);
   if (status == ERROR_INSUFFICIENT_BUFFER) {
     if (pInfo) free(pInfo);
-    pInfo = (TRACE_EVENT_INFO *) malloc(pInfoBufferSize);
+    pInfo = (TRACE_EVENT_INFO *)malloc(pInfoBufferSize);
     status = TdhGetEventInformation(event, 0, NULL, pInfo, &pInfoBufferSize);
   }
 
@@ -92,7 +97,7 @@ void WINAPI ERC(PEVENT_RECORD event) {
   if (pInfo->TaskNameOffset == 0) return;
 
   PWSTR pTask = (PWSTR)((PBYTE)(pInfo)+pInfo->TaskNameOffset);
-  if(wcscmp(pTask, L"Message") == 0) {
+  if (wcscmp(pTask, L"Message") == 0) {
     if (!CreateTable(pTask, event, pInfo)) {
       std::cout << "Failed to create Message table" << std::endl;
       return;
@@ -127,11 +132,6 @@ void WINAPI ERC(PEVENT_RECORD event) {
     return;
   }
 }
-//end;
-
-//
-// Maintain a map of created tables and prepared statements
-//
 
 BOOL Check(int value) {
   if (value != SQLITE_OK) {
@@ -141,7 +141,6 @@ BOOL Check(int value) {
   return TRUE;
 }
 
-std::unordered_map<std::wstring, sqlite3_stmt*> tables;
 PBYTE propertyBuf = NULL;
 ULONG propertyBufSize = 0;
 
@@ -173,6 +172,7 @@ BOOL GetEventProperties(PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO 
   return TRUE;
 }
 
+
 BOOL CreateTable(PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO info) {
   auto stmt = tables.find(tableName);
   if (stmt != tables.end()) {
@@ -182,7 +182,7 @@ BOOL CreateTable(PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO info) {
   size_t bufSize = info->TopLevelPropertyCount * 24 + 256; // TODO: LAZY!
   char *buf = new char[bufSize], *stmtbuf = new char[bufSize], *p = buf;
 
-  sprintf_s(buf, bufSize, "CREATE TABLE \"%ws\" (row INTEGER", tableName);
+  sprintf_s(buf, bufSize, "CREATE TABLE IF NOT EXISTS \"%ws\" (row INTEGER", tableName);
   sprintf_s(stmtbuf, bufSize, "INSERT INTO \"%ws\" VALUES (?", tableName);
 
   for (ULONG i = 0; i < pInfo->TopLevelPropertyCount; i++) {
@@ -217,7 +217,7 @@ BOOL CreateTable(PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO info) {
   if (!Check(sqlite3_exec(db, "COMMIT TRANSACTION;", NULL, NULL, NULL))) return FALSE;
   if (!Check(sqlite3_exec(db, buf, NULL, NULL, NULL))) return FALSE;
 
-  sprintf_s(buf, bufSize, "CREATE UNIQUE INDEX ix_%ws_row ON \"%ws\" (row)", tableName, tableName);
+  sprintf_s(buf, bufSize, "CREATE UNIQUE INDEX IF NOT EXISTS ix_%ws_row ON \"%ws\" (row)", tableName, tableName);
   if (!Check(sqlite3_exec(db, buf, NULL, NULL, NULL))) return FALSE;
 
   if (!Check(sqlite3_exec(db, "BEGIN TRANSACTION;", NULL, NULL, NULL))) return FALSE;
@@ -259,7 +259,7 @@ BOOL InsertRecord(int index, PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_
   }
 
   int sstatus = sqlite3_step(stmt->second);
-  if(sstatus != SQLITE_DONE) {
+  if (sstatus != SQLITE_DONE) {
     std::wcout << "Table " << tableName << "[" << index << "] failed to insert with code " << sstatus << std::endl;
     return FALSE;
   }
@@ -270,76 +270,47 @@ BOOL InsertRecord(int index, PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_
   return TRUE;
 }
 
-BOOL LoadTrace(PWCHAR filename) {
-  EVENT_TRACE_LOGFILE trace = { 0 };
-  WCHAR session[] = L"MsgMon_Session";
 
-  if (filename != NULL) {
-    trace.LogFileName = filename;
-    trace.ProcessTraceMode = PROCESS_TRACE_MODE_EVENT_RECORD;
-  }
-  else {
-    trace.LoggerName = session;
-    trace.ProcessTraceMode = PROCESS_TRACE_MODE_EVENT_RECORD | PROCESS_TRACE_MODE_REAL_TIME;
-  }
+BOOL FileExists(PCTSTR szPath)
+{
+  // https://devblogs.microsoft.com/oldnewthing/?p=24713
+  // https://stackoverflow.com/a/6218957/1836776
 
-  trace.EventRecordCallback = ERC;
+  DWORD dwAttrib = GetFileAttributes(szPath);
 
-  hTrace = OpenTrace(&trace);
-  if (hTrace == INVALID_PROCESSTRACE_HANDLE) {
-    std::cout << GetLastError() << std::endl;
-    return FALSE;
-  }
-
-  return TRUE;
+  return (dwAttrib != INVALID_FILE_ATTRIBUTES &&
+    !(dwAttrib & FILE_ATTRIBUTE_DIRECTORY));
 }
-/*
-const char *table_create_statement =
-"CREATE TABLE messages ("
-" PID INT,"
-" TID INT,"
-" hwndFocus INT,"
-" hwndActive INT,"
-" hwndCapture INT,"
-" hwndCaret INT,"
-" hwndMenuOwner INT,"
-" hwndMoveSize INT,"
-" activeHKL INT,"
-" hwnd INT,"
-" message INT,"
-" wParam INT64,"
-" lParam INT64,"
-" lResult INT64,"
-" mode INT,"
-" detail TEXT)";
 
-const char *message_insert = 
-  "INSERT INTO messages"
-  "(PID, TID, hwndFocus, hwndActive, hwndCapture, hwndCaret, hwndMenuOwner, hwndMoveSize, "
-  "activeHKL, hwnd, message, wParam, lParam, lResult, mode, detail) "
-  "VALUES (?, ?, ?, ?, ?, ?, ?, ?, "
-  "?, ?, ?, ?, ?, ?, ?, ?)";
-*/
-BOOL CreateDatabase() {
-  DeleteFile(DATABASE_FILE);
-  if (!Check(sqlite3_open16(DATABASE_FILE, &db))) return FALSE;
+BOOL CreateDatabase(PCTSTR szPath, BOOL fOverwrite) {
+  if (FileExists(szPath)) {
+    if (fOverwrite) {
+      if (!DeleteFile(szPath)) {
+        return FALSE;
+      }
+    }
+  }
+
+  if (!Check(sqlite3_open16(szPath, &db))) return FALSE;
   if (!Check(sqlite3_exec(db, "PRAGMA ENCODING=utf8;", NULL, NULL, NULL))) return FALSE;
-  //if (!Check(sqlite3_exec(db, table_create_statement, NULL, NULL, NULL))) return FALSE;
-  if (!Check(sqlite3_exec(db, "BEGIN TRANSACTION;", NULL, NULL, NULL))) return FALSE;
-  //c.execute('pragma encoding')
-  //if (!Check(sqlite3_prepare_v2(db, message_insert, -1, &stmt, NULL))) return FALSE;
-
+  if (!BeginTransaction()) return FALSE;
   return TRUE;
 }
 
 BOOL CommitTransaction() {
-  sqlite3_exec(db, "COMMIT TRANSACTION;", NULL, NULL, NULL);
-  return TRUE;
+  return Check(sqlite3_exec(db, "COMMIT TRANSACTION;", NULL, NULL, NULL));
 }
 
-BOOL FreeStatement() {
-  //TODO: free all statements
-  //sqlite3_finalize(stmt);
+BOOL BeginTransaction() {
+  return Check(sqlite3_exec(db, "BEGIN TRANSACTION;", NULL, NULL, NULL));
+}
+
+BOOL FreeStatements() {
+  for (auto element : tables) {
+    sqlite3_finalize(element.second);
+    element.second = NULL;
+  }
+  tables.clear();
   return TRUE;
 }
 
@@ -347,4 +318,3 @@ BOOL CloseDatabase() {
   sqlite3_close(db);
   return TRUE;
 }
-

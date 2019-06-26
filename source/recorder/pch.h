@@ -9,6 +9,11 @@
 #ifndef PCH_H
 #define PCH_H
 
-// TODO: add headers that you want to pre-compile here
+#include <iostream>
+#include <windows.h>
+#include <evntrace.h>
+#include <evntcons.h>
+#include <tdh.h>
+#include <unordered_map>
 
 #endif //PCH_H
