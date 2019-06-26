@@ -13,7 +13,7 @@ struct {
   BOOL overwrite, x86only;
   cmdline_mode mode;
   cmdline_action action;
-  HANDLE eventHandle;
+  wchar_t *eventName;
 } cmdline = { NULL };
 
 BOOL ParseCommandLine(int argc, wchar_t *argv[]);
@@ -22,6 +22,8 @@ void PrintUsage();
 int wmain(int argc, wchar_t *argv[])
 {
   if (!ParseCommandLine(argc, argv)) {
+    puts("Unknown parameter.");
+    PrintUsage();
     return 1;
   }
 
@@ -30,9 +32,15 @@ int wmain(int argc, wchar_t *argv[])
     PrintUsage();
     return 0; // not an error
   case ACTION_CAPTURE:
-    return Capture(cmdline.eventHandle, cmdline.logfile, cmdline.overwrite, cmdline.x86only) ? 0 : 1;
+    if (cmdline.eventName == NULL) {
+      puts("Event name is required.");
+      return 3;
+    }
+    return Capture(cmdline.eventName, cmdline.logfile, cmdline.overwrite, cmdline.x86only) ? 0 : 1;
+#ifndef _WIN64
   case ACTION_STORE:
     return Store(cmdline.logfile, cmdline.database, cmdline.overwrite) ? 0 : 1;
+#endif
   }
 
   return 2; // unknown action
@@ -65,16 +73,16 @@ BOOL ParseCommandLine(int argc, wchar_t *argv[]) {
       return TRUE;
     }
     else if (i < argc - 1 && (_wcsicmp(argv[i], L"-e") == 0 || _wcsicmp(argv[i], L"--event") == 0)) {
-      cmdline.eventHandle = (HANDLE) _wtoi(argv[i + 1]);
+      cmdline.eventName = argv[i + 1]; // Handle = (HANDLE)(INT64)_wtoi(argv[i + 1]);
       i += 2;
     }
     else if(_wcsicmp(argv[i], L"capture") == 0){
       cmdline.action = ACTION_CAPTURE;
-      return FALSE;
+      i++;
     }
     else if (_wcsicmp(argv[i], L"store") == 0) {
       cmdline.action = ACTION_STORE;
-      return FALSE;
+      i++;
     }
     else {
       return FALSE;
@@ -84,7 +92,7 @@ BOOL ParseCommandLine(int argc, wchar_t *argv[]) {
 }
 
 void PrintUsage() {
-#ifdef WIN64
+#ifdef _WIN64
   puts("Usage: msgmon.recorder.x64 capture [-e handle] [-?]");
   puts("");
   puts("  capture: Runs an event trace, writing to trace created by 32-bit host");

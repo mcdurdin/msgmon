@@ -5,7 +5,8 @@ interface
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.AppEvnts, Vcl.ToolWin,
-  JwaEventTracing, JwaEvntCons, JwaEventDefs, JwaWmistr, System.Generics.Collections,
+  System.SyncObjs,
+  System.Generics.Collections,
 
   MsgMon.System.Data.Column,
   MsgMon.System.Data.Context,
@@ -100,21 +101,18 @@ type
     procedure gridMessagesClick(Sender: TObject);
   private
     db: TMMDatabase;
-    x64Thread: Cardinal;
+    FTraceEvent: TEvent;
 
     // Trace controller
     FTracing: Boolean;
-    FSessionHandle: TRACEHANDLE;
-    pSessionProperties: PEVENT_TRACE_PROPERTIES;
     PopupContextText: string;
     PopupContextCol: Integer;
     LastIndex: Integer;
     currentMessage: TMMMessage;
+    FTraceProcess: THandle;
+    FLogStoreProcess: Cardinal;
 
-    procedure Controller_StartTrace;
-    procedure Controller_StopTrace;
     procedure EnableDisableTrace;
-    procedure PrepData;
     procedure LoadData;
     procedure FlushLibrary;
     procedure BeginLogProcesses;
@@ -125,6 +123,9 @@ type
     procedure UpdateMessageDetail(data: TMMMessage);
     function CreateFilterFromPopup: TMMFilter;
     function LoadMessageRow(index: Integer): Boolean;
+    procedure BeginLogCaptureProcess;
+    procedure BeginLogStoreProcess;
+    function GetTraceEventName: string;
   end;
 
 var
@@ -132,7 +133,6 @@ var
 
 
 const
-  LOGSESSION_NAME = 'MsgMon_Session';
   LOGSESSION_DB_FILENAME = 'c:\temp\msgmon.db';
   LOGSESSION_FILENAME = 'c:\temp\msgmon.etl';
   LOGSESSION_SESSION_FILENAME = 'c:\temp\msgmon.col';
@@ -148,154 +148,101 @@ uses
   MsgMon.UI.FilterForm,
   MsgMon.System.ExecProcess;
 
-const
-  LibraryName = 'msgmon.capture.x86.dll';
-
-function BeginLog: BOOL; stdcall; external LibraryName;
-function EndLog: BOOL; stdcall; external LibraryName;
-
-{$DEFINE RUNX64}
-
-type
-  TEVENT_FILTER_DESCRIPTOR = record
-    Ptr: ULONGLONG;
-    Size: ULONG;
-    Type_: ULONG;
-  end;
-
-  PEVENT_FILTER_DESCRIPTOR = ^TEVENT_FILTER_DESCRIPTOR;
-
-  TENABLE_TRACE_PARAMETERS = record
-    Version: ULONG;
-    EnableProperty: ULONG;
-    ControlFlags: ULONG;
-    SourceId: TGUID;
-    EnableFilterDesc: PEVENT_FILTER_DESCRIPTOR;
-    FilterDescCount: ULONG;
-  end;
-
-  PENABLE_TRACE_PARAMETERS = ^TENABLE_TRACE_PARAMETERS;
-
-function EnableTraceEx2(
-    {__in} TraceHandle : TRACEHANDLE;
-    {__in} ProviderId : PGUID;
-    {__in} ControlCode : ULONG;
-    {__in} Level : UCHAR;
-    {__in} MatchAnyKeyword : ULONGLONG;
-    {__in} MatchAllKeyword : ULONGLONG;
-    {__in} Timeout : ULONG;
-    {__in_opt} EnableParameters: PENABLE_TRACE_PARAMETERS) : ULONG; stdcall; external advapi32 name 'EnableTraceEx2';
-
-const
-  ENABLE_TRACE_PARAMETERS_VERSION_2 = 2;
-  EVENT_ENABLE_PROPERTY_STACK_TRACE = 4;
-  EVENT_CONTROL_CODE_ENABLE_PROVIDER = 1;
-  EVENT_CONTROL_CODE_DISABLE_PROVIDER = 0;
-
-  MsgMonProviderGuid: TGUID = '{082E6CC6-239C-4B96-9475-159AA241B4AB}';
-
 procedure TMMMainForm.cmdFlushLibrariesClick(Sender: TObject);
 begin
   FlushLibrary;
 end;
 
+function TMMMainForm.GetTraceEventName: string;
+begin
+  Result := 'msgmon.'+IntToStr(GetCurrentProcessId)+'.trace';
+end;
+
 procedure TMMMainForm.BeginLogProcesses;
-{$IFDEF RUNX64}
 var
-  app: string;
+  FTraceEventName: string;
+begin
+  FreeAndNil(db);
+
+  FTraceEventName := PChar(GetTraceEventName);
+  FTraceEvent := TEvent.Create(nil, True, False, PChar(FTraceEventName), False);
+//  ShowMessage('msgmon.'+IntToStr(GetCurrentProcessId)+'.trace');
+//  Exit;
+
+  BeginLogCaptureProcess;
+  BeginLogStoreProcess;
+end;
+
+procedure TMMMainForm.BeginLogCaptureProcess;
+var
+  app, cmdline: string;
   si: TStartupInfo;
   pi: TProcessInformation;
-{$ENDIF}
 begin
-{$IFDEF RunX64}
-  app := 'msgmon.x64host.exe';
+
+  app := 'msgmon.recorder.exe';
+  cmdline := 'msgmon.recorder.exe capture -e '+GetTraceEventName;
 
   FillChar(si, SizeOf(TStartupInfo), 0);
   FillChar(pi, Sizeof(TProcessInformation), 0);
 
   si.cb := SizeOf(TStartupInfo);
-  if not CreateProcess(PChar(app), nil, nil, nil, False, NORMAL_PRIORITY_CLASS, nil, nil, si, pi) then
+  if not CreateProcess(PChar(app), PChar(cmdline), nil, nil, True, NORMAL_PRIORITY_CLASS, nil, nil, si, pi) then
   begin
-    ShowMessage('Unable to start x64 process');
+    ShowMessage('Unable to start recorder log capture process');
     Exit;
   end;
 
-  CloseHandle(pi.hProcess);
-  x64Thread := pi.hThread;
-{$ENDIF}
+  FTraceProcess := pi.hProcess;
+  CloseHandle(pi.hThread);
+end;
 
-  BeginLog;
+procedure TMMMainForm.BeginLogStoreProcess;
+var
+  app, cmdline: string;
+  si: TStartupInfo;
+  pi: TProcessInformation;
+begin
+  app := 'msgmon.recorder.exe';
+  cmdline := 'msgmon.recorder.exe store -f -d "'+LOGSESSION_DB_FILENAME+'"';
+
+  FillChar(si, SizeOf(TStartupInfo), 0);
+  FillChar(pi, Sizeof(TProcessInformation), 0);
+
+  si.cb := SizeOf(TStartupInfo);
+  if not CreateProcess(PChar(app), PChar(cmdline), nil, nil, False, NORMAL_PRIORITY_CLASS, nil, nil, si, pi) then
+  begin
+    ShowMessage('Unable to start recorder log store process');
+    Exit;
+  end;
+
+  FLogStoreProcess := pi.hProcess;
+  CloseHandle(pi.hThread);
 end;
 
 procedure TMMMainForm.EndLogProcesses;
-var
-  h: THandle;
 begin
-  EndLog;
+  FTraceEvent.SetEvent;
+//  Exit;
 
-{$IFDEF RunX64}
-  h := FindWindow('Tmsgmonx64Host', nil);
-  PostMessage(h, WM_USER+100, 0, 0);
-  WaitForSingleObject(x64Thread, INFINITE);
-  CloseHandle(x64Thread);
-{$ENDIF}
-
+  WaitForSingleObject(FTraceProcess, INFINITE);
+  CloseHandle(FTraceProcess);
+  WaitForSingleObject(FLogStoreProcess, INFINITE);
+  CloseHandle(FLogStoreProcess);
+  FreeAndNil(FTraceEvent);
   FlushLibrary;
 end;
 
 procedure TMMMainForm.EnableDisableTrace;
-var
-  params: TENABLE_TRACE_PARAMETERS;
-  status: ULONG;
 begin
   if FTracing then
   begin
     BeginLogProcesses;
-
-    Controller_StartTrace;
-
-//    cmdStartStopTrace.Caption := '&Stop Tracing';
-    FillChar(params, Sizeof(params), 0);
-    params.Version := ENABLE_TRACE_PARAMETERS_VERSION_2;
-    params.EnableProperty := EVENT_ENABLE_PROPERTY_STACK_TRACE;
-
-    status := EnableTraceEx2(
-      FSessionHandle,
-      @MsgMonProviderGuid,
-      EVENT_CONTROL_CODE_ENABLE_PROVIDER,
-      TRACE_LEVEL_INFORMATION,
-      0,
-      0,
-      0,
-      @params);
-
-    if ERROR_SUCCESS <> status then
-      RaiseLastOSError(status, 'EnableTraceEx2');
   end
   else
   begin
-//    cmdStartStopTrace.Caption := '&Start Tracing';
-
     EndLogProcesses;
-    Controller_StopTrace;
-
-    PrepData;
     LoadData;
-
-{    status := EnableTraceEx2(
-      FSessionHandle,
-      @MsgMonProviderGuid,
-      EVENT_CONTROL_CODE_DISABLE_PROVIDER,
-      TRACE_LEVEL_INFORMATION,
-      0,
-      0,
-      0,
-      nil);
-
-    if ERROR_SUCCESS <> status then
-      RaiseLastOSError(status, 'EnableTraceEx2');
- }
-//    StopTrace(FSessionHandle, PWideChar(LOGSESSION_NAME),
   end;
 end;
 
@@ -346,6 +293,9 @@ var
   index: Integer;
   t: string;
 begin
+  if not Assigned(db) then
+    Exit;
+
   if (ARow < 0) or (ARow >= db.FilteredRowCount) then
     Exit;
 
@@ -374,6 +324,9 @@ function TMMMainForm.LoadMessageRow(index: Integer): Boolean;
 var
   m: TMMMessage;
 begin
+  if not Assigned(db) then
+    Exit(False);
+
   if index = LastIndex then
     Exit(True);
 
@@ -439,6 +392,9 @@ var
   c: TMMColumn;
   i, ColumnWidths: Integer;
 begin
+  if not Assigned(db) then
+    Exit;
+
   ColumnWidths := 0;
 
   gridMessages.ColCount := db.session.displayColumns.Count;
@@ -462,6 +418,9 @@ var
   ws: TMMWindows;
   owner, parent, w: TMMWindow;
 begin
+  if not Assigned(db) then
+    Exit;
+
   editOwnerWindow.Text := '';
   editParentWindow.Text := '';
   memoMessageDetail.Text := '';
@@ -498,6 +457,8 @@ end;
 
 procedure TMMMainForm.mnuEditClearDisplayClick(Sender: TObject);
 begin
+  if not Assigned(db) then
+    Exit;
   db.context.Clear;
   ApplyFilter;
   // context.MessageNames.Clear;
@@ -529,6 +490,8 @@ end;
 
 procedure TMMMainForm.ApplyFilter;
 begin
+  if not Assigned(db) then
+    Exit;
   // TODO: Remember selected item by index
 
   db.ApplyFilter;
@@ -541,6 +504,9 @@ end;
 
 procedure TMMMainForm.mnuFilterFilterClick(Sender: TObject);
 begin
+  if not Assigned(db) then
+    Exit;
+
   with TMMFilterForm.Create(Self, db.session) do
   try
     if ShowModal = mrOk then
@@ -554,6 +520,8 @@ end;
 
 procedure TMMMainForm.mnuFilterResetFilterClick(Sender: TObject);
 begin
+  if not Assigned(db) then
+    Exit;
   db.session.filters.Clear;
   ApplyFilter;
 end;
@@ -576,95 +544,6 @@ begin
   splitterDetail.Visible := panDetail.Visible;
   panDetail.Top := 0; // Force detail pane above status bar
   splitterDetail.Top := 0; // Enforce splitter above detail panel
-end;
-
-function StringBufferSize(const s: string): Integer;
-begin
-  Result := (Length(s) + 1) * sizeof(WCHAR);
-end;
-
-procedure TMMMainForm.Controller_StartTrace;
-var
-  BufferSize: ULONG;
-  status: ULONG;
-begin
-  // Allocate memory for the session properties. The memory must
-  // be large enough to include the log file name and session name,
-  // which get appended to the end of the session properties structure.
-
-  BufferSize := sizeof(EVENT_TRACE_PROPERTIES) + StringBufferSize(LOGSESSION_FILENAME) + StringBufferSize(LOGSESSION_NAME);
-  pSessionProperties := PEVENT_TRACE_PROPERTIES(AllocMem(BufferSize));
-
-  // Set the session properties. You only append the log file name
-  // to the properties structure; the StartTrace function appends
-  // the session name for you.
-
-  pSessionProperties.Wnode.BufferSize := BufferSize;
-  pSessionProperties.Wnode.Flags := WNODE_FLAG_TRACED_GUID;
-  pSessionProperties.Wnode.ClientContext := 1; //QPC clock resolution
-  pSessionProperties.Wnode.Guid := MsgMonProviderGuid;
-  pSessionProperties.LogFileMode := EVENT_TRACE_FILE_MODE_SEQUENTIAL; //EVENT_TRACE_REAL_TIME_MODE; //
-  pSessionProperties.MaximumFileSize := 256;  // 256 MB
-  pSessionProperties.LoggerNameOffset := sizeof(EVENT_TRACE_PROPERTIES);
-  pSessionProperties.LogFileNameOffset := sizeof(EVENT_TRACE_PROPERTIES) + sizeof(LOGSESSION_NAME);
-//  StrPCopy(PWideChar(PByte(pSessionProperties) + pSessionProperties.LoggerNameOffset), LOGSESSION_NAME);
-  StrPCopy(PWideChar(PByte(pSessionProperties) + pSessionProperties.LogFileNameOffset), LOGSESSION_FILENAME);
-
-  status := StartTrace(@FSessionHandle, PWideChar(LOGSESSION_NAME), pSessionProperties^);
-  if ERROR_ALREADY_EXISTS = status then
-  begin
-    // The trace was already started, perhaps it did not close down cleanly
-    // We'll stop it and restart it
-    status := ControlTraceW(FSessionHandle, PWideChar(LOGSESSION_NAME), pSessionProperties^, EVENT_TRACE_CONTROL_STOP);
-    if ERROR_SUCCESS <> status then
-      OutputDebugString(PChar('ControlTrace failed with '+IntToStr(status)));
-
-    status := StartTrace(@FSessionHandle, PWideChar(LOGSESSION_NAME), pSessionProperties^);
-  end;
-
-  if ERROR_SUCCESS <> status then
-    RaiseLastOSError(status, 'StartTrace');
-
-  {if not TExecProcess.WaitForProcess(
-      'xperf_run.bat -on LOADER+PROC_THREAD -start "'+LOGSESSION_NAME+'" -on MsgMon:::''stack'' -f "'+LOGSESSION_1_FILENAME+'"',
-      GetCurrentDir) then
-    RaiseLastOSError;}
-end;
-
-procedure TMMMainForm.Controller_StopTrace;
-var
-  status: ULONG;
-begin
-  if FSessionHandle <> 0 then
-  begin
-    if FTracing then
-    begin
-      FTracing := False;
-      EnableDisableTrace;
-    end;
-
-    // We use ControlTraceW because JwaEventTracing has a typo for ControlTrace
-    status := ControlTraceW(FSessionHandle, PWideChar(LOGSESSION_NAME), pSessionProperties^, EVENT_TRACE_CONTROL_STOP);
-    if ERROR_SUCCESS <> status then
-      OutputDebugString(PChar('ControlTrace failed with '+IntToStr(status)+' '+SysErrorMessage(status)));
-
-    FSessionHandle := 0;
-  end;
-
-  if pSessionProperties <> nil then
-  begin
-    FreeMem(pSessionProperties);
-    pSessionProperties := nil;
-  end;
-end;
-
-procedure TMMMainForm.PrepData;
-begin
-  if FileExists(LOGSESSION_DB_FILENAME) then
-    DeleteFile(LOGSESSION_DB_FILENAME);
-
-  if not TExecProcess.WaitForProcess('msgmon.recorder.exe "'+LOGSESSION_FILENAME+'"', GetCurrentDir) then
-    RaiseLastOSError;
 end;
 
 procedure TMMMainForm.LoadData;
@@ -694,6 +573,8 @@ var
   acol: Integer;
   arow: Integer;
 begin
+  if not Assigned(db) then
+    Exit;
   mnuPopupFilterInclude.Enabled := False;
   mnuPopupFilterExclude.Enabled := False;
   mnuPopupCopy.Enabled := False;
@@ -732,6 +613,9 @@ end;
 function TMMMainForm.CreateFilterFromPopup: TMMFilter;
 begin
   Result := TMMFilter.Create;
+  if not Assigned(db) then
+    Exit;
+
   Result.column := db.session.filters.Columns.FindClassName(db.session.displayColumns[PopupContextCol].ClassName);
   Assert(Assigned(Result.column));
   Result.relation := frIs;
@@ -743,6 +627,8 @@ procedure TMMMainForm.mnuPopupFilterEditClick(Sender: TObject);
 var
   f: TMMFilter;
 begin
+  if not Assigned(db) then
+    Exit;
   f := CreateFilterFromPopup;
   with TMMFilterForm.Create(Self, db.session) do
   try
@@ -762,6 +648,8 @@ procedure TMMMainForm.mnuPopupFilterExcludeClick(Sender: TObject);
 var
   f: TMMFilter;
 begin
+  if not Assigned(db) then
+    Exit;
   f := CreateFilterFromPopup;
   f.action := faExclude;
   db.session.filters.Add(f);
@@ -772,6 +660,8 @@ procedure TMMMainForm.mnuPopupFilterIncludeClick(Sender: TObject);
 var
   f: TMMFilter;
 begin
+  if not Assigned(db) then
+    Exit;
   f := CreateFilterFromPopup;
   db.session.filters.Add(f);
   ApplyFilter;
