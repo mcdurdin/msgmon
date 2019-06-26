@@ -175,19 +175,19 @@ end;
 
 procedure TMMMainForm.BeginLogCaptureProcess;
 var
-  app, cmdline: string;
+  path, app, cmdline: string;
   si: TStartupInfo;
   pi: TProcessInformation;
 begin
-
-  app := 'msgmon.recorder.exe';
-  cmdline := 'msgmon.recorder.exe capture -e '+GetTraceEventName;
+  path := ExtractFileDir(ParamStr(0));
+  app := path+'\msgmon.recorder.exe';
+  cmdline := '"'+app+'" capture -e '+GetTraceEventName;
 
   FillChar(si, SizeOf(TStartupInfo), 0);
   FillChar(pi, Sizeof(TProcessInformation), 0);
 
   si.cb := SizeOf(TStartupInfo);
-  if not CreateProcess(PChar(app), PChar(cmdline), nil, nil, True, NORMAL_PRIORITY_CLASS, nil, nil, si, pi) then
+  if not CreateProcess(PChar(app), PChar(cmdline), nil, nil, True, NORMAL_PRIORITY_CLASS, nil, PChar(path), si, pi) then
   begin
     ShowMessage('Unable to start recorder log capture process');
     Exit;
@@ -199,18 +199,19 @@ end;
 
 procedure TMMMainForm.BeginLogStoreProcess;
 var
-  app, cmdline: string;
+  path, app, cmdline: string;
   si: TStartupInfo;
   pi: TProcessInformation;
 begin
-  app := 'msgmon.recorder.exe';
-  cmdline := 'msgmon.recorder.exe store -f -d "'+LOGSESSION_DB_FILENAME+'"';
+  path := ExtractFileDir(ParamStr(0));
+  app := path+'\msgmon.recorder.exe';
+  cmdline := '"'+app+'" store -f -d "'+LOGSESSION_DB_FILENAME+'"';
 
   FillChar(si, SizeOf(TStartupInfo), 0);
   FillChar(pi, Sizeof(TProcessInformation), 0);
 
   si.cb := SizeOf(TStartupInfo);
-  if not CreateProcess(PChar(app), PChar(cmdline), nil, nil, False, NORMAL_PRIORITY_CLASS, nil, nil, si, pi) then
+  if not CreateProcess(PChar(app), PChar(cmdline), nil, nil, False, NORMAL_PRIORITY_CLASS, nil, PChar(path), si, pi) then
   begin
     ShowMessage('Unable to start recorder log store process');
     Exit;
@@ -223,13 +224,15 @@ end;
 procedure TMMMainForm.EndLogProcesses;
 begin
   FTraceEvent.SetEvent;
-//  Exit;
 
-  WaitForSingleObject(FTraceProcess, INFINITE);
+  WaitForSingleObject(FTraceProcess, INFINITE); // TODO handle failure
   CloseHandle(FTraceProcess);
-  WaitForSingleObject(FLogStoreProcess, INFINITE);
+
+  WaitForSingleObject(FLogStoreProcess, INFINITE); // TODO handle failure
   CloseHandle(FLogStoreProcess);
+
   FreeAndNil(FTraceEvent);
+
   FlushLibrary;
 end;
 
