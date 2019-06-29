@@ -16,17 +16,15 @@ Windows user message monitor in the style of procmon.
 
 # TODO
 
-2. In-memory buffering for data is not workable. A 30 second trace generated a 165MB ETL file, which turned into a 700MB XML, which crashed MsgMon (2GB+ limit)
-  - What data is redundant in each message? (PID, TID, )
-
 3. User Interface Improvements
+  - save-to-file
+  - load-from-file
+
   - Add window tree view pane
   - Add detail pane
   - time columns
   - basic column choices (plus load and save)
   - hwnd needs to show handle as well as classname
-  - save-to-file
-  - load-from-file
   - add icon
   - sort column classes in MsgMon.System.Data.Column more sensibly
   - suggestions for filter values
@@ -37,10 +35,12 @@ Windows user message monitor in the style of procmon.
   - bookmarks
   - multiple window view
   - Filtering
+    - Save filter to file by default
     - Add filtering on window 'type' - e.g. child, popup, overlapped, topmost, transparent, etc?
     - Add filtering on window visibility, enabled state
     - Add row highlight filters
     - Filter dialog needs row-select on list view
+    - Reset filter button in dialog doesn't work
   - Link to MSDN on WM_*?
   - Highlight window in window tree when clicking on hwnd
 
@@ -58,6 +58,8 @@ Windows user message monitor in the style of procmon.
 7. Bundling and deployment
   - bundle into single executable for deployment (extract to same folder or temp folder on run?)
  
+8. What data is redundant in each message? (PID, TID)
+
 # Data Model
 
  context

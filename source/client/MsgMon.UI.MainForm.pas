@@ -6,6 +6,7 @@ uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.AppEvnts, Vcl.ToolWin,
   System.SyncObjs,
+  System.IOUtils,
   System.Generics.Collections,
 
   MsgMon.System.Data.Column,
@@ -79,6 +80,8 @@ type
     gridMessages: TDrawGrid;
     TabSheet1: TTabSheet;
     memoLog: TMemo;
+    dlgOpen: TOpenDialog;
+    dlgSave: TSaveDialog;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure cmdFlushLibrariesClick(Sender: TObject);
@@ -102,8 +105,10 @@ type
     procedure gridMessagesDrawCell(Sender: TObject; ACol, ARow: Integer;
       ARect: TRect; AState: TGridDrawState);
     procedure gridMessagesClick(Sender: TObject);
+    procedure mnuFileSaveClick(Sender: TObject);
   private
     db: TMMDatabase;
+    FFilename: string;
     FTraceEvent: TEvent;
 
     // Trace controller
@@ -116,9 +121,9 @@ type
     FLogStoreProcess: TRunConsoleApp;
     FTraceProcessx64: TRunConsoleApp;
     fIsWow64: LongBool;
+    FIsTempDatabase: Boolean;
 
     procedure EnableDisableTrace;
-    procedure LoadData;
     procedure FlushLibrary;
     procedure BeginLogProcesses;
     procedure EndLogProcesses;
@@ -132,27 +137,80 @@ type
     procedure BeginLogStoreProcess;
     function GetTraceEventName: string;
     procedure BeginLogCaptureX64Process;
+    procedure LoadLastTrace;
+    function LoadDatabase(const AFilename: string): Boolean;
+    procedure CloseDatabase;
+    procedure UpdateStatusBar(const simpleMessage: string = '');
+    function SaveDatabase(const AFilename: string): Boolean;
+    procedure DisableTrace;
+    procedure EnableTrace;
   end;
 
 var
   MMMainForm: TMMMainForm;
 
 
-const
-  LOGSESSION_DB_FILENAME = 'c:\temp\msgmon.db';
-  LOGSESSION_FILENAME = 'c:\temp\msgmon.etl';
-  LOGSESSION_SESSION_FILENAME = 'c:\temp\msgmon.col';
+//const
+//  LOGSESSION_DB_FILENAME = 'c:\temp\msgmon.db';
 
 implementation
 
 {$R *.dfm}
 
 uses
+  System.Win.Registry,
   Vcl.Clipbrd,
   Winapi.ActiveX,
   Winapi.Tlhelp32,
+
   MsgMon.UI.FilterForm,
   MsgMon.System.ExecProcess;
+
+procedure TMMMainForm.FormCreate(Sender: TObject);
+begin
+  CoInitializeEx(nil, COINIT_APARTMENTTHREADED);
+
+  if not IsWow64Process(GetCurrentProcess, fIsWow64) then
+    RaiseLastOSError;
+
+  LastIndex := -1;
+end;
+
+procedure TMMMainForm.FormDestroy(Sender: TObject);
+begin
+  if FTracing then
+  begin
+    FTracing := False;
+    DisableTrace;
+  end;
+
+  CloseDatabase;
+
+  if FIsTempDatabase then
+  begin
+    if FileExists(FFilename) then
+      DeleteFile(FFilename);
+  end;
+
+  CoUninitialize;
+end;
+
+procedure TMMMainForm.FormResize(Sender: TObject);
+begin
+  if Assigned(db) then
+    PrepareView;
+end;
+
+procedure TMMMainForm.FormShow(Sender: TObject);
+begin
+  // Delay after shown
+  PostMessage(Handle, WM_USER, 0, 0);
+end;
+
+procedure TMMMainForm.WMUser(var Message: TMessage);
+begin
+  LoadLastTrace;
+end;
 
 procedure TMMMainForm.cmdFlushLibrariesClick(Sender: TObject);
 begin
@@ -168,7 +226,7 @@ procedure TMMMainForm.BeginLogProcesses;
 var
   FTraceEventName: string;
 begin
-  FreeAndNil(db);
+  CloseDatabase;
 
   FTraceEventName := PChar(GetTraceEventName);
   FTraceEvent := TEvent.Create(nil, True, False, PChar(FTraceEventName), False);
@@ -212,10 +270,34 @@ var
 begin
   path := ExtractFileDir(ParamStr(0));
   app := path+'\msgmon.recorder.exe';
-  cmdline := '"'+app+'" store -f -d "'+LOGSESSION_DB_FILENAME+'"';
+  cmdline := '"'+app+'" store -d "'+FFilename+'"';
   logfile := path+'\msgmon.recorder.store.log';
 
   FLogStoreProcess := TRunConsoleApp.Run(app, cmdline, path, logfile);
+end;
+
+procedure TMMMainForm.UpdateStatusBar(const simpleMessage: string);
+begin
+  if simpleMessage <> '' then
+  begin
+    statusBar.SimplePanel := True;
+    statusBar.SimpleText := simpleMessage;
+  end
+  else
+    statusBar.SimplePanel := False;
+
+  if Assigned(db) then
+  begin
+    statusBar.Panels[0].Text := ExtractFileName(db.Filename);
+    statusBar.Panels[2].Text := 'Showing '+IntToStr(db.FilteredRowCount)+' of total '+IntToStr(db.TotalRowCount)+' messages';
+  end
+  else
+  begin
+    statusBar.Panels[0].Text := 'No file loaded.';
+    statusBar.Panels[2].Text := '';
+  end;
+
+  statusbar.Update;
 end;
 
 procedure TMMMainForm.EndLogProcesses;
@@ -224,7 +306,8 @@ procedure TMMMainForm.EndLogProcesses;
     msg := app + ' ' + msg;
     if code <> 0 then
       msg := msg + '. The error ('+IntToStr(code)+') was '+SysErrorMessage(GetLastError);
-    statusBar.Text := msg;
+
+    UpdateStatusBar(msg);
   end;
 
   procedure ReportProcessResult(p: TRunConsoleApp);
@@ -280,46 +363,53 @@ procedure TMMMainForm.EnableDisableTrace;
 begin
   if FTracing then
   begin
-    BeginLogProcesses;
+    EnableTrace;
   end
   else
   begin
-    EndLogProcesses;
-    LoadData;
+    DisableTrace;
   end;
 end;
 
-procedure TMMMainForm.FormCreate(Sender: TObject);
+procedure TMMMainForm.EnableTrace;
 begin
-  CoInitializeEx(nil, COINIT_APARTMENTTHREADED);
-
-  if not IsWow64Process(GetCurrentProcess, fIsWow64) then
-    RaiseLastOSError;
-
-  LastIndex := -1;
+  BeginLogProcesses;
+  UpdateStatusBar('Recording trace to '+FFilename);
 end;
 
-procedure TMMMainForm.FormDestroy(Sender: TObject);
+procedure TMMMainForm.DisableTrace;
 begin
-  if FTracing then
+  UpdateStatusBar('Stopping trace, please wait.');
+  EndLogProcesses;
+  LoadDatabase(FFilename);
+end;
+
+
+procedure TMMMainForm.LoadLastTrace;
+var
+  r: TRegistry;
+  filename: string;
+begin
+  r := TRegistry.Create;
+  if r.OpenKeyReadOnly('Software\MsgMon') and r.ValueExists('LastTraceFilename')
+    then filename := r.ReadString('LastTraceFilename');
+
+  if (filename <> '') and FileExists(filename) then
   begin
-    FTracing := not FTracing;
-    EnableDisableTrace;
+    FIsTempDatabase := False;
+    if LoadDatabase(filename) then Exit;
   end;
 
-  CoUninitialize;
-end;
+  // Start a new temporary file when starting the program
 
-procedure TMMMainForm.FormResize(Sender: TObject);
-begin
-  if Assigned(db) then
-    PrepareView;
-end;
+  FIsTempDatabase := True;  // We'll delete on close of program
+  FFilename := TPath.Combine(TPath.GetTempPath, 'msgmon.' + IntToStr(GetCurrentProcessId) + '.db');
+  if FileExists(FFilename) then
+    DeleteFile(FFilename);
 
-procedure TMMMainForm.FormShow(Sender: TObject);
-begin
-  // Delay after shown
-  PostMessage(Handle, WM_USER, 0, 0);
+  // no database to start
+  //EnableControls;
+  UpdateStatusBar;
 end;
 
 procedure TMMMainForm.gridMessagesClick(Sender: TObject);
@@ -384,13 +474,6 @@ begin
   currentMessage := m;
   LastIndex := index;
   Result := True;
-end;
-
-procedure TMMMainForm.WMUser(var Message: TMessage);
-begin
-  progress.Visible := True;
-  LoadData;
-  progress.Visible := False;
 end;
 
 procedure TMMMainForm.FlushLibrary;
@@ -519,6 +602,8 @@ end;
 procedure TMMMainForm.mnuFileClick(Sender: TObject);
 begin
   mnuFileCaptureEvents.Checked := FTracing;
+  mnuFileOpen.Enabled := not FTracing;
+  mnuFileSave.Enabled := Assigned(db);
 end;
 
 procedure TMMMainForm.mnuFileExitClick(Sender: TObject);
@@ -528,22 +613,31 @@ end;
 
 procedure TMMMainForm.mnuFileOpenClick(Sender: TObject);
 begin
-//  if dlgOpen.Execute then
-//  begin
-//    LoadData(dlgOpen.Filename);
-//  end;
+  if dlgOpen.Execute then
+  begin
+    LoadDatabase(dlgOpen.Filename);
+  end;
+end;
+
+procedure TMMMainForm.mnuFileSaveClick(Sender: TObject);
+begin
+  if dlgSave.Execute then
+  begin
+    SaveDatabase(dlgSave.FileName);
+  end;
 end;
 
 procedure TMMMainForm.ApplyFilter;
 begin
   if not Assigned(db) then
     Exit;
+
   // TODO: Remember selected item by index
 
   db.ApplyFilter;
 
   // Refresh status
-  statusBar.Panels[0].Text := 'Showing '+IntToStr(db.FilteredRowCount)+' of total '+IntToStr(db.TotalRowCount)+' messages';
+  UpdateStatusBar;
   gridMessages.RowCount := db.FilteredRowCount + 1;
   gridMessages.Invalidate;
 end;
@@ -592,21 +686,52 @@ begin
   splitterDetail.Top := 0; // Enforce splitter above detail panel
 end;
 
-procedure TMMMainForm.LoadData;
+function TMMMainForm.SaveDatabase(const AFilename: string): Boolean;
 begin
-  if not FileExists(LOGSESSION_DB_FILENAME) then
-    Exit;
+  Assert(Assigned(db));
+  CloseDatabase;
+  Result := MoveFile(PChar(FFilename), PChar(AFilename));
+  if not Result then
+  begin
+    ShowMessage('Unable to save database to '+AFilename+': '+SysErrorMessage(GetLastError));
+    Result := LoadDatabase(FFilename); // Load old file
+  end
+  else
+    Result := LoadDatabase(AFilename); // Load renamed file
+end;
 
-  statusbar.panels[0].Text := 'Opening database';
-  statusbar.Update;
+function TMMMainForm.LoadDatabase(const AFilename: string): Boolean;
+begin
+  if not FileExists(AFilename) then
+    Exit(False);
 
-  db := TMMDatabase.Create(LOGSESSION_DB_FILENAME);
+  UpdateStatusBar('Opening database '+ExtractFileName(AFilename));
 
-  statusbar.panels[0].Text := '';
-  statusbar.Update;
+  try
+    try
+      db := TMMDatabase.Create(AFilename);
+      FFilename := AFilename;
+    except
+      on E:Exception do
+      begin
+        memoLog.Lines.Add('Error '+E.ClassName+' loading database '+AFilename+': '+E.Message);
+        Exit(False);
+      end;
+    end;
+  finally
+    UpdateStatusBar;
+  end;
 
   PrepareView;
   ApplyFilter;
+
+  Result := True;
+end;
+
+procedure TMMMainForm.CloseDatabase;
+begin
+  FreeAndNil(db);
+  UpdateStatusBar;
 end;
 
 //

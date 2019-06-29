@@ -16,7 +16,8 @@ uses
   SQLite3 in '..\ext\sqlite\delphi\Source\SQLite3.pas',
   SQLite3Utils in '..\ext\sqlite\delphi\Source\SQLite3Utils.pas',
   SQLite3Wrap in '..\ext\sqlite\delphi\Source\SQLite3Wrap.pas',
-  MsgMon.Data.Database in 'MsgMon.Data.Database.pas';
+  MsgMon.Data.Database in 'MsgMon.Data.Database.pas',
+  MsgMon.System.ExecConsoleProcess in 'MsgMon.System.ExecConsoleProcess.pas';
 
 {$R *.res}
 

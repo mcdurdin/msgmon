@@ -39,12 +39,18 @@ object MMMainForm: TMMMainForm
     Panels = <
       item
         Width = 250
+      end
+      item
+        Width = 150
+      end
+      item
+        Width = 50
       end>
   end
   object progress: TProgressBar
-    Left = 309
+    Left = 253
     Top = 340
-    Width = 343
+    Width = 144
     Height = 16
     Anchors = [akLeft, akRight, akBottom]
     TabOrder = 1
@@ -178,7 +184,6 @@ object MMMainForm: TMMMainForm
       OnClick = mnuFileClick
       object mnuFileOpen: TMenuItem
         Caption = '&Open...'
-        Enabled = False
         ShortCut = 16463
         OnClick = mnuFileOpenClick
       end
@@ -186,6 +191,7 @@ object MMMainForm: TMMMainForm
         Caption = '&Save...'
         Enabled = False
         ShortCut = 16467
+        OnClick = mnuFileSaveClick
       end
       object N1: TMenuItem
         Caption = '-'
@@ -321,5 +327,17 @@ object MMMainForm: TMMMainForm
       Caption = 'Edit Filter '#39'<>'#39'...'
       OnClick = mnuPopupFilterEditClick
     end
+  end
+  object dlgOpen: TOpenDialog
+    DefaultExt = 'db'
+    Filter = 'Message Monitor Database Files (*.db)|*.db|All files (*.*)|*.*'
+    Left = 448
+    Top = 64
+  end
+  object dlgSave: TSaveDialog
+    DefaultExt = 'db'
+    Filter = 'Message Monitor Database Files (*.db)|*.db|All files (*.*)|*.*'
+    Left = 536
+    Top = 64
   end
 end
