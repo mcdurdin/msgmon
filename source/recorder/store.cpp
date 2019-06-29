@@ -29,12 +29,19 @@ std::unordered_map<std::wstring, sqlite3_stmt*> tables;
 BOOL Store(wchar_t *logfile, wchar_t *database, BOOL overwrite) {
   DWORD status;
 
-  if (!CreateDatabase(database, overwrite)) return FALSE;
+  if (!CreateDatabase(database, overwrite)) {
+    std::cout << "Failed to CreateDatabase" << std::endl;
+    return FALSE;
+  }
 
-  if (!LoadTrace(logfile)) return 2;
+  if (!LoadTrace(logfile)) {
+    std::cout << "Failed to LoadTrace" << std::endl;
+    return FALSE;
+  }
 
   status = ProcessTrace(&hTrace, 1, NULL, NULL);
   if (status != ERROR_SUCCESS) {
+    std::cout << "Failed to ProcessTrace with " << status << std::endl;
     return FALSE;
   }
 
@@ -42,9 +49,10 @@ BOOL Store(wchar_t *logfile, wchar_t *database, BOOL overwrite) {
 
   CommitTransaction();
   FreeStatements();
+
   CloseDatabase();
 
-  return 0;
+  return TRUE;
 }
 
 BOOL LoadTrace(PTSTR szPath) {

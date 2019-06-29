@@ -136,6 +136,9 @@ BOOL Startx64Host(wchar_t *eventName) {
   PROCESS_INFORMATION pi = { 0 };
 
   si.cb = sizeof(STARTUPINFO);
+  si.wShowWindow = SW_SHOWMINIMIZED;
+  si.dwFlags = STARTF_USESHOWWINDOW;
+
   if (!CreateProcess(app, cmdline, NULL, NULL, TRUE, CREATE_NEW_CONSOLE | NORMAL_PRIORITY_CLASS, NULL, NULL, &si, &pi)) {
     std::cout << "Startx64Host: CreateProcess failed with error " << GetLastError() << std::endl;
     return FALSE;

@@ -186,6 +186,8 @@ begin
   FillChar(si, SizeOf(TStartupInfo), 0);
   FillChar(pi, Sizeof(TProcessInformation), 0);
 
+  si.wShowWindow := SW_SHOWMINIMIZED;
+  si.dwFlags := STARTF_USESHOWWINDOW;
   si.cb := SizeOf(TStartupInfo);
   if not CreateProcess(PChar(app), PChar(cmdline), nil, nil, True, NORMAL_PRIORITY_CLASS, nil, PChar(path), si, pi) then
   begin
@@ -209,6 +211,9 @@ begin
 
   FillChar(si, SizeOf(TStartupInfo), 0);
   FillChar(pi, Sizeof(TProcessInformation), 0);
+
+  si.wShowWindow := SW_SHOWMINIMIZED;
+  si.dwFlags := STARTF_USESHOWWINDOW;
 
   si.cb := SizeOf(TStartupInfo);
   if not CreateProcess(PChar(app), PChar(cmdline), nil, nil, False, NORMAL_PRIORITY_CLASS, nil, PChar(path), si, pi) then
