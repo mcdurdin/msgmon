@@ -165,7 +165,7 @@ BOOL GetEventProperties(PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO 
     return FALSE;
   }
 
-  if (sz > propertyBufSize - 2) {
+  if (sz + 2 > propertyBufSize) {
     if (propertyBuf) delete propertyBuf;
     propertyBufSize = sz + 2; // add trailing WCHAR nul
     propertyBuf = new BYTE[propertyBufSize];
