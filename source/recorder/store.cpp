@@ -156,7 +156,8 @@ BOOL GetEventProperties(PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO 
     std::wcout << "Table " << tableName << " failed to get property size with error " << status << std::endl;
     return FALSE;
   }
-  if (sz > propertyBufSize) {
+
+  if (sz > propertyBufSize - 2) {
     if (propertyBuf) delete propertyBuf;
     propertyBufSize = sz + 2; // add trailing WCHAR nul
     propertyBuf = new BYTE[propertyBufSize];
