@@ -39,11 +39,13 @@ BOOL Store(wchar_t *logfile, wchar_t *database, BOOL overwrite) {
     return FALSE;
   }
 
-  status = ProcessTrace(&hTrace, 1, NULL, NULL);
-  if (status != ERROR_SUCCESS) {
-    std::cout << "Failed to ProcessTrace with " << status << std::endl;
-    return FALSE;
-  }
+  do {
+    status = ProcessTrace(&hTrace, 1, NULL, NULL);
+    if (status != ERROR_SUCCESS) {
+      std::cout << "Failed to ProcessTrace with " << status << ". Waiting 1 second" << std::endl;
+      Sleep(1000);
+    }
+  } while (status != ERROR_SUCCESS);
 
   CloseTrace(hTrace);
 

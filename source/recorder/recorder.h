@@ -10,4 +10,4 @@ DEFINE_GUID(
 
 
 BOOL Store(wchar_t *logfile, wchar_t *database, BOOL overwrite);
-BOOL Capture(wchar_t *eventName, wchar_t *logfile, BOOL overwrite, BOOL x86only);
+BOOL Capture(wchar_t *eventName, wchar_t *logfile, BOOL overwrite);

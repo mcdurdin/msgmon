@@ -17,6 +17,7 @@ uses
   MsgMon.System.Data.Session,
   MsgMon.System.Data.Window,
   MsgMon.Data.Database,
+  MsgMon.System.ExecConsoleProcess,
   Vcl.Themes,
   Vcl.Menus, Vcl.ExtCtrls, Vcl.ActnMenus, System.Actions, Vcl.ActnList,
   Vcl.StdActns, Vcl.PlatformDefaultStyleActnCtrls, Vcl.ActnMan, Vcl.ActnCtrls,
@@ -76,6 +77,8 @@ type
     mnuPopupFilterEdit: TMenuItem;
     mnuPopupCopy: TMenuItem;
     gridMessages: TDrawGrid;
+    TabSheet1: TTabSheet;
+    memoLog: TMemo;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure cmdFlushLibrariesClick(Sender: TObject);
@@ -109,8 +112,10 @@ type
     PopupContextCol: Integer;
     LastIndex: Integer;
     currentMessage: TMMMessage;
-    FTraceProcess: THandle;
-    FLogStoreProcess: Cardinal;
+    FTraceProcess: TRunConsoleApp;
+    FLogStoreProcess: TRunConsoleApp;
+    FTraceProcessx64: TRunConsoleApp;
+    fIsWow64: LongBool;
 
     procedure EnableDisableTrace;
     procedure LoadData;
@@ -126,6 +131,7 @@ type
     procedure BeginLogCaptureProcess;
     procedure BeginLogStoreProcess;
     function GetTraceEventName: string;
+    procedure BeginLogCaptureX64Process;
   end;
 
 var
@@ -166,75 +172,104 @@ begin
 
   FTraceEventName := PChar(GetTraceEventName);
   FTraceEvent := TEvent.Create(nil, True, False, PChar(FTraceEventName), False);
-//  ShowMessage('msgmon.'+IntToStr(GetCurrentProcessId)+'.trace');
-//  Exit;
 
   BeginLogCaptureProcess;
+
+  if fIsWow64 then
+    BeginLogCaptureX64Process;
+
   BeginLogStoreProcess;
 end;
 
 procedure TMMMainForm.BeginLogCaptureProcess;
 var
   path, app, cmdline: string;
-  si: TStartupInfo;
-  pi: TProcessInformation;
+  logfile: string;
 begin
   path := ExtractFileDir(ParamStr(0));
   app := path+'\msgmon.recorder.exe';
   cmdline := '"'+app+'" capture -e '+GetTraceEventName;
+  logfile := path+'\msgmon.recorder.capture.log';
+  FTraceProcess := TRunConsoleApp.Run(app, cmdline, path, logfile);
+end;
 
-  FillChar(si, SizeOf(TStartupInfo), 0);
-  FillChar(pi, Sizeof(TProcessInformation), 0);
-
-  si.wShowWindow := SW_SHOWMINIMIZED;
-  si.dwFlags := STARTF_USESHOWWINDOW;
-  si.cb := SizeOf(TStartupInfo);
-  if not CreateProcess(PChar(app), PChar(cmdline), nil, nil, True, NORMAL_PRIORITY_CLASS, nil, PChar(path), si, pi) then
-  begin
-    ShowMessage('Unable to start recorder log capture process');
-    Exit;
-  end;
-
-  FTraceProcess := pi.hProcess;
-  CloseHandle(pi.hThread);
+procedure TMMMainForm.BeginLogCaptureX64Process;
+var
+  path, app, cmdline: string;
+  logfile: string;
+begin
+  path := ExtractFileDir(ParamStr(0));
+  app := path+'\msgmon.recorder.x64.exe';
+  cmdline := '"'+app+'" capture -e '+GetTraceEventName;
+  logfile := path+'\msgmon.recorder.x64.capture.log';
+  FTraceProcessx64 := TRunConsoleApp.Run(app, cmdline, path, logfile);
 end;
 
 procedure TMMMainForm.BeginLogStoreProcess;
 var
   path, app, cmdline: string;
-  si: TStartupInfo;
-  pi: TProcessInformation;
+  logfile: string;
 begin
   path := ExtractFileDir(ParamStr(0));
   app := path+'\msgmon.recorder.exe';
   cmdline := '"'+app+'" store -f -d "'+LOGSESSION_DB_FILENAME+'"';
+  logfile := path+'\msgmon.recorder.store.log';
 
-  FillChar(si, SizeOf(TStartupInfo), 0);
-  FillChar(pi, Sizeof(TProcessInformation), 0);
-
-  si.wShowWindow := SW_SHOWMINIMIZED;
-  si.dwFlags := STARTF_USESHOWWINDOW;
-
-  si.cb := SizeOf(TStartupInfo);
-  if not CreateProcess(PChar(app), PChar(cmdline), nil, nil, False, NORMAL_PRIORITY_CLASS, nil, PChar(path), si, pi) then
-  begin
-    ShowMessage('Unable to start recorder log store process');
-    Exit;
-  end;
-
-  FLogStoreProcess := pi.hProcess;
-  CloseHandle(pi.hThread);
+  FLogStoreProcess := TRunConsoleApp.Run(app, cmdline, path, logfile);
 end;
 
 procedure TMMMainForm.EndLogProcesses;
+  procedure ReportProcessError(app, msg: string; code: Integer = 0);
+  begin
+    msg := app + ' ' + msg;
+    if code <> 0 then
+      msg := msg + '. The error ('+IntToStr(code)+') was '+SysErrorMessage(GetLastError);
+    statusBar.Text := msg;
+  end;
+
+  procedure ReportProcessResult(p: TRunConsoleApp);
+  var
+    a: string;
+  begin
+    a := ExtractFileName(p.App);
+    if not p.RunResult then
+      ReportProcessError(a, 'failed to start', p.LastError)
+    else if p.ExitCode <> 0 then
+      ReportProcessError(a, 'failed with exit code '+IntToStr(p.ExitCode));
+
+    memoLog.Text := memoLog.Text +
+      p.CommandLine + #13#10 +
+      p.LogText + #13#10 +
+      #13#10;
+  end;
 begin
+  Assert(Assigned(FTraceEvent));
+  Assert(Assigned(FTraceProcess));
+  Assert(Assigned(FTraceProcessx64));
+  Assert(Assigned(FLogStoreProcess));
+
   FTraceEvent.SetEvent;
 
-  WaitForSingleObject(FTraceProcess, INFINITE); // TODO handle failure
-  CloseHandle(FTraceProcess);
+  { Wait for the x86 capture first; it also controls the trace }
 
-  WaitForSingleObject(FLogStoreProcess, INFINITE); // TODO handle failure
-  CloseHandle(FLogStoreProcess);
+  FTraceProcess.WaitFor;
+  ReportProcessResult(FTraceProcess);
+  FreeAndNil(FTraceProcess);
+
+  { Now cleanup after the x64 capture }
+
+  if Assigned(FTraceProcessx64) then
+  begin
+    FTraceProcessx64.WaitFor;
+    ReportProcessResult(FTraceProcessx64);
+    FreeAndNil(FTraceProcessx64);
+  end;
+
+  { And finally, the log store process will shut down once the trace events finish draining }
+
+  FLogStoreProcess.WaitFor;
+  ReportProcessResult(FLogStoreProcess);
+  FreeAndNil(FLogStoreProcess);
 
   FreeAndNil(FTraceEvent);
 
@@ -257,6 +292,9 @@ end;
 procedure TMMMainForm.FormCreate(Sender: TObject);
 begin
   CoInitializeEx(nil, COINIT_APARTMENTTHREADED);
+
+  if not IsWow64Process(GetCurrentProcess, fIsWow64) then
+    RaiseLastOSError;
 
   LastIndex := -1;
 end;

@@ -121,10 +121,6 @@ object MMMainForm: TMMMainForm
       object TabSheet2: TTabSheet
         Caption = 'Call Stack'
         ImageIndex = 1
-        ExplicitLeft = 0
-        ExplicitTop = 0
-        ExplicitWidth = 0
-        ExplicitHeight = 0
         DesignSize = (
           693
           126)
@@ -135,6 +131,27 @@ object MMMainForm: TMMMainForm
           Height = 126
           Anchors = [akLeft, akTop, akRight, akBottom]
           TabOrder = 0
+        end
+      end
+      object TabSheet1: TTabSheet
+        Caption = 'Log'
+        ImageIndex = 2
+        object memoLog: TMemo
+          Left = 0
+          Top = 0
+          Width = 693
+          Height = 126
+          Align = alClient
+          Font.Charset = ANSI_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Consolas'
+          Font.Style = []
+          ParentFont = False
+          ReadOnly = True
+          ScrollBars = ssBoth
+          TabOrder = 0
+          WordWrap = False
         end
       end
     end

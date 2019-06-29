@@ -10,7 +10,7 @@ enum cmdline_action { ACTION_UNKNOWN, ACTION_USAGE, ACTION_CAPTURE, ACTION_STORE
 enum cmdline_mode { MODE_UNKNOWN, MODE_FROMFILE, MODE_REALTIME };
 struct {
   wchar_t *logfile, *database;
-  BOOL overwrite, x86only;
+  BOOL overwrite;
   cmdline_mode mode;
   cmdline_action action;
   wchar_t *eventName;
@@ -36,7 +36,7 @@ int wmain(int argc, wchar_t *argv[])
       puts("Event name is required.");
       return 3;
     }
-    return Capture(cmdline.eventName, cmdline.logfile, cmdline.overwrite, cmdline.x86only) ? 0 : 1;
+    return Capture(cmdline.eventName, cmdline.logfile, cmdline.overwrite) ? 0 : 1;
 #ifndef _WIN64
   case ACTION_STORE:
     return Store(cmdline.logfile, cmdline.database, cmdline.overwrite) ? 0 : 1;
@@ -62,10 +62,6 @@ BOOL ParseCommandLine(int argc, wchar_t *argv[]) {
     }
     else if (_wcsicmp(argv[i], L"-f") == 0 || _wcsicmp(argv[i], L"--overwrite") == 0) {
       cmdline.overwrite = TRUE;
-      i++;
-    }
-    else if (_wcsicmp(argv[i], L"-x") == 0) {
-      cmdline.x86only = TRUE;
       i++;
     }
     else if (_wcsicmp(argv[i], L"-?") == 0 || _wcsicmp(argv[i], L"--help") == 0) {
@@ -99,12 +95,11 @@ void PrintUsage() {
   puts("  -e, --event        specifies an event handle that can be set to finish the trace");
   puts("  -?, --help         Print usage");
 #else
-  puts("Usage: msgmon.recorder.x86 capture|store [-e handle] [-d databasePath] [-l logFilePath] [-x] [-f] [-?]");
+  puts("Usage: msgmon.recorder.x86 capture|store [-e handle] [-d databasePath] [-l logFilePath] [-f] [-?]");
   puts("");
   puts("  capture: Runs an event trace, writing either realtime or to log file");
   puts("  -e, --event        specifies an event handle that can be set to finish the trace");
   puts("  -l, --logfile      Output .etl event log file; if not specified, writes to a realtime session");
-  puts("  -x                 Runs only in 32-bit mode; skips starting 64-bit host");
 
   puts("");
   puts("  store: Takes a event log trace and converts it to .db format for use with msgmon");

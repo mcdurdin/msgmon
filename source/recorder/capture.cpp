@@ -117,40 +117,10 @@ void StopMsgMonTrace() {
     free(pSessionProperties);
     pSessionProperties = NULL;
   }
-
-  // TODO: We'll wait on the x64 process as well
 }
 
-BOOL Startx64Host(wchar_t *eventName) {
 
-  wchar_t app[] = L"msgmon.recorder.x64.exe";
-  wchar_t cmdline[260];
-  
-  // TODO: Give a new handle for the x64 process to wait on
-  // So we can control lifetime here
-  wsprintf(cmdline, L"msgmon.recorder.x64.exe capture -e %s", eventName);
-
-  //DuplicateHandle(hEvent)
-
-  STARTUPINFO si = { 0 };
-  PROCESS_INFORMATION pi = { 0 };
-
-  si.cb = sizeof(STARTUPINFO);
-  si.wShowWindow = SW_SHOWMINIMIZED;
-  si.dwFlags = STARTF_USESHOWWINDOW;
-
-  if (!CreateProcess(app, cmdline, NULL, NULL, TRUE, CREATE_NEW_CONSOLE | NORMAL_PRIORITY_CLASS, NULL, NULL, &si, &pi)) {
-    std::cout << "Startx64Host: CreateProcess failed with error " << GetLastError() << std::endl;
-    return FALSE;
-  }
-
-  CloseHandle(pi.hProcess);
-  CloseHandle(pi.hThread);
-
-  return TRUE;
-}
-
-BOOL Capture(wchar_t *eventName, wchar_t *logfile, BOOL overwrite, BOOL x86only) {
+BOOL Capture(wchar_t *eventName, wchar_t *logfile, BOOL overwrite) {
   MSG msg;
   BOOL bResult = FALSE;
 
@@ -161,12 +131,9 @@ BOOL Capture(wchar_t *eventName, wchar_t *logfile, BOOL overwrite, BOOL x86only)
   }
 
 #ifndef _WIN64
-  // Start the trace and the x64 host
+  // Start the trace, only on x86 host (x64 host will piggy back)
   if (!StartMsgMonTrace(logfile, overwrite))
     return FALSE;
-
-  if (!x86only && !Startx64Host(eventName))
-    goto cleanup;
 #endif
 
   if (!BeginLog()) {
