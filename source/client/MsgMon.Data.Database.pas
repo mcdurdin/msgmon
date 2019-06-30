@@ -32,6 +32,8 @@ type
     FFilteredRowCount: Integer;
     stmtMessage: TSQLite3Statement;
     procedure Load;
+    procedure SaveFilter;
+    procedure LoadFilter;
   public
     constructor Create(const AFilename: string);
     destructor Destroy; override;
@@ -46,8 +48,6 @@ type
   end;
 
 implementation
-
-
 
 { TMMDatabase }
 
@@ -171,12 +171,14 @@ begin
     stmt.Free;
   end;
 
-  db.Execute('CREATE TABLE IF NOT EXISTS Filter (filter_id INT, filter_row INT, row INT)');
-  db.Execute('CREATE INDEX IF NOT EXISTS ix_Filter_filterid ON Filter (filter_id)');
+  db.Execute('CREATE TABLE IF NOT EXISTS FilterKey (filter_id INT, filter_row INT, row INT)');
+  db.Execute('CREATE INDEX IF NOT EXISTS ix_FilterKey_filterid ON FilterKey (filter_id, filter_row)');
+  db.Execute('CREATE TABLE IF NOT EXISTS Filter (filter_id INT, definition TEXT)');
+  LoadFilter;
 
   // Load Messages<!>
 
-  stmtMessage := TSQLite3Statement.Create(db, 'SELECT Message.*, filter_row FROM Filter INNER JOIN Message on Filter.row = Message.row WHERE filter_id = ? AND filter_row = ?');
+  stmtMessage := TSQLite3Statement.Create(db, 'SELECT Message.*, FilterKey.filter_row FROM FilterKey INNER JOIN Message on FilterKey.row = Message.row WHERE filter_id = ? AND filter_row = ?');
   Assert(stmtMessage.ColumnCount = 18);
   Assert(stmtMessage.ColumnName(0) = 'row');
   Assert(stmtMessage.ColumnName(1) = 'pid');
@@ -211,7 +213,8 @@ begin
   row := 0;
   db.BeginTransaction;
   try
-    db.Execute('DELETE FROM Filter WHERE filter_id = 1');
+    SaveFilter;
+    db.Execute('DELETE FROM FilterKey WHERE filter_id = 1');
     stmt := TSQLite3Statement.Create(db, 'SELECT Message.* FROM Message');
     try
       while stmt.Step <> SQLITE_DONE do
@@ -250,7 +253,7 @@ begin
           end;
           if v then
           begin                                                                                   // TODO rename index to row
-            db.Execute('INSERT INTO filter (filter_id, filter_row, row) VALUES (1, '+IntToStr(row)+', '+IntToStr(m.index)+')');
+            db.Execute('INSERT INTO FilterKey (filter_id, filter_row, row) VALUES (1, '+IntToStr(row)+', '+IntToStr(m.index)+')');
             Inc(row);
           end;
         finally
@@ -304,6 +307,44 @@ begin
 //  m := context.FilteredMessages[Item.Index];
   m.Fill(context.Processes, context.Windows, context.MessageNames);
   Result := m;
+end;
+
+procedure TMMDatabase.SaveFilter;
+var
+  stmt: TSQLite3Statement;
+  definition: string;
+const
+  sql_SaveFilter =
+    'INSERT INTO Filter (filter_id, definition) SELECT 1, ?';
+begin
+  session.filters.SaveToJSON(definition);
+  db.Execute('DELETE FROM Filter WHERE filter_id = 1');
+  stmt := TSQLite3Statement.Create(db, sql_SaveFilter);
+  try
+    stmt.BindText(1, definition);
+    stmt.Step;
+  finally
+    stmt.Free;
+  end;
+end;
+
+procedure TMMDatabase.LoadFilter;
+var
+  stmt: TSQLite3Statement;
+const
+  sql_LoadFilter =
+    'SELECT filter_id, definition FROM Filter WHERE filter_id = 1';
+begin
+  stmt := TSQLite3Statement.Create(db, sql_LoadFilter);
+  try
+    if stmt.Step <> SQLITE_DONE then
+    begin
+      if session.filters.LoadFromJSON(stmt.ColumnText(1)) then
+        ApplyFilter;
+    end;
+  finally
+    stmt.Free;
+  end;
 end;
 
 end.

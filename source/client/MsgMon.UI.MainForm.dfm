@@ -72,6 +72,7 @@ object MMMainForm: TMMMainForm
       ActivePage = tabMessageDetail
       Align = alClient
       TabOrder = 0
+      ExplicitTop = -4
       object tabMessageDetail: TTabSheet
         Caption = 'Message Details'
         DesignSize = (
@@ -142,6 +143,10 @@ object MMMainForm: TMMMainForm
       object TabSheet1: TTabSheet
         Caption = 'Log'
         ImageIndex = 2
+        ExplicitLeft = 0
+        ExplicitTop = 0
+        ExplicitWidth = 0
+        ExplicitHeight = 0
         object memoLog: TMemo
           Left = 0
           Top = 0

@@ -84,7 +84,6 @@ type
     dlgSave: TSaveDialog;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
-    procedure cmdFlushLibrariesClick(Sender: TObject);
     procedure mnuFileExitClick(Sender: TObject);
     procedure mnuFileOpenClick(Sender: TObject);
     procedure mnuFileCaptureEventsClick(Sender: TObject);
@@ -166,6 +165,11 @@ uses
   MsgMon.UI.FilterForm,
   MsgMon.System.ExecProcess;
 
+const
+  SRegKey_MsgMon = 'Software\MsgMon';
+  SRegValue_LastTraceFilename = 'LastTraceFilename';
+
+
 procedure TMMMainForm.FormCreate(Sender: TObject);
 begin
   CoInitializeEx(nil, COINIT_APARTMENTTHREADED);
@@ -177,6 +181,8 @@ begin
 end;
 
 procedure TMMMainForm.FormDestroy(Sender: TObject);
+var
+  r: TRegistry;
 begin
   if FTracing then
   begin
@@ -186,10 +192,22 @@ begin
 
   CloseDatabase;
 
-  if FIsTempDatabase then
-  begin
-    if FileExists(FFilename) then
-      DeleteFile(FFilename);
+  r := TRegistry.Create;
+  try
+    if FIsTempDatabase then
+    begin
+      if FileExists(FFilename) then
+        DeleteFile(FFilename);
+      if r.OpenKey(SRegKey_MsgMon, True) and r.ValueExists(SRegValue_LastTraceFilename) then
+        r.DeleteValue(SRegValue_LastTraceFilename);
+    end
+    else
+    begin
+      if r.OpenKey(SRegKey_MsgMon, True) then
+        r.WriteString(SRegValue_LastTraceFilename, FFilename);
+    end;
+  finally
+    r.Free;
   end;
 
   CoUninitialize;
@@ -212,10 +230,9 @@ begin
   LoadLastTrace;
 end;
 
-procedure TMMMainForm.cmdFlushLibrariesClick(Sender: TObject);
-begin
-  FlushLibrary;
-end;
+//
+// Trace conotrol
+//
 
 function TMMMainForm.GetTraceEventName: string;
 begin
@@ -274,30 +291,6 @@ begin
   logfile := path+'\msgmon.recorder.store.log';
 
   FLogStoreProcess := TRunConsoleApp.Run(app, cmdline, path, logfile);
-end;
-
-procedure TMMMainForm.UpdateStatusBar(const simpleMessage: string);
-begin
-  if simpleMessage <> '' then
-  begin
-    statusBar.SimplePanel := True;
-    statusBar.SimpleText := simpleMessage;
-  end
-  else
-    statusBar.SimplePanel := False;
-
-  if Assigned(db) then
-  begin
-    statusBar.Panels[0].Text := ExtractFileName(db.Filename);
-    statusBar.Panels[2].Text := 'Showing '+IntToStr(db.FilteredRowCount)+' of total '+IntToStr(db.TotalRowCount)+' messages';
-  end
-  else
-  begin
-    statusBar.Panels[0].Text := 'No file loaded.';
-    statusBar.Panels[2].Text := '';
-  end;
-
-  statusbar.Update;
 end;
 
 procedure TMMMainForm.EndLogProcesses;
@@ -391,8 +384,8 @@ var
   filename: string;
 begin
   r := TRegistry.Create;
-  if r.OpenKeyReadOnly('Software\MsgMon') and r.ValueExists('LastTraceFilename')
-    then filename := r.ReadString('LastTraceFilename');
+  if r.OpenKeyReadOnly(SRegKey_MsgMon) and r.ValueExists(SRegValue_LastTraceFilename)
+    then filename := r.ReadString(SRegValue_LastTraceFilename);
 
   if (filename <> '') and FileExists(filename) then
   begin
@@ -411,6 +404,10 @@ begin
   //EnableControls;
   UpdateStatusBar;
 end;
+
+//
+// Event handlers
+//
 
 procedure TMMMainForm.gridMessagesClick(Sender: TObject);
 var
@@ -697,7 +694,10 @@ begin
     Result := LoadDatabase(FFilename); // Load old file
   end
   else
+  begin
     Result := LoadDatabase(AFilename); // Load renamed file
+    FIsTempDatabase := False;
+  end;
 end;
 
 function TMMMainForm.LoadDatabase(const AFilename: string): Boolean;
@@ -732,6 +732,30 @@ procedure TMMMainForm.CloseDatabase;
 begin
   FreeAndNil(db);
   UpdateStatusBar;
+end;
+
+procedure TMMMainForm.UpdateStatusBar(const simpleMessage: string);
+begin
+  if simpleMessage <> '' then
+  begin
+    statusBar.SimplePanel := True;
+    statusBar.SimpleText := simpleMessage;
+  end
+  else
+    statusBar.SimplePanel := False;
+
+  if Assigned(db) then
+  begin
+    statusBar.Panels[0].Text := ExtractFileName(db.Filename);
+    statusBar.Panels[2].Text := 'Showing '+IntToStr(db.FilteredRowCount)+' of total '+IntToStr(db.TotalRowCount)+' messages';
+  end
+  else
+  begin
+    statusBar.Panels[0].Text := 'No file loaded.';
+    statusBar.Panels[2].Text := '';
+  end;
+
+  statusbar.Update;
 end;
 
 //
