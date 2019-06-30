@@ -43,6 +43,7 @@ Windows user message monitor in the style of procmon.
     - Reset filter button in dialog doesn't work
   - Link to MSDN on WM_*?
   - Highlight window in window tree when clicking on hwnd
+  - Add lock table for writing traces
 
 4. Trace comparisons
 

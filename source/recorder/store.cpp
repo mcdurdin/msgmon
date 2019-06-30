@@ -11,7 +11,7 @@ BOOL BeginTransaction();
 BOOL FreeStatements();
 BOOL CloseDatabase();
 
-BOOL CreateTable(PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO info);
+BOOL CreateTable(PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO info, int *rowCounter);
 BOOL InsertRecord(int index, PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO info);
 void WINAPI EventRecordCallback(PEVENT_RECORD event);
 
@@ -39,11 +39,14 @@ BOOL Store(wchar_t *logfile, wchar_t *database, BOOL overwrite) {
     return FALSE;
   }
 
+  int repeat = 0;
+
   do {
     status = ProcessTrace(&hTrace, 1, NULL, NULL);
     if (status != ERROR_SUCCESS) {
-      std::cout << "Failed to ProcessTrace with " << status << ". Waiting 1 second" << std::endl;
-      Sleep(1000);
+      std::cout << "Failed to ProcessTrace with " << status << ". Waiting 0.1 seconds" << std::endl;
+      Sleep(100);
+      if (++repeat > 20) break;
     }
   } while (status != ERROR_SUCCESS);
 
@@ -108,7 +111,7 @@ void WINAPI EventRecordCallback(PEVENT_RECORD event) {
 
   PWSTR pTask = (PWSTR)((PBYTE)(pInfo)+pInfo->TaskNameOffset);
   if (wcscmp(pTask, L"Message") == 0) {
-    if (!CreateTable(pTask, event, pInfo)) {
+    if (!CreateTable(pTask, event, pInfo, &msgIndex)) {
       std::cout << "Failed to create Message table" << std::endl;
       return;
     }
@@ -118,7 +121,7 @@ void WINAPI EventRecordCallback(PEVENT_RECORD event) {
     }
   }
   else if (wcscmp(pTask, L"Window") == 0) {
-    if (!CreateTable(pTask, event, pInfo)) {
+    if (!CreateTable(pTask, event, pInfo, &windowIndex)) {
       std::cout << "Failed to create Window table" << std::endl;
       return;
     }
@@ -128,7 +131,7 @@ void WINAPI EventRecordCallback(PEVENT_RECORD event) {
     }
   }
   else if (wcscmp(pTask, L"Process") == 0) {
-    if (!CreateTable(pTask, event, pInfo)) {
+    if (!CreateTable(pTask, event, pInfo, &processIndex)) {
       std::cout << "Failed to create Process table" << std::endl;
       return;
     }
@@ -184,7 +187,7 @@ BOOL GetEventProperties(PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO 
 }
 
 
-BOOL CreateTable(PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO info) {
+BOOL CreateTable(PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO info, int *rowCounter) {
   auto stmt = tables.find(tableName);
   if (stmt != tables.end()) {
     return TRUE;
@@ -192,6 +195,7 @@ BOOL CreateTable(PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO info) {
 
   size_t bufSize = info->TopLevelPropertyCount * 24 + 256; // TODO: LAZY!
   char *buf = new char[bufSize], *stmtbuf = new char[bufSize], *p = buf;
+  // TODO: free memory
 
   sprintf_s(buf, bufSize, "CREATE TABLE IF NOT EXISTS \"%ws\" (row INTEGER", tableName);
   sprintf_s(stmtbuf, bufSize, "INSERT INTO \"%ws\" VALUES (?", tableName);
@@ -232,6 +236,18 @@ BOOL CreateTable(PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO info) {
   if (!Check(sqlite3_exec(db, buf, NULL, NULL, NULL))) return FALSE;
 
   if (!Check(sqlite3_exec(db, "BEGIN TRANSACTION;", NULL, NULL, NULL))) return FALSE;
+
+  char rowstmtbuf[256];
+  sprintf_s(rowstmtbuf, "SELECT COALESCE(MAX(row)+1,0) FROM \"%ws\"", tableName);
+  sqlite3_stmt *stmt_get_row;
+  if (!Check(sqlite3_prepare_v2(db, rowstmtbuf, -1, &stmt_get_row, NULL))) return FALSE;
+
+  if (sqlite3_step(stmt_get_row) == SQLITE_ROW) {
+    *rowCounter = sqlite3_column_int(stmt_get_row, 0);
+  }
+  else {
+    *rowCounter = 0;
+  }
 
   sqlite3_stmt *new_stmt;
   if (!Check(sqlite3_prepare_v2(db, stmtbuf, -1, &new_stmt, NULL))) return FALSE;

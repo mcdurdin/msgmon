@@ -290,6 +290,7 @@ begin
   cmdline := '"'+app+'" store -d "'+FFilename+'"';
   logfile := path+'\msgmon.recorder.store.log';
 
+//  ShowMessage(cmdline);
   FLogStoreProcess := TRunConsoleApp.Run(app, cmdline, path, logfile);
 end;
 
@@ -301,6 +302,7 @@ procedure TMMMainForm.EndLogProcesses;
       msg := msg + '. The error ('+IntToStr(code)+') was '+SysErrorMessage(GetLastError);
 
     UpdateStatusBar(msg);
+    memoLog.Lines.Add(msg);
   end;
 
   procedure ReportProcessResult(p: TRunConsoleApp);
@@ -320,17 +322,17 @@ procedure TMMMainForm.EndLogProcesses;
   end;
 begin
   Assert(Assigned(FTraceEvent));
-  Assert(Assigned(FTraceProcess));
-  Assert(Assigned(FTraceProcessx64));
-  Assert(Assigned(FLogStoreProcess));
 
   FTraceEvent.SetEvent;
 
   { Wait for the x86 capture first; it also controls the trace }
 
-  FTraceProcess.WaitFor;
-  ReportProcessResult(FTraceProcess);
-  FreeAndNil(FTraceProcess);
+  if Assigned(FTraceProcess) then
+  begin
+    FTraceProcess.WaitFor;
+    ReportProcessResult(FTraceProcess);
+    FreeAndNil(FTraceProcess);
+  end;
 
   { Now cleanup after the x64 capture }
 
@@ -343,9 +345,12 @@ begin
 
   { And finally, the log store process will shut down once the trace events finish draining }
 
-  FLogStoreProcess.WaitFor;
-  ReportProcessResult(FLogStoreProcess);
-  FreeAndNil(FLogStoreProcess);
+  if Assigned(FLogStoreProcess) then
+  begin
+    FLogStoreProcess.WaitFor;
+    ReportProcessResult(FLogStoreProcess);
+    FreeAndNil(FLogStoreProcess);
+  end;
 
   FreeAndNil(FTraceEvent);
 

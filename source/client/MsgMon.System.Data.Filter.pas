@@ -107,7 +107,7 @@ begin
       o := c.Items[i] as TJSONObject;
 
       f := TMMFilter.Create;
-      f.column := FColumns.FindClassName(o.Values['className'].Value);
+      f.column := FColumns.FindClassName(o.Values['column'].Value);
       if not Assigned(f.column) then
       begin
         f.Free;
