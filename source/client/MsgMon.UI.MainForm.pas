@@ -122,8 +122,6 @@ type
     fIsWow64: LongBool;
     FIsTempDatabase: Boolean;
 
-    procedure EnableDisableTrace;
-    procedure FlushLibrary;
     procedure BeginLogProcesses;
     procedure EndLogProcesses;
     procedure PrepareView;
@@ -148,10 +146,6 @@ type
 var
   MMMainForm: TMMMainForm;
 
-
-//const
-//  LOGSESSION_DB_FILENAME = 'c:\temp\msgmon.db';
-
 implementation
 
 {$R *.dfm}
@@ -160,15 +154,14 @@ uses
   System.Win.Registry,
   Vcl.Clipbrd,
   Winapi.ActiveX,
-  Winapi.Tlhelp32,
 
   MsgMon.UI.FilterForm,
-  MsgMon.System.ExecProcess;
+  MsgMon.System.ExecProcess,
+  MsgMon.System.Util;
 
 const
   SRegKey_MsgMon = 'Software\MsgMon';
   SRegValue_LastTraceFilename = 'LastTraceFilename';
-
 
 procedure TMMMainForm.FormCreate(Sender: TObject);
 begin
@@ -231,8 +224,21 @@ begin
 end;
 
 //
-// Trace conotrol
+// Trace control
 //
+
+procedure TMMMainForm.EnableTrace;
+begin
+  BeginLogProcesses;
+  UpdateStatusBar('Recording trace to '+FFilename);
+end;
+
+procedure TMMMainForm.DisableTrace;
+begin
+  UpdateStatusBar('Stopping trace, please wait.');
+  EndLogProcesses;
+  LoadDatabase(FFilename);
+end;
 
 function TMMMainForm.GetTraceEventName: string;
 begin
@@ -354,60 +360,7 @@ begin
 
   FreeAndNil(FTraceEvent);
 
-  FlushLibrary;
-end;
-
-procedure TMMMainForm.EnableDisableTrace;
-begin
-  if FTracing then
-  begin
-    EnableTrace;
-  end
-  else
-  begin
-    DisableTrace;
-  end;
-end;
-
-procedure TMMMainForm.EnableTrace;
-begin
-  BeginLogProcesses;
-  UpdateStatusBar('Recording trace to '+FFilename);
-end;
-
-procedure TMMMainForm.DisableTrace;
-begin
-  UpdateStatusBar('Stopping trace, please wait.');
-  EndLogProcesses;
-  LoadDatabase(FFilename);
-end;
-
-
-procedure TMMMainForm.LoadLastTrace;
-var
-  r: TRegistry;
-  filename: string;
-begin
-  r := TRegistry.Create;
-  if r.OpenKeyReadOnly(SRegKey_MsgMon) and r.ValueExists(SRegValue_LastTraceFilename)
-    then filename := r.ReadString(SRegValue_LastTraceFilename);
-
-  if (filename <> '') and FileExists(filename) then
-  begin
-    FIsTempDatabase := False;
-    if LoadDatabase(filename) then Exit;
-  end;
-
-  // Start a new temporary file when starting the program
-
-  FIsTempDatabase := True;  // We'll delete on close of program
-  FFilename := TPath.Combine(TPath.GetTempPath, 'msgmon.' + IntToStr(GetCurrentProcessId) + '.db');
-  if FileExists(FFilename) then
-    DeleteFile(FFilename);
-
-  // no database to start
-  //EnableControls;
-  UpdateStatusBar;
+  TMMUtil.FlushLibrary;
 end;
 
 //
@@ -458,6 +411,104 @@ begin
     gridMessages.Canvas.TextRect(ARect, ARect.Left+2, ARect.Top+2, t);
 end;
 
+procedure TMMMainForm.mnuEditClearDisplayClick(Sender: TObject);
+begin
+  if not Assigned(db) then
+    Exit;
+  db.context.Clear;
+  ApplyFilter;
+  // context.MessageNames.Clear;
+end;
+
+procedure TMMMainForm.mnuFileCaptureEventsClick(Sender: TObject);
+begin
+  FTracing := not FTracing;
+  if FTracing then
+  begin
+    EnableTrace;
+  end
+  else
+  begin
+    DisableTrace;
+  end;
+end;
+
+procedure TMMMainForm.mnuFileClick(Sender: TObject);
+begin
+  mnuFileCaptureEvents.Checked := FTracing;
+  mnuFileOpen.Enabled := not FTracing;
+  mnuFileSave.Enabled := Assigned(db);
+end;
+
+procedure TMMMainForm.mnuFileExitClick(Sender: TObject);
+begin
+  Close;
+end;
+
+procedure TMMMainForm.mnuFileOpenClick(Sender: TObject);
+begin
+  if dlgOpen.Execute then
+  begin
+    LoadDatabase(dlgOpen.Filename);
+  end;
+end;
+
+procedure TMMMainForm.mnuFileSaveClick(Sender: TObject);
+begin
+  if dlgSave.Execute then
+  begin
+    SaveDatabase(dlgSave.FileName);
+  end;
+end;
+
+procedure TMMMainForm.mnuFilterFilterClick(Sender: TObject);
+begin
+  if not Assigned(db) then
+    Exit;
+
+  with TMMFilterForm.Create(Self, db.session) do
+  try
+    if ShowModal = mrOk then
+    begin
+      Self.ApplyFilter;
+    end;
+  finally
+    Free;
+  end;
+end;
+
+procedure TMMMainForm.mnuFilterResetFilterClick(Sender: TObject);
+begin
+  if not Assigned(db) then
+    Exit;
+  db.session.filters.Clear;
+  ApplyFilter;
+end;
+
+procedure TMMMainForm.mnuHelpAboutClick(Sender: TObject);
+begin
+  ShowMessage('Message Monitor v0.1');
+end;
+
+procedure TMMMainForm.mnuMessageClick(Sender: TObject);
+begin
+  mnuMessageViewDetailPane.Checked := panDetail.Visible;
+end;
+
+procedure TMMMainForm.mnuMessageViewDetailPaneClick(Sender: TObject);
+begin
+  panDetail.Visible := not panDetail.Visible;
+  if panDetail.Height < 48 then
+    panDetail.Height := 48;
+  splitterDetail.Visible := panDetail.Visible;
+  panDetail.Top := 0; // Force detail pane above status bar
+  splitterDetail.Top := 0; // Enforce splitter above detail panel
+end;
+
+//
+// Data control and display
+//
+
 function TMMMainForm.LoadMessageRow(index: Integer): Boolean;
 var
   m: TMMMessage;
@@ -477,46 +528,6 @@ begin
   LastIndex := index;
   Result := True;
 end;
-
-procedure TMMMainForm.FlushLibrary;
-var
-  h: THandle;
-  te: TThreadEntry32;
-  hd, hdcurrent: HDESK;
-begin
-  // A better way of doing may be to make each loaded process have a thread
-  // waiting on this process handle. Then after the process exits, the thread
-  // does a PostThreadMessage and then FreeLibraryAndExitThread
-  // e.g. https://stackoverflow.com/a/25597741/1836776
-
-  hdcurrent := GetThreadDesktop(GetCurrentThreadID);
-
-  h := CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
-  if h <> INVALID_HANDLE_VALUE then
-  begin
-    FillChar(te, sizeof(te), 0);
-    te.dwSize := sizeof(te);
-    if Thread32First(h, te) then
-    begin
-      repeat
-        if te.dwSize >= 12 then // see https://devblogs.microsoft.com/oldnewthing/20060223-14/?p=32173
-        begin
-          hd := GetThreadDesktop(te.th32ThreadID);
-          if (hd <> 0) and (hd = hdcurrent) then
-          begin
-            if not PostThreadMessage(te.th32ThreadID, WM_NULL, 0, 0) then
-            begin
-              OutputDebugString(Pchar(format('Unable to post to %d::%d -- (%d) %s', [te.th32OwnerProcessID, te.th32ThreadID, GetLastError, SysErrorMessage(GetLastError)])));
-            end;
-          end;
-        end;
-      until not Thread32Next(h, te);
-    end;
-    CloseHandle(h);
-  end;
-end;
-
-{ Grid control and display }
 
 procedure TMMMainForm.PrepareView;
 var
@@ -586,49 +597,6 @@ begin
   end;
 end;
 
-procedure TMMMainForm.mnuEditClearDisplayClick(Sender: TObject);
-begin
-  if not Assigned(db) then
-    Exit;
-  db.context.Clear;
-  ApplyFilter;
-  // context.MessageNames.Clear;
-end;
-
-procedure TMMMainForm.mnuFileCaptureEventsClick(Sender: TObject);
-begin
-  FTracing := not FTracing;
-  EnableDisableTrace;
-end;
-
-procedure TMMMainForm.mnuFileClick(Sender: TObject);
-begin
-  mnuFileCaptureEvents.Checked := FTracing;
-  mnuFileOpen.Enabled := not FTracing;
-  mnuFileSave.Enabled := Assigned(db);
-end;
-
-procedure TMMMainForm.mnuFileExitClick(Sender: TObject);
-begin
-  Close;
-end;
-
-procedure TMMMainForm.mnuFileOpenClick(Sender: TObject);
-begin
-  if dlgOpen.Execute then
-  begin
-    LoadDatabase(dlgOpen.Filename);
-  end;
-end;
-
-procedure TMMMainForm.mnuFileSaveClick(Sender: TObject);
-begin
-  if dlgSave.Execute then
-  begin
-    SaveDatabase(dlgSave.FileName);
-  end;
-end;
-
 procedure TMMMainForm.ApplyFilter;
 begin
   if not Assigned(db) then
@@ -644,65 +612,35 @@ begin
   gridMessages.Invalidate;
 end;
 
-procedure TMMMainForm.mnuFilterFilterClick(Sender: TObject);
-begin
-  if not Assigned(db) then
-    Exit;
+//
+// Database file management
+//
 
-  with TMMFilterForm.Create(Self, db.session) do
-  try
-    if ShowModal = mrOk then
-    begin
-      Self.ApplyFilter;
-    end;
-  finally
-    Free;
-  end;
-end;
-
-procedure TMMMainForm.mnuFilterResetFilterClick(Sender: TObject);
+procedure TMMMainForm.LoadLastTrace;
+var
+  r: TRegistry;
+  filename: string;
 begin
-  if not Assigned(db) then
-    Exit;
-  db.session.filters.Clear;
-  ApplyFilter;
-end;
+  r := TRegistry.Create;
+  if r.OpenKeyReadOnly(SRegKey_MsgMon) and r.ValueExists(SRegValue_LastTraceFilename)
+    then filename := r.ReadString(SRegValue_LastTraceFilename);
 
-procedure TMMMainForm.mnuHelpAboutClick(Sender: TObject);
-begin
-  ShowMessage('Message Monitor v0.1');
-end;
-
-procedure TMMMainForm.mnuMessageClick(Sender: TObject);
-begin
-  mnuMessageViewDetailPane.Checked := panDetail.Visible;
-end;
-
-procedure TMMMainForm.mnuMessageViewDetailPaneClick(Sender: TObject);
-begin
-  panDetail.Visible := not panDetail.Visible;
-  if panDetail.Height < 48 then
-    panDetail.Height := 48;
-  splitterDetail.Visible := panDetail.Visible;
-  panDetail.Top := 0; // Force detail pane above status bar
-  splitterDetail.Top := 0; // Enforce splitter above detail panel
-end;
-
-function TMMMainForm.SaveDatabase(const AFilename: string): Boolean;
-begin
-  Assert(Assigned(db));
-  CloseDatabase;
-  Result := MoveFile(PChar(FFilename), PChar(AFilename));
-  if not Result then
+  if (filename <> '') and FileExists(filename) then
   begin
-    ShowMessage('Unable to save database to '+AFilename+': '+SysErrorMessage(GetLastError));
-    Result := LoadDatabase(FFilename); // Load old file
-  end
-  else
-  begin
-    Result := LoadDatabase(AFilename); // Load renamed file
     FIsTempDatabase := False;
+    if LoadDatabase(filename) then Exit;
   end;
+
+  // Start a new temporary file when starting the program
+
+  FIsTempDatabase := True;  // We'll delete on close of program
+  FFilename := TPath.Combine(TPath.GetTempPath, 'msgmon.' + IntToStr(GetCurrentProcessId) + '.db');
+  if FileExists(FFilename) then
+    DeleteFile(FFilename);
+
+  // no database to start
+  //EnableControls;
+  UpdateStatusBar;
 end;
 
 function TMMMainForm.LoadDatabase(const AFilename: string): Boolean;
@@ -733,11 +671,32 @@ begin
   Result := True;
 end;
 
+function TMMMainForm.SaveDatabase(const AFilename: string): Boolean;
+begin
+  Assert(Assigned(db));
+  CloseDatabase;
+  Result := MoveFile(PChar(FFilename), PChar(AFilename));
+  if not Result then
+  begin
+    ShowMessage('Unable to save database to '+AFilename+': '+SysErrorMessage(GetLastError));
+    Result := LoadDatabase(FFilename); // Load old file
+  end
+  else
+  begin
+    Result := LoadDatabase(AFilename); // Load renamed file
+    FIsTempDatabase := False;
+  end;
+end;
+
 procedure TMMMainForm.CloseDatabase;
 begin
   FreeAndNil(db);
   UpdateStatusBar;
 end;
+
+//
+// Status bar
+//
 
 procedure TMMMainForm.UpdateStatusBar(const simpleMessage: string);
 begin
@@ -810,19 +769,6 @@ begin
   Clipboard.AsText := PopupContextText;
 end;
 
-function TMMMainForm.CreateFilterFromPopup: TMMFilter;
-begin
-  Result := TMMFilter.Create;
-  if not Assigned(db) then
-    Exit;
-
-  Result.column := db.session.filters.Columns.FindClassName(db.session.displayColumns[PopupContextCol].ClassName);
-  Assert(Assigned(Result.column));
-  Result.relation := frIs;
-  Result.value := PopupContextText;
-  Result.action := faInclude;
-end;
-
 procedure TMMMainForm.mnuPopupFilterEditClick(Sender: TObject);
 var
   f: TMMFilter;
@@ -865,6 +811,19 @@ begin
   f := CreateFilterFromPopup;
   db.session.filters.Add(f);
   ApplyFilter;
+end;
+
+function TMMMainForm.CreateFilterFromPopup: TMMFilter;
+begin
+  Result := TMMFilter.Create;
+  if not Assigned(db) then
+    Exit;
+
+  Result.column := db.session.filters.Columns.FindClassName(db.session.displayColumns[PopupContextCol].ClassName);
+  Assert(Assigned(Result.column));
+  Result.relation := frIs;
+  Result.value := PopupContextText;
+  Result.action := faInclude;
 end;
 
 end.
