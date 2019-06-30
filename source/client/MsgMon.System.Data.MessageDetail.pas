@@ -4,6 +4,7 @@ interface
 
 uses
   System.Classes,
+  System.StrUtils,
   System.SysUtils,
   Winapi.Messages,
   Winapi.Windows,
@@ -14,19 +15,23 @@ uses
   MsgMon.System.Data.Window;
 
 type
-  TMessageDetailRowType = (mdrInteger, mdrString, mdrHwnd);
+  TMessageDetailRowType = (mdrInteger, mdrString, mdrHwnd, mdrBoolean);
 
   TMessageDetailRow = record
   strict private
     FName: string;
     FValueHWND: HWND;
     FValueType: TMessageDetailRowType;
+    FValueBoolean: Boolean;
     FValueString: string;
     FValueInteger: Integer;
     FContext: TMMDataContext;
     FRow: Integer;
     procedure DoSet(valueType: TMessageDetailRowType; context: TMMDataContext;
       row: Integer; n: string);
+  private
+    procedure SetBool(context: TMMDataContext; row: Integer; n: string;
+      v: Boolean);
   public
     procedure SetHwnd(context: TMMDataContext; row: Integer; n: string; v: HWND);
     procedure SetInt(context: TMMDataContext; row: Integer; n: string; v: Integer);
@@ -37,6 +42,7 @@ type
     property Row: Integer read FRow;
     property ValueType: TMessageDetailRowType read FValueType;
     property ValueInteger: Integer read FValueInteger;
+    property ValueBoolean: Boolean read FValueBoolean;
     property ValueString: string read FValueString;
     property ValueHwnd: HWND read FValueHWND;
   end;
@@ -46,17 +52,26 @@ type
   TMessageDetailRenderer = class
   private
     class function WMWindowPosChanging(context: TMMDataContext; data: TMMMessage): TMessageDetails;
+    class function WMKey(context: TMMDataContext; data: TMMMessage): TMessageDetails;
   public
     class function Render(context: TMMDataContext; data: TMMMessage): TMessageDetails;
   end;
 
 implementation
 
+uses
+  MsgMon.System.Data.VKeyNames;
+
 { TMessageDetailRenderer }
 
 class function TMessageDetailRenderer.Render(context: TMMDataContext; data: TMMMessage): TMessageDetails;
 begin
   case data.message of
+    WM_KEYDOWN,
+    WM_KEYUP,
+    WM_SYSKEYDOWN,
+    WM_SYSKEYUP:
+      Result := WMKey(context, data);
     WM_WINDOWPOSCHANGED,
     WM_WINDOWPOSCHANGING:
       Result := WMWindowPosChanging(context, data);
@@ -81,6 +96,21 @@ begin
       if Result <> ''
         then Result := Result + ', ' + f[i].n
         else Result := f[i].n;
+end;
+
+class function TMessageDetailRenderer.WMKey(context: TMMDataContext;
+  data: TMMMessage): TMessageDetails;
+begin
+  SetLength(Result, 9);
+  Result[0].SetInt(context, data.index, 'vkey', data.wParam);
+  Result[1].SetString(context, data.index, 'vkey', IfThen(data.wParam < $100, SVKeyNames[data.wParam], ''));
+  Result[2].SetInt(context, data.index, 'repeat', data.lParam and $0000FFFF);
+  Result[3].SetInt(context, data.index, 'scancode', (data.lParam and $00FF0000) shr 16);
+  Result[4].SetBool(context, data.index, 'extended', (data.lParam and $01000000) = $01000000);
+  Result[5].SetInt(context, data.index, 'reserved', (data.lParam and $1E000000) shr 25);
+  Result[6].SetBool(context, data.index, 'context', (data.lParam and $20000000) = $20000000);
+  Result[7].SetBool(context, data.index, 'previous', (data.lParam and $40000000) = $40000000);
+  Result[8].SetBool(context, data.index, 'transition', (data.lParam and $80000000) = $80000000);
 end;
 
 class function TMessageDetailRenderer.WMWindowPosChanging(
@@ -124,6 +154,7 @@ begin
   case ValueType of
     mdrInteger: Result := Result + IntToStr(FValueInteger);
     mdrString: Result := Result + FValueString;
+    mdrBoolean: Result := Result + BoolToStr(FValueBoolean, True);
     mdrHwnd:
       begin
         if FContext.Windows.TryGetValue(FValueHwnd, ws)
@@ -164,6 +195,12 @@ procedure TMessageDetailRow.SetString(context: TMMDataContext; row: Integer; n, 
 begin
   Self.DoSet(mdrString, context, row, n);
   Self.FValueString := v;
+end;
+
+procedure TMessageDetailRow.SetBool(context: TMMDataContext; row: Integer; n: string; v: Boolean);
+begin
+  Self.DoSet(mdrBoolean, context, row, n);
+  Self.FValueBoolean := v;
 end;
 
 end.

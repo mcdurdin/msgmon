@@ -957,11 +957,9 @@ function TMMColumn_WindowClass.DoFilter(data: TMMMessage;
   relation: TMMFilterRelation; const value: string): Boolean;
 var
   dataValue: string;
-  dataValueInt: Integer;
 begin
   Result := False;
 
-  dataValueInt := Integer(GetData(data));
   dataValue := DoRender(data); // TODO we could be nuanced here
 
   case relation of

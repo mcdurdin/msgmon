@@ -20,7 +20,9 @@ uses
   MsgMon.System.ExecConsoleProcess in 'MsgMon.System.ExecConsoleProcess.pas',
   MsgMon.System.Util in 'MsgMon.System.Util.pas',
   MsgMon.System.Data.MessageDetail in 'MsgMon.System.Data.MessageDetail.pas',
-  MsgMon.UI.DisplayColumnForm in 'MsgMon.UI.DisplayColumnForm.pas' {MMDisplayColumnsForm};
+  MsgMon.UI.DisplayColumnForm in 'MsgMon.UI.DisplayColumnForm.pas' {MMDisplayColumnsForm},
+  VKeys in '..\..\..\keyman\open\windows\src\global\delphi\general\VKeys.pas',
+  MsgMon.System.Data.VKeyNames in 'MsgMon.System.Data.VKeyNames.pas';
 
 {$R *.res}
 
