@@ -380,7 +380,7 @@ begin
   try
     if stmt.Step <> SQLITE_DONE then
     begin
-      if not session.displayColumns.LoadFromJSON(stmt.ColumnText(1)) then
+      if not session.displayColumns.LoadFromJSON(stmt.ColumnText(0)) then
         session.displayColumns.LoadDefault;
     end;
   finally
