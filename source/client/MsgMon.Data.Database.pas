@@ -34,8 +34,10 @@ type
     procedure Load;
     procedure SaveFilter;
     procedure LoadFilter;
+    procedure LoadColumns;
+    procedure SaveColumns;
   public
-    constructor Create(const AFilename, ALastFilterDefinition: string);
+    constructor Create(const AFilename, ALastFilterDefinition, ALastColumnsDefinition: string);
     destructor Destroy; override;
     procedure ApplyFilter;
     function LoadMessageRow(index: Integer): TMMMessage;
@@ -51,24 +53,20 @@ implementation
 
 { TMMDatabase }
 
-constructor TMMDatabase.Create(const AFilename, ALastFilterDefinition: string);
+constructor TMMDatabase.Create(const AFilename, ALastFilterDefinition, ALastColumnsDefinition: string);
 begin
   inherited Create;
   FFilename := AFilename;
   FContext := TMMDataContext.Create;
   FSession := TMMSession.Create(context);
-  session.LoadDefault(ALastFilterDefinition);
+  session.LoadDefault(ALastFilterDefinition, ALastColumnsDefinition);
 
   Load;
-
-//  if FileExists(LOGSESSION_SESSION_FILENAME)
-//    then session.LoadFromFile(LOGSESSION_SESSION_FILENAME)
-//    else
-
 end;
 
 destructor TMMDatabase.Destroy;
 begin
+  SaveColumns;
   FreeAndNil(db);
   FreeAndNil(FSession);
   FreeAndNil(FContext);
@@ -174,7 +172,9 @@ begin
   db.Execute('CREATE TABLE IF NOT EXISTS FilterKey (filter_id INT, filter_row INT, row INT)');
   db.Execute('CREATE INDEX IF NOT EXISTS ix_FilterKey_filterid ON FilterKey (filter_id, filter_row)');
   db.Execute('CREATE TABLE IF NOT EXISTS Filter (filter_id INT, definition TEXT)');
+  db.Execute('CREATE TABLE IF NOT EXISTS Settings (id TEXT, value TEXT)');
   LoadFilter;
+  LoadColumns;
 
   // Load Messages<!>
 
@@ -341,8 +341,47 @@ begin
   try
     if stmt.Step <> SQLITE_DONE then
     begin
-      if session.filters.LoadFromJSON(stmt.ColumnText(1)) then
-        ApplyFilter;
+      if not session.filters.LoadFromJSON(stmt.ColumnText(1)) then
+        session.filters.LoadDefault;
+      ApplyFilter;
+    end;
+  finally
+    stmt.Free;
+  end;
+end;
+
+procedure TMMDatabase.SaveColumns;
+var
+  stmt: TSQLite3Statement;
+  definition: string;
+const
+  sql_SaveColumns =
+    'INSERT INTO Settings (id, value) SELECT ''columns'', ?';
+begin
+  session.displayColumns.SaveToJSON(definition);
+  db.Execute('DELETE FROM Settings WHERE id = ''columns''');
+  stmt := TSQLite3Statement.Create(db, sql_SaveColumns);
+  try
+    stmt.BindText(1, definition);
+    stmt.Step;
+  finally
+    stmt.Free;
+  end;
+end;
+
+procedure TMMDatabase.LoadColumns;
+var
+  stmt: TSQLite3Statement;
+const
+  sql_LoadColumns =
+    'SELECT value FROM Settings where id=''columns''';
+begin
+  stmt := TSQLite3Statement.Create(db, sql_LoadColumns);
+  try
+    if stmt.Step <> SQLITE_DONE then
+    begin
+      if not session.displayColumns.LoadFromJSON(stmt.ColumnText(1)) then
+        session.displayColumns.LoadDefault;
     end;
   finally
     stmt.Free;

@@ -20,9 +20,7 @@ Windows user message monitor in the style of procmon.
   - Add window tree view pane
   - Add detail pane
   - time columns
-  - basic column choices (plus load and save)
   - add icon
-  - sort column classes in MsgMon.System.Data.Column more sensibly
   - suggestions for filter values
   - Drilling into hwnd
   - multi-line copy and paste

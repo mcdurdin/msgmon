@@ -309,8 +309,8 @@ type
     FContext: TMMDataContext;
   public
     constructor Create(context: TMMDataContext);
-    procedure LoadFromJSON(o: TJSONObject);
-    procedure SaveToJSON(o: TJSONObject);
+    function LoadFromJSON(const definition: string): Boolean;
+    procedure SaveToJSON(var definition: string);
     procedure LoadDefault;
     procedure LoadAll;
     function FindClassName(ClassName: string): TMMColumn;
@@ -1139,14 +1139,65 @@ begin
   end;
 end;
 
-procedure TMMColumns.LoadFromJSON(o: TJSONObject);
+function TMMColumns.LoadFromJSON(const definition: string): Boolean;
+var
+  j: TJSONValue;
+  o: TJSONObject;
+  a: TJSONArray;
+  i: Integer;
+  c: TMMColumn;
+  cc: TMMColumnClass;
+  jWidth: TJSONValue;
+  jType: TJSONValue;
 begin
+  Clear;
+  j := TJSONObject.ParseJSONValue(definition);
+  if not (j is TJSONObject) then Exit(False);
+  o := j as TJSONObject;
+  j := o.GetValue('columns');
+  if not Assigned(j) or not (j is TJSONArray) then Exit(False);
+  a := j as TJSONArray;
+  for i := 0 to a.Count - 1 do
+  begin
+    j := a.Items[i];
+    if not (j is TJSONObject) then
+      Exit(False);
+    o := j as TJSONObject;
+    jType := o.GetValue('type');
+    if not Assigned(jType) or not (jType is TJSONString) then
+      Exit(False);
+    jWidth := o.GetValue('width');
+    if not Assigned(jWidth) or not (jWidth is TJSONNumber) then
+      Exit(False);
 
+    cc := FColumnClasses.Find(jType.Value);
+    if not Assigned(cc) then
+      Exit(False);
+    c := cc.Create(FContext);
+    c.Width := (jWidth as TJSONNumber).AsInt;
+    Add(c);
+  end;
+  Result := True;
 end;
 
-procedure TMMColumns.SaveToJSON(o: TJSONObject);
+procedure TMMColumns.SaveToJSON(var definition: string);
+var
+  o, co: TJSONObject;
+  a: TJSONArray;
+  i: Integer;
 begin
+  o := TJSONObject.Create;
+  a := TJSONArray.Create;
+  o.AddPair('columns', a);
+  for i := 0 to Count - 1 do
+  begin
+    co := TJSONObject.Create;
+    co.AddPair('type', Items[i].ClassName);
+    co.AddPair('width', TJSONNumber.Create(Items[i].Width));
+    a.Add(co);
+  end;
 
+  definition := o.ToString;
 end;
 
 { TMMColumnClassList }

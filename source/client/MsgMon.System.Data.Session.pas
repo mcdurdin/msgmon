@@ -19,7 +19,7 @@ type
     destructor Destroy; override;
     procedure LoadFromFile(const Filename: string);
     procedure SaveToFile(const Filename: string);
-    procedure LoadDefault(ALastFilterDefinition: string);
+    procedure LoadDefault(ALastFilterDefinition, ALastColumnDefinition: string);
   end;
 
 implementation
@@ -42,13 +42,17 @@ begin
   filters.Free;
 end;
 
-procedure TMMSession.LoadDefault(ALastFilterDefinition: string);
+procedure TMMSession.LoadDefault(ALastFilterDefinition, ALastColumnDefinition: string);
 begin
-  displayColumns.LoadDefault;
   allColumns.LoadAll;
-  if ALastFilterDefinition <> ''
-    then filters.LoadFromJSON(ALastFilterDefinition)
-    else filters.LoadDefault;
+
+  if (ALastColumnDefinition = '') or
+      not displayColumns.LoadFromJSON(ALastColumnDefinition)
+    then displayColumns.LoadDefault;
+
+  if (ALastFilterDefinition = '') or
+      not filters.LoadFromJSON(ALastFilterDefinition)
+    then filters.LoadDefault;
 end;
 
 procedure TMMSession.LoadFromFile(const Filename: string);
