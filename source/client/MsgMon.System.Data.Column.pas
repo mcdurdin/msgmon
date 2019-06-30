@@ -833,31 +833,19 @@ begin
 
   dataValueInt := Integer(GetData(data));
   dataValue := DoRender(data); // TODO we could be nuanced here
-  if TryStrToInt(value, filterValueInt) then
-  begin
-    case relation of
-      frIs:         Result := filterValueInt = dataValueInt;
-      frIsNot:      Result := filterValueInt <> dataValueInt;
-      frLessThan:   Result := filterValueInt < dataValueInt;
-      frMoreThan:   Result := filterValueInt > dataValueInt;
-      frBeginsWith: Result := IntToStr(dataValueInt).StartsWith(value);
-      frEndsWith:   Result := IntToStr(dataValueInt).EndsWith(value);
-      frContains:   Result := IntToStr(dataValueInt).Contains(value);
-      frExcludes:   Result := not IntToStr(dataValueInt).Contains(value);
-    end;
-  end
-  else
-  begin
-    case relation of
-      frIs:         Result := SameText(value, dataValue);
-      frIsNot:      Result := not SameText(value, dataValue);
-      frLessThan:   Result := CompareText(value, dataValue) < 0;
-      frMoreThan:   Result := CompareText(value, dataValue) > 0;
-      frBeginsWith: Result := dataValue.StartsWith(value, True); // not strictly same as CompareText but good enough
-      frEndsWith:   Result := dataValue.EndsWith(value, True); // not strictly same as CompareText but good enough
-      frContains:   Result := ContainsText(dataValue, value);
-      frExcludes:   Result := not ContainsText(dataValue, value);
-    end;
+
+  if not TryStrToInt(value, filterValueInt) then
+    Exit;
+
+  case relation of
+    frIs:         Result := filterValueInt = dataValueInt;
+    frIsNot:      Result := filterValueInt <> dataValueInt;
+    frLessThan:   Result := filterValueInt < dataValueInt;
+    frMoreThan:   Result := filterValueInt > dataValueInt;
+    frBeginsWith: Result := dataValue.StartsWith(value);
+    frEndsWith:   Result := dataValue.EndsWith(value);
+    frContains:   Result := dataValue.Contains(value);
+    frExcludes:   Result := not dataValue.Contains(value);
   end;
 end;
 
@@ -969,38 +957,22 @@ function TMMColumn_WindowClass.DoFilter(data: TMMMessage;
   relation: TMMFilterRelation; const value: string): Boolean;
 var
   dataValue: string;
-  filterValueInt: Integer;
   dataValueInt: Integer;
 begin
   Result := False;
 
   dataValueInt := Integer(GetData(data));
   dataValue := DoRender(data); // TODO we could be nuanced here
-  if TryStrToInt(value, filterValueInt) then
-  begin
-    case relation of
-      frIs:         Result := filterValueInt = dataValueInt;
-      frIsNot:      Result := filterValueInt <> dataValueInt;
-      frLessThan:   Result := filterValueInt < dataValueInt;
-      frMoreThan:   Result := filterValueInt > dataValueInt;
-      frBeginsWith: Result := IntToStr(dataValueInt).StartsWith(value);
-      frEndsWith:   Result := IntToStr(dataValueInt).EndsWith(value);
-      frContains:   Result := IntToStr(dataValueInt).Contains(value);
-      frExcludes:   Result := not IntToStr(dataValueInt).Contains(value);
-    end;
-  end
-  else
-  begin
-    case relation of
-      frIs:         Result := SameText(value, dataValue);
-      frIsNot:      Result := not SameText(value, dataValue);
-      frLessThan:   Result := CompareText(value, dataValue) < 0;
-      frMoreThan:   Result := CompareText(value, dataValue) > 0;
-      frBeginsWith: Result := dataValue.StartsWith(value, True); // not strictly same as CompareText but good enough
-      frEndsWith:   Result := dataValue.EndsWith(value, True); // not strictly same as CompareText but good enough
-      frContains:   Result := ContainsText(dataValue, value);
-      frExcludes:   Result := not ContainsText(dataValue, value);
-    end;
+
+  case relation of
+    frIs:         Result := SameText(value, dataValue);
+    frIsNot:      Result := not SameText(value, dataValue);
+    frLessThan:   Result := CompareText(value, dataValue) < 0;
+    frMoreThan:   Result := CompareText(value, dataValue) > 0;
+    frBeginsWith: Result := dataValue.StartsWith(value, True); // not strictly same as CompareText but good enough
+    frEndsWith:   Result := dataValue.EndsWith(value, True); // not strictly same as CompareText but good enough
+    frContains:   Result := ContainsText(dataValue, value);
+    frExcludes:   Result := not ContainsText(dataValue, value);
   end;
 end;
 

@@ -170,10 +170,12 @@ object MMMainForm: TMMMainForm
     Align = alClient
     DefaultRowHeight = 16
     FixedCols = 0
-    Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRangeSelect, goColSizing, goRowSelect]
+    RowCount = 2
+    Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRangeSelect, goColSizing, goColMoving, goRowSelect]
     PopupMenu = mnuItem
     TabOrder = 3
     OnClick = gridMessagesClick
+    OnColumnMoved = gridMessagesColumnMoved
     OnDrawCell = gridMessagesDrawCell
   end
   object menu: TMainMenu
@@ -323,6 +325,10 @@ object MMMainForm: TMMMainForm
     object mnuPopupCopy: TMenuItem
       Caption = '&Copy '#39'<>'#39
       OnClick = mnuPopupCopyClick
+    end
+    object mnuPopupCopyRows: TMenuItem
+      Caption = 'Copy &selected row(s)'
+      OnClick = mnuPopupCopyRowsClick
     end
     object N7: TMenuItem
       Caption = '-'

@@ -25,6 +25,19 @@ uses
   Vcl.Grids, Vcl.ComCtrls;
 
 type
+  // This overrides TDrawGrid at runtime but allows us to use the normal design-time version
+  // because for some silly reason no col resize event is published. By the way, we use
+  // a draw grid because it is ridiculously faster to display than a virtual list view, at
+  // least with Delphi's implementation
+  TDrawGrid = class(Vcl.Grids.TDrawGrid)
+  private
+    FOnColWidthsChanged: TNotifyEvent;
+  protected
+    procedure ColWidthsChanged; override;
+  public
+    property OnColWidthsChanged: TNotifyEvent read FOnColWidthsChanged write FOnColWidthsChanged;
+  end;
+
   TMMMainForm = class(TForm)
     statusBar: TStatusBar;
     menu: TMainMenu;
@@ -83,6 +96,7 @@ type
     dlgOpen: TOpenDialog;
     dlgSave: TSaveDialog;
     mnuMessageSelectColumns: TMenuItem;
+    mnuPopupCopyRows: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure mnuFileExitClick(Sender: TObject);
@@ -107,6 +121,9 @@ type
     procedure gridMessagesClick(Sender: TObject);
     procedure mnuFileSaveClick(Sender: TObject);
     procedure mnuMessageSelectColumnsClick(Sender: TObject);
+    procedure gridMessagesColumnMoved(Sender: TObject; FromIndex,
+      ToIndex: Integer);
+    procedure mnuPopupCopyRowsClick(Sender: TObject);
   private
     db: TMMDatabase;
     FFilename: string;
@@ -124,7 +141,9 @@ type
     fIsWow64: LongBool;
     FIsTempDatabase: Boolean;
     FLastColumnsDefinition, FLastFilterDefinition: string;
+    FPreparingView: Boolean;
 
+    procedure gridMessagesColWidthsChanged(Sender: TObject);
     procedure BeginLogProcesses;
     procedure EndLogProcesses;
     procedure PrepareView;
@@ -134,7 +153,7 @@ type
     function CreateFilterFromPopup: TMMFilter;
     function LoadMessageRow(index: Integer): Boolean;
     procedure BeginLogCaptureProcess;
-    procedure BeginLogStoreProcess;
+    procedure BeginLogStoreProcess(shouldAppend: Boolean);
     function GetTraceEventName: string;
     procedure BeginLogCaptureX64Process;
     procedure LoadLastTrace;
@@ -144,6 +163,7 @@ type
     function SaveDatabase(const AFilename: string): Boolean;
     procedure DisableTrace;
     procedure EnableTrace;
+    procedure CreateNewTempDatabase;
   end;
 
 var
@@ -172,6 +192,7 @@ const
 
 procedure TMMMainForm.FormCreate(Sender: TObject);
 begin
+  gridMessages.OnColWidthsChanged := gridMessagesColWidthsChanged;
   CoInitializeEx(nil, COINIT_APARTMENTTHREADED);
 
   if not IsWow64Process(GetCurrentProcess, fIsWow64) then
@@ -271,7 +292,10 @@ end;
 procedure TMMMainForm.BeginLogProcesses;
 var
   FTraceEventName: string;
+  shouldAppend: Boolean;
 begin
+  shouldAppend := Assigned(db);
+
   CloseDatabase;
 
   FTraceEventName := PChar(GetTraceEventName);
@@ -282,7 +306,7 @@ begin
   if fIsWow64 then
     BeginLogCaptureX64Process;
 
-  BeginLogStoreProcess;
+  BeginLogStoreProcess(shouldAppend);
 end;
 
 procedure TMMMainForm.BeginLogCaptureProcess;
@@ -309,7 +333,7 @@ begin
   FTraceProcessx64 := TRunConsoleApp.Run(app, cmdline, path, logfile);
 end;
 
-procedure TMMMainForm.BeginLogStoreProcess;
+procedure TMMMainForm.BeginLogStoreProcess(shouldAppend: Boolean);
 var
   path, app, cmdline: string;
   logfile: string;
@@ -317,6 +341,8 @@ begin
   path := ExtractFileDir(ParamStr(0));
   app := path+'\msgmon.recorder.exe';
   cmdline := '"'+app+'" store -d "'+FFilename+'"';
+  if shouldAppend then
+    cmdline := cmdline + ' -f';
   logfile := path+'\msgmon.recorder.store.log';
 
 //  ShowMessage(cmdline);
@@ -401,6 +427,23 @@ begin
   UpdateMessageDetail(currentMessage);
 end;
 
+procedure TMMMainForm.gridMessagesColumnMoved(Sender: TObject; FromIndex,
+  ToIndex: Integer);
+begin
+  db.Session.displayColumns.Move(FromIndex, ToIndex);
+end;
+
+procedure TMMMainForm.gridMessagesColWidthsChanged(Sender: TObject);
+var
+  i: Integer;
+begin
+  if FPreparingView then
+    // OnColWidthsChanged is triggered from code updates to column width
+    Exit;
+  for i := 0 to db.Session.displayColumns.Count - 1 do
+    db.Session.displayColumns[i].Width := gridMessages.ColWidths[i];
+end;
+
 procedure TMMMainForm.gridMessagesDrawCell(Sender: TObject; ACol, ARow: Integer;
   ARect: TRect; AState: TGridDrawState);
 var
@@ -436,11 +479,10 @@ end;
 
 procedure TMMMainForm.mnuEditClearDisplayClick(Sender: TObject);
 begin
-  if not Assigned(db) then
-    Exit;
-  db.context.Clear;
-  ApplyFilter;
-  // context.MessageNames.Clear;
+  FreeAndNil(db);
+  CreateNewTempDatabase;
+  gridMessages.RowCount := 2;
+  gridMessages.Invalidate;
 end;
 
 procedure TMMMainForm.mnuFileCaptureEventsClick(Sender: TObject);
@@ -576,21 +618,31 @@ begin
   if not Assigned(db) then
     Exit;
 
-  ColumnWidths := 0;
+  FPreparingView := True;
+  try
+    ColumnWidths := 0;
 
-  gridMessages.ColCount := db.session.displayColumns.Count;
+    gridMessages.ColCount := db.session.displayColumns.Count;
 
-  for c in db.session.displayColumns do
-    if c.Width >= 0 then
-      ColumnWidths := ColumnWidths + c.Width;
+    for c in db.session.displayColumns do
+      if c.Width >= 0 then
+        ColumnWidths := ColumnWidths + c.Width + 1;
 
-  i := 0;
-  for c in db.session.displayColumns do
-  begin
-    if c.Width < 0
-      then gridMessages.ColWidths[i] := gridMessages.ClientWidth - ColumnWidths
-      else gridMessages.ColWidths[i] := c.Width;
-    Inc(i);
+    i := 0;
+    for c in db.session.displayColumns do
+    begin
+      if c.Width < 0 then
+      begin
+        if ColumnWidths > gridMessages.ClientWidth - 128
+          then gridMessages.ColWidths[i] := 128
+          else gridMessages.ColWidths[i] := gridMessages.ClientWidth - ColumnWidths
+      end
+      else
+        gridMessages.ColWidths[i] := c.Width;
+      Inc(i);
+    end;
+  finally
+    FPreparingView := False;
   end;
 end;
 
@@ -684,15 +736,16 @@ begin
     if LoadDatabase(filename) then Exit;
   end;
 
-  // Start a new temporary file when starting the program
+  // File was not found or could not be loaded, so start fresh
+  CreateNewTempDatabase;
+end;
 
+procedure TMMMainForm.CreateNewTempDatabase;
+begin
   FIsTempDatabase := True;  // We'll delete on close of program
   FFilename := TPath.Combine(TPath.GetTempPath, 'msgmon.' + IntToStr(GetCurrentProcessId) + '.db');
   if FileExists(FFilename) then
     DeleteFile(FFilename);
-
-  // no database to start
-  //EnableControls;
   UpdateStatusBar;
 end;
 
@@ -779,6 +832,37 @@ end;
 // Context menu
 //
 
+procedure TMMMainForm.mnuPopupCopyRowsClick(Sender: TObject);
+var
+  s, t: string;
+  row: Integer;
+  col: Integer;
+begin
+  s := db.session.displayColumns[0].Caption;
+  for col := 1 to gridMessages.ColCount - 1 do
+  begin
+    t := db.session.displayColumns[col].Caption;
+    s := s + #9 + t;
+  end;
+
+  s := s + #13#10;
+
+  for row := gridMessages.Selection.Top to gridMessages.Selection.Bottom do
+  begin
+    if not LoadMessageRow(row-1) then Exit;
+    t := db.session.displayColumns[0].Render(currentMessage);
+    s := s + t;
+    for col := 1 to gridMessages.ColCount - 1 do
+    begin
+      t := db.session.displayColumns[col].Render(currentMessage);
+      s := s + #9 + t;
+    end;
+    s := s + #13#10;
+  end;
+
+  Clipboard.AsText := s;
+end;
+
 procedure TMMMainForm.mnuItemPopup(Sender: TObject);
 var
   pt: TPoint;
@@ -799,7 +883,9 @@ begin
   if (ACol < 0) or (ARow < 1) then
     Exit;
 
-  gridMessages.Row := ARow;
+  if (ARow < gridMessages.Selection.Top) or
+      (ARow > gridMessages.Selection.Bottom) then
+    gridMessages.Row := ARow;
 
   if not LoadMessageRow(ARow-1) then
     Exit;
@@ -815,6 +901,12 @@ begin
   mnuPopupCopy.Enabled := True;
   mnuPopupFilterEdit.Caption := '&Edit Filter '''+PopupContextText+'''...';
   mnuPopupFilterEdit.Enabled := True;
+
+  if gridMessages.Selection.Top = gridMessages.Selection.Bottom then
+    mnuPopupCopyRows.Caption := 'Copy selected &row'
+  else
+    mnuPopupCopyRows.Caption := 'Copy '+IntToStr(gridMessages.Selection.Bottom - gridMessages.Selection.Top)+
+      ' selected &rows';
 end;
 
 procedure TMMMainForm.mnuPopupCopyClick(Sender: TObject);
@@ -877,6 +969,15 @@ begin
   Result.relation := frIs;
   Result.value := PopupContextText;
   Result.action := faInclude;
+end;
+
+{ TDrawGrid }
+
+procedure TDrawGrid.ColWidthsChanged;
+begin
+  inherited;
+  if Assigned(FOnColWidthsChanged) then
+    FOnColWidthsChanged(Self);
 end;
 
 end.

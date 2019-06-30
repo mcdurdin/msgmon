@@ -26,6 +26,8 @@ Windows user message monitor in the style of procmon.
   - multi-line copy and paste
   - bookmarks
   - multiple window view
+  - Handle button, listbox, etc types
+  - Break messages down into smaller scopes (keyboard, mouse, etc)
   - Filtering
     - Add filtering on window 'type' - e.g. child, popup, overlapped, topmost, transparent, etc?
     - Add filtering on window visibility, enabled state
@@ -33,7 +35,6 @@ Windows user message monitor in the style of procmon.
     - Reset filter button in dialog doesn't work
   - Link to MSDN on WM_*?
   - Highlight window in window tree when clicking on hwnd
-  - Add lock table for writing traces
 
 4. Trace comparisons
 
@@ -45,6 +46,7 @@ Windows user message monitor in the style of procmon.
 
 6. Bugs and issues
   - Some messages have only partial data. Why?
+  - Add lock table for writing traces
 
 7. Bundling and deployment
   - bundle into single executable for deployment (extract to same folder or temp folder on run?)
