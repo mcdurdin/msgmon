@@ -82,6 +82,7 @@ type
     memoLog: TMemo;
     dlgOpen: TOpenDialog;
     dlgSave: TSaveDialog;
+    mnuMessageSelectColumns: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure mnuFileExitClick(Sender: TObject);
@@ -105,6 +106,7 @@ type
       ARect: TRect; AState: TGridDrawState);
     procedure gridMessagesClick(Sender: TObject);
     procedure mnuFileSaveClick(Sender: TObject);
+    procedure mnuMessageSelectColumnsClick(Sender: TObject);
   private
     db: TMMDatabase;
     FFilename: string;
@@ -157,6 +159,7 @@ uses
   Winapi.ActiveX,
 
   MsgMon.UI.FilterForm,
+  MsgMon.UI.DisplayColumnForm,
   MsgMon.System.Data.MessageDetail,
   MsgMon.System.ExecProcess,
   MsgMon.System.Util;
@@ -514,6 +517,22 @@ end;
 procedure TMMMainForm.mnuMessageClick(Sender: TObject);
 begin
   mnuMessageViewDetailPane.Checked := panDetail.Visible;
+end;
+
+procedure TMMMainForm.mnuMessageSelectColumnsClick(Sender: TObject);
+begin
+  if not Assigned(db) then
+    Exit;
+
+  with TMMDisplayColumnsForm.Create(Self, db.session) do
+  try
+    if ShowModal = mrOk then
+    begin
+      Self.PrepareView;
+    end;
+  finally
+    Free;
+  end;
 end;
 
 procedure TMMMainForm.mnuMessageViewDetailPaneClick(Sender: TObject);

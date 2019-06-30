@@ -24,7 +24,6 @@ Windows user message monitor in the style of procmon.
   - add icon
   - sort column classes in MsgMon.System.Data.Column more sensibly
   - suggestions for filter values
-  - Allow separate hwnd-int, classname, realclassname columns for each hwnd referenced (e.g. in WM_SETFOCUS wParam)
   - Drilling into hwnd
   - multi-line copy and paste
   - bookmarks

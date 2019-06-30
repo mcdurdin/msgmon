@@ -14,6 +14,7 @@ type
   public
     filters: TMMFilters;
     displayColumns: TMMColumns;
+    allColumns: TMMColumns;
     constructor Create(AContext: TMMDataContext);
     destructor Destroy; override;
     procedure LoadFromFile(const Filename: string);
@@ -31,17 +32,20 @@ begin
   FContext := AContext;
   filters := TMMFilters.Create(AContext);
   displayColumns := TMMColumns.Create(AContext);
+  allColumns := TMMColumns.Create(AContext);
 end;
 
 destructor TMMSession.Destroy;
 begin
   displayColumns.Free;
+  allColumns.Free;
   filters.Free;
 end;
 
 procedure TMMSession.LoadDefault(ALastFilterDefinition: string);
 begin
   displayColumns.LoadDefault;
+  allColumns.LoadAll;
   if ALastFilterDefinition <> ''
     then filters.LoadFromJSON(ALastFilterDefinition)
     else filters.LoadDefault;

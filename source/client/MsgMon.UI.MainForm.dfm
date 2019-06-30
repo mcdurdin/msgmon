@@ -255,6 +255,10 @@ object MMMainForm: TMMMainForm
         Caption = 'View &Detail Pane'
         OnClick = mnuMessageViewDetailPaneClick
       end
+      object mnuMessageSelectColumns: TMenuItem
+        Caption = 'Select &columns...'
+        OnClick = mnuMessageSelectColumnsClick
+      end
     end
     object mnuFilter: TMenuItem
       Caption = 'Fi&lter'

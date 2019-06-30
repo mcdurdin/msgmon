@@ -4,6 +4,7 @@ interface
 
 uses
   System.Classes,
+  System.Contnrs,
   System.Generics.Collections,
   System.JSON,
   System.SysUtils,
@@ -24,39 +25,32 @@ type
     FWidth: Integer;
     FContext: TMMDataContext;
   protected
-    function DefaultWidth: Integer; virtual;
-    function GetCaption: string; virtual;
+    class function DefaultWidth: Integer; virtual;
+    class function GetCaption: string; virtual;
     function DoLoad(o: TJSONObject): Boolean; virtual;
     procedure DoSave(o: TJSONObject); virtual;
     function DoRender(data: TMMMessage): string; virtual; abstract;
     function DoCompare(d1, d2: TMMMessage): Integer; virtual; abstract;
     function DoFilter(data: TMMMessage; relation: TMMFilterRelation; const value: string): Boolean; virtual; abstract;
   public
-    constructor Create(context: TMMDataContext);
+    constructor Create(context: TMMDataContext); virtual;
+    function Clone: TMMColumn;
     function Load(o: TJSONObject): Boolean;
     procedure Save(o: TJSONObject);
     function Render(data: TMMMessage): string;
     function Compare(d1, d2: TMMMessage): Integer;
     function Filter(data: TMMMessage; relation: TMMFilterRelation; const value: string; action: TMMFilterAction): Boolean;
-    property Caption: string read GetCaption;
+    class function Caption: string;
     property Width: Integer read FWidth write FWidth;
   end;
 
-  TMMColumns = class(TObjectList<TMMColumn>)
-  private
-    FContext: TMMDataContext;
-  public
-    constructor Create(context: TMMDataContext);
-    procedure LoadFromJSON(o: TJSONObject);
-    procedure SaveToJSON(o: TJSONObject);
-    procedure LoadDefault;
-    procedure LoadAll;
-    function FindClassName(ClassName: string): TMMColumn;
-  end;
+  TMMColumnClass = class of TMMColumn;
+
+  { Abstract column types }
 
   TMMColumn_Integer = class(TMMColumn)
   protected
-    function DefaultWidth: Integer; override;
+    class function DefaultWidth: Integer; override;
     function DoRender(data: TMMMessage): string; override;
     function DoCompare(d1, d2: TMMMessage): Integer; override;
     function GetData(data: TMMMessage): Integer; virtual; abstract;
@@ -75,7 +69,7 @@ type
 
   TMMColumn_Time = class(TMMColumn)
   protected
-    function DefaultWidth: Integer; override;
+    class function DefaultWidth: Integer; override;
     function DoRender(data: TMMMessage): string; override;
     function DoCompare(d1, d2: TMMMessage): Integer; override;
     function GetData(data: TMMMessage): TDateTime; virtual; abstract;
@@ -85,7 +79,7 @@ type
 
   TMMColumn_Window = class(TMMColumn)
   protected
-    function DefaultWidth: Integer; override;
+    class function DefaultWidth: Integer; override;
     function DoRender(data: TMMMessage): string; override;
     function DoCompare(d1, d2: TMMMessage): Integer; override;
     function GetData(data: TMMMessage): Cardinal; virtual; abstract;
@@ -95,7 +89,7 @@ type
 
   TMMColumn_WindowClass = class(TMMColumn)
   protected
-    function DefaultWidth: Integer; override;
+    class function DefaultWidth: Integer; override;
     function DoRender(data: TMMMessage): string; override;
     function DoCompare(d1, d2: TMMMessage): Integer; override;
     function GetData(data: TMMMessage): Cardinal; virtual; abstract;
@@ -103,38 +97,40 @@ type
   public
   end;
 
+  { Actual columns }
+
   TMMColumn_Sequence = class(TMMColumn_Integer)
   protected
-    function DefaultWidth: Integer; override;
-    function GetCaption: string; override;
+    class function DefaultWidth: Integer; override;
+    class function GetCaption: string; override;
     function GetData(data: TMMMessage): Integer; override;
   end;
 
   TMMColumn_ProcessArchitecture = class(TMMColumn_String)
   protected
-    function DefaultWidth: Integer; override;
-    function GetCaption: string; override;
+    class function DefaultWidth: Integer; override;
+    class function GetCaption: string; override;
     function GetData(data: TMMMessage): string; override;
   end;
 
   TMMColumn_ProcessName = class(TMMColumn_String)
   protected
-    function DefaultWidth: Integer; override;
-    function GetCaption: string; override;
+    class function DefaultWidth: Integer; override;
+    class function GetCaption: string; override;
     function GetData(data: TMMMessage): string; override;
   end;
 
   TMMColumn_ProcessPath = class(TMMColumn_String)
   protected
-    function DefaultWidth: Integer; override;
-    function GetCaption: string; override;
+    class function DefaultWidth: Integer; override;
+    class function GetCaption: string; override;
     function GetData(data: TMMMessage): string; override;
   end;
 
   TMMColumn_CommandLine = class(TMMColumn_String)
   protected
-    function DefaultWidth: Integer; override;
-    function GetCaption: string; override;
+    class function DefaultWidth: Integer; override;
+    class function GetCaption: string; override;
     function GetData(data: TMMMessage): string; override;
   end;
 
@@ -150,154 +146,179 @@ type
 
   TMMColumn_PID = class(TMMColumn_Integer)
   protected
-    function DefaultWidth: Integer; override;
-    function GetCaption: string; override;
+    class function DefaultWidth: Integer; override;
+    class function GetCaption: string; override;
     function GetData(data: TMMMessage): Integer; override;
   end;
 
   TMMColumn_TID = class(TMMColumn_Integer)
   protected
-    function DefaultWidth: Integer; override;
-    function GetCaption: string; override;
+    class function DefaultWidth: Integer; override;
+    class function GetCaption: string; override;
     function GetData(data: TMMMessage): Integer; override;
   end;
 
   TMMColumn_hWnd = class(TMMColumn_Window)
   protected
-    function GetCaption: string; override;
+    class function GetCaption: string; override;
     function GetData(data: TMMMessage): Cardinal; override;
   end;
 
   TMMColumn_hWnd_Class = class(TMMColumn_WindowClass)
   protected
-    function GetCaption: string; override;
+    class function GetCaption: string; override;
     function GetData(data: TMMMessage): Cardinal; override;
   end;
 
   TMMColumn_Mode = class(TMMColumn_String)
   protected
-    function DefaultWidth: Integer; override;
-    function GetCaption: string; override;
+    class function DefaultWidth: Integer; override;
+    class function GetCaption: string; override;
     function GetData(data: TMMMessage): string; override;
   end;
 
   TMMColumn_MessageName = class(TMMColumn_String)
   protected
-    function DefaultWidth: Integer; override;
-    function GetCaption: string; override;
+    class function DefaultWidth: Integer; override;
+    class function GetCaption: string; override;
     function GetData(data: TMMMessage): string; override;
   end;
 
   TMMColumn_MessageID = class(TMMColumn_Integer)
   protected
-    function DefaultWidth: Integer; override;
-    function GetCaption: string; override;
+    class function DefaultWidth: Integer; override;
+    class function GetCaption: string; override;
     function GetData(data: TMMMessage): Integer; override;
   end;
 
   TMMColumn_wParam = class(TMMColumn_Integer)
   protected
-    function GetCaption: string; override;
+    class function GetCaption: string; override;
     function GetData(data: TMMMessage): Integer; override;
   end;
 
   TMMColumn_lParam = class(TMMColumn_Integer)
   protected
-    function GetCaption: string; override;
+    class function GetCaption: string; override;
     function GetData(data: TMMMessage): Integer; override;
   end;
 
   TMMColumn_lResult = class(TMMColumn_Integer)
   protected
-    function GetCaption: string; override;
+    class function GetCaption: string; override;
     function GetData(data: TMMMessage): Integer; override;
   end;
 
   TMMColumn_Detail = class(TMMColumn_String)
   protected
-    function DefaultWidth: Integer; override;
-    function GetCaption: string; override;
+    class function DefaultWidth: Integer; override;
+    class function GetCaption: string; override;
     function GetData(data: TMMMessage): string; override;
   end;
 
   TMMColumn_MessageScope = class(TMMColumn_String)
   protected
-    function DefaultWidth: Integer; override;
-    function GetCaption: string; override;
+    class function DefaultWidth: Integer; override;
+    class function GetCaption: string; override;
     function GetData(data: TMMMessage): string; override;
   end;
 
   TMMColumn_hWndFocus = class(TMMColumn_Window)
   protected
-    function GetCaption: string; override;
+    class function GetCaption: string; override;
     function GetData(data: TMMMessage): Cardinal; override;
   end;
 
   TMMColumn_hWndFocus_Class = class(TMMColumn_WindowClass)
   protected
-    function GetCaption: string; override;
+    class function GetCaption: string; override;
     function GetData(data: TMMMessage): Cardinal; override;
   end;
 
   TMMColumn_hWndActive = class(TMMColumn_Window)
   protected
-    function GetCaption: string; override;
+    class function GetCaption: string; override;
     function GetData(data: TMMMessage): Cardinal; override;
   end;
 
   TMMColumn_hWndActive_Class = class(TMMColumn_WindowClass)
   protected
-    function GetCaption: string; override;
+    class function GetCaption: string; override;
     function GetData(data: TMMMessage): Cardinal; override;
   end;
 
   TMMColumn_hWndCapture = class(TMMColumn_Window)
   protected
-    function GetCaption: string; override;
+    class function GetCaption: string; override;
     function GetData(data: TMMMessage): Cardinal; override;
   end;
 
   TMMColumn_hWndCapture_Class = class(TMMColumn_WindowClass)
   protected
-    function GetCaption: string; override;
+    class function GetCaption: string; override;
     function GetData(data: TMMMessage): Cardinal; override;
   end;
 
   TMMColumn_hWndCaret = class(TMMColumn_Window)
   protected
-    function GetCaption: string; override;
+    class function GetCaption: string; override;
     function GetData(data: TMMMessage): Cardinal; override;
   end;
 
   TMMColumn_hWndCaret_Class = class(TMMColumn_WindowClass)
   protected
-    function GetCaption: string; override;
+    class function GetCaption: string; override;
     function GetData(data: TMMMessage): Cardinal; override;
   end;
 
   TMMColumn_hWndMenuOwner = class(TMMColumn_Window)
   protected
-    function GetCaption: string; override;
+    class function GetCaption: string; override;
     function GetData(data: TMMMessage): Cardinal; override;
   end;
 
   TMMColumn_hWndMenuOwner_Class = class(TMMColumn_WindowClass)
   protected
-    function GetCaption: string; override;
+    class function GetCaption: string; override;
     function GetData(data: TMMMessage): Cardinal; override;
   end;
 
   TMMColumn_hWndMoveSize = class(TMMColumn_Window)
   protected
-    function GetCaption: string; override;
+    class function GetCaption: string; override;
     function GetData(data: TMMMessage): Cardinal; override;
   end;
 
   TMMColumn_hWndMoveSize_Class = class(TMMColumn_WindowClass)
   protected
-    function GetCaption: string; override;
+    class function GetCaption: string; override;
     function GetData(data: TMMMessage): Cardinal; override;
   end;
+
+  TMMColumnClassList = class(TClassList)
+  protected
+    function GetItems(Index: Integer): TMMColumnClass; inline;
+    procedure SetItems(Index: Integer; AClass: TMMColumnClass); inline;
+  public
+    function Find(Name: string): TMMColumnClass;
+    property Items[Index: Integer]: TMMColumnClass read GetItems write SetItems; default;
+  end;
+
+  TMMColumns = class(TObjectList<TMMColumn>)
+  private
+    FContext: TMMDataContext;
+  public
+    constructor Create(context: TMMDataContext);
+    procedure LoadFromJSON(o: TJSONObject);
+    procedure SaveToJSON(o: TJSONObject);
+    procedure LoadDefault;
+    procedure LoadAll;
+    function FindClassName(ClassName: string): TMMColumn;
+  end;
+
+var
+  FColumnClasses: TMMColumnClassList = nil;
+  FDefaultColumnClasses: TMMColumnClassList = nil;
 
 implementation
 
@@ -307,6 +328,16 @@ uses
   MsgMon.System.Data.MessageDetail;
 
 { TMMColumn }
+
+class function TMMColumn.Caption: string;
+begin
+  Result := GetCaption;
+end;
+
+function TMMColumn.Clone: TMMColumn;
+begin
+  Result := FColumnClasses.Find(Self.ClassName).Create(Self.FContext);
+end;
 
 function TMMColumn.Compare(d1, d2: TMMMessage): Integer;
 begin
@@ -320,12 +351,12 @@ begin
   FWidth := DefaultWidth;
 end;
 
-function TMMColumn.DefaultWidth: Integer;
+class function TMMColumn.DefaultWidth: Integer;
 begin
   Result := 64;
 end;
 
-function TMMColumn.GetCaption: string;
+class function TMMColumn.GetCaption: string;
 begin
   Result := '???';
 end;
@@ -367,7 +398,7 @@ end;
 
 { TMMColumn_Integer }
 
-function TMMColumn_Integer.DefaultWidth: Integer;
+class function TMMColumn_Integer.DefaultWidth: Integer;
 begin
   Result := 92;
 end;
@@ -440,12 +471,12 @@ end;
 
 { TMMColumn_Index }
 
-function TMMColumn_Sequence.DefaultWidth: Integer;
+class function TMMColumn_Sequence.DefaultWidth: Integer;
 begin
   Result := 48;
 end;
 
-function TMMColumn_Sequence.GetCaption: string;
+class function TMMColumn_Sequence.GetCaption: string;
 begin
   Result := 'Sequence';
 end;
@@ -457,12 +488,12 @@ end;
 
 { TMMColumn_ProcessName }
 
-function TMMColumn_ProcessName.DefaultWidth: Integer;
+class function TMMColumn_ProcessName.DefaultWidth: Integer;
 begin
   Result := 128;
 end;
 
-function TMMColumn_ProcessName.GetCaption: string;
+class function TMMColumn_ProcessName.GetCaption: string;
 begin
   Result := 'Process Name';
 end;
@@ -476,12 +507,12 @@ end;
 
 { TMMColumn_ProcessPath }
 
-function TMMColumn_ProcessPath.DefaultWidth: Integer;
+class function TMMColumn_ProcessPath.DefaultWidth: Integer;
 begin
   Result := 200;
 end;
 
-function TMMColumn_ProcessPath.GetCaption: string;
+class function TMMColumn_ProcessPath.GetCaption: string;
 begin
   Result := 'Process Path';
 end;
@@ -495,12 +526,12 @@ end;
 
 { TMMColumn_CommandLine }
 
-function TMMColumn_CommandLine.DefaultWidth: Integer;
+class function TMMColumn_CommandLine.DefaultWidth: Integer;
 begin
   Result := 200;
 end;
 
-function TMMColumn_CommandLine.GetCaption: string;
+class function TMMColumn_CommandLine.GetCaption: string;
 begin
   Result := 'Command Line';
 end;
@@ -514,12 +545,12 @@ end;
 
 { TMMColumn_PID }
 
-function TMMColumn_PID.DefaultWidth: Integer;
+class function TMMColumn_PID.DefaultWidth: Integer;
 begin
   Result := 48;
 end;
 
-function TMMColumn_PID.GetCaption: string;
+class function TMMColumn_PID.GetCaption: string;
 begin
   Result := 'PID';
 end;
@@ -531,12 +562,12 @@ end;
 
 { TMMColumn_TID }
 
-function TMMColumn_TID.DefaultWidth: Integer;
+class function TMMColumn_TID.DefaultWidth: Integer;
 begin
   Result := 48;
 end;
 
-function TMMColumn_TID.GetCaption: string;
+class function TMMColumn_TID.GetCaption: string;
 begin
   Result := 'TID';
 end;
@@ -548,12 +579,12 @@ end;
 
 { TMMColumn_MessageName }
 
-function TMMColumn_MessageName.DefaultWidth: Integer;
+class function TMMColumn_MessageName.DefaultWidth: Integer;
 begin
   Result := 160;
 end;
 
-function TMMColumn_MessageName.GetCaption: string;
+class function TMMColumn_MessageName.GetCaption: string;
 begin
   Result := 'Message';
 end;
@@ -574,12 +605,12 @@ end;
 
 { TMMColumn_MessageID }
 
-function TMMColumn_MessageID.DefaultWidth: Integer;
+class function TMMColumn_MessageID.DefaultWidth: Integer;
 begin
   Result := 64;
 end;
 
-function TMMColumn_MessageID.GetCaption: string;
+class function TMMColumn_MessageID.GetCaption: string;
 begin
   Result := 'Message#';
 end;
@@ -591,7 +622,7 @@ end;
 
 { TMMColumn_wParam }
 
-function TMMColumn_wParam.GetCaption: string;
+class function TMMColumn_wParam.GetCaption: string;
 begin
   Result := 'wParam';
 end;
@@ -603,7 +634,7 @@ end;
 
 { TMMColumn_lParam }
 
-function TMMColumn_lParam.GetCaption: string;
+class function TMMColumn_lParam.GetCaption: string;
 begin
   Result := 'lParam';
 end;
@@ -615,7 +646,7 @@ end;
 
 { TMMColumn_lResult }
 
-function TMMColumn_lResult.GetCaption: string;
+class function TMMColumn_lResult.GetCaption: string;
 begin
   Result := 'lResult';
 end;
@@ -627,12 +658,12 @@ end;
 
 { TMMColumn_Detail }
 
-function TMMColumn_Detail.DefaultWidth: Integer;
+class function TMMColumn_Detail.DefaultWidth: Integer;
 begin
   Result := -1;
 end;
 
-function TMMColumn_Detail.GetCaption: string;
+class function TMMColumn_Detail.GetCaption: string;
 begin
   Result := 'Detail';
 end;
@@ -655,12 +686,12 @@ end;
 
 { TMMColumn_MessageClass }
 
-function TMMColumn_MessageScope.DefaultWidth: Integer;
+class function TMMColumn_MessageScope.DefaultWidth: Integer;
 begin
   Result := 64;
 end;
 
-function TMMColumn_MessageScope.GetCaption: string;
+class function TMMColumn_MessageScope.GetCaption: string;
 begin
   Result := 'Scope';
 end;
@@ -682,7 +713,7 @@ end;
 
 { TMMColumn_Time }
 
-function TMMColumn_Time.DefaultWidth: Integer;
+class function TMMColumn_Time.DefaultWidth: Integer;
 begin
   Result := 128;
 end;
@@ -723,84 +754,14 @@ begin
   Result := FormatDateTime('yyyy-mm-dd hh:nn:ss', GetData(data));
 end;
 
-{ TMMColumns }
-
-constructor TMMColumns.Create(context: TMMDataContext);
-begin
-  inherited Create;
-  FContext := context;
-end;
-
-function TMMColumns.FindClassName(ClassName: string): TMMColumn;
-begin
-  for Result in Self do
-    if Result.ClassNameIs(ClassName) then
-      Exit;
-
-  Result := nil;
-end;
-
-procedure TMMColumns.LoadAll;
-begin
-  Clear;
-  Add(TMMColumn_Sequence.Create(FContext));
-  Add(TMMColumn_ProcessArchitecture.Create(FContext));
-  Add(TMMColumn_ProcessName.Create(FContext));
-  Add(TMMColumn_PID.Create(FContext));
-  Add(TMMColumn_TID.Create(FContext));
-  Add(TMMColumn_Mode.Create(FContext));
-  Add(TMMColumn_hWnd.Create(FContext));
-  Add(TMMColumn_MessageName.Create(FContext));
-  Add(TMMColumn_MessageScope.Create(FContext));
-  Add(TMMColumn_wParam.Create(FContext));
-  Add(TMMColumn_lParam.Create(FContext));
-  Add(TMMColumn_lResult.Create(FContext));
-  Add(TMMColumn_Detail.Create(FContext));
-  Add(TMMColumn_hWndFocus.Create(FContext));
-  Add(TMMColumn_hWndActive.Create(FContext));
-  Add(TMMColumn_hWndCapture.Create(FContext));
-  Add(TMMColumn_hWndCaret.Create(FContext));
-  Add(TMMColumn_hWndMenuOwner.Create(FContext));
-  Add(TMMColumn_hWndMoveSize.Create(FContext));
-end;
-
-procedure TMMColumns.LoadDefault;
-begin
-  Clear;
-  Add(TMMColumn_Sequence.Create(FContext));
-  Add(TMMColumn_ProcessArchitecture.Create(FContext));
-  Add(TMMColumn_ProcessName.Create(FContext));
-  Add(TMMColumn_PID.Create(FContext));
-  Add(TMMColumn_TID.Create(FContext));
-  Add(TMMColumn_Mode.Create(FContext));
-  Add(TMMColumn_hWnd.Create(FContext));
-  Add(TMMColumn_hWnd_Class.Create(FContext));
-  Add(TMMColumn_MessageName.Create(FContext));
-  Add(TMMColumn_MessageScope.Create(FContext));
-  Add(TMMColumn_wParam.Create(FContext));
-  Add(TMMColumn_lParam.Create(FContext));
-  Add(TMMColumn_lResult.Create(FContext));
-  Add(TMMColumn_Detail.Create(FContext));
-end;
-
-procedure TMMColumns.LoadFromJSON(o: TJSONObject);
-begin
-
-end;
-
-procedure TMMColumns.SaveToJSON(o: TJSONObject);
-begin
-
-end;
-
 { TMMColumn_Mode }
 
-function TMMColumn_Mode.DefaultWidth: Integer;
+class function TMMColumn_Mode.DefaultWidth: Integer;
 begin
   Result := 24;
 end;
 
-function TMMColumn_Mode.GetCaption: string;
+class function TMMColumn_Mode.GetCaption: string;
 begin
   Result := 'Mode';
 end;
@@ -817,12 +778,12 @@ end;
 
 { TMMColumn_ProcessArchitecture }
 
-function TMMColumn_ProcessArchitecture.DefaultWidth: Integer;
+class function TMMColumn_ProcessArchitecture.DefaultWidth: Integer;
 begin
   Result := 32;
 end;
 
-function TMMColumn_ProcessArchitecture.GetCaption: string;
+class function TMMColumn_ProcessArchitecture.GetCaption: string;
 begin
   Result := 'Architecture';
 end;
@@ -839,7 +800,7 @@ end;
 
 { TMMColumn_hWnd }
 
-function TMMColumn_hWnd.GetCaption: string;
+class function TMMColumn_hWnd.GetCaption: string;
 begin
   Result := 'hwnd';
 end;
@@ -851,7 +812,7 @@ end;
 
 { TMMColumn_Window }
 
-function TMMColumn_Window.DefaultWidth: Integer;
+class function TMMColumn_Window.DefaultWidth: Integer;
 begin
   Result := 80;
 end;
@@ -910,7 +871,7 @@ end;
 
 { TMMColumn_hWndFocus }
 
-function TMMColumn_hWndFocus.GetCaption: string;
+class function TMMColumn_hWndFocus.GetCaption: string;
 begin
   Result := 'hwndFocus';
 end;
@@ -922,7 +883,7 @@ end;
 
 { TMMColumn_hWndActive }
 
-function TMMColumn_hWndActive.GetCaption: string;
+class function TMMColumn_hWndActive.GetCaption: string;
 begin
   Result := 'hwndActive';
 end;
@@ -934,7 +895,7 @@ end;
 
 { TMMColumn_hWndCapture }
 
-function TMMColumn_hWndCapture.GetCaption: string;
+class function TMMColumn_hWndCapture.GetCaption: string;
 begin
   Result := 'hwndCapture';
 end;
@@ -946,7 +907,7 @@ end;
 
 { TMMColumn_hWndCaret }
 
-function TMMColumn_hWndCaret.GetCaption: string;
+class function TMMColumn_hWndCaret.GetCaption: string;
 begin
   Result := 'hwndCaret';
 end;
@@ -958,7 +919,7 @@ end;
 
 { TMMColumn_hWndMenuOwner }
 
-function TMMColumn_hWndMenuOwner.GetCaption: string;
+class function TMMColumn_hWndMenuOwner.GetCaption: string;
 begin
   Result := 'hwndMenuOwner';
 end;
@@ -970,7 +931,7 @@ end;
 
 { TMMColumn_hWndMoveSize }
 
-function TMMColumn_hWndMoveSize.GetCaption: string;
+class function TMMColumn_hWndMoveSize.GetCaption: string;
 begin
   Result := 'hwndMoveSize';
 end;
@@ -982,7 +943,7 @@ end;
 
 { TMMColumn_hWndClass }
 
-function TMMColumn_hWnd_Class.GetCaption: string;
+class function TMMColumn_hWnd_Class.GetCaption: string;
 begin
   Result := 'hwnd class';
 end;
@@ -994,7 +955,7 @@ end;
 
 { TMMColumn_WindowClass }
 
-function TMMColumn_WindowClass.DefaultWidth: Integer;
+class function TMMColumn_WindowClass.DefaultWidth: Integer;
 begin
   Result := 128;
 end;
@@ -1065,7 +1026,7 @@ end;
 
 { TMMColumn_hWndMoveSize_Class }
 
-function TMMColumn_hWndMoveSize_Class.GetCaption: string;
+class function TMMColumn_hWndMoveSize_Class.GetCaption: string;
 begin
   Result := 'hwndMoveSize Class';
 end;
@@ -1077,7 +1038,7 @@ end;
 
 { TMMColumn_hWndMenuOwner_Class }
 
-function TMMColumn_hWndMenuOwner_Class.GetCaption: string;
+class function TMMColumn_hWndMenuOwner_Class.GetCaption: string;
 begin
   Result := 'hwndMenuOwner Class';
 end;
@@ -1089,7 +1050,7 @@ end;
 
 { TMMColumn_hWndCaret_Class }
 
-function TMMColumn_hWndCaret_Class.GetCaption: string;
+class function TMMColumn_hWndCaret_Class.GetCaption: string;
 begin
   Result := 'hwndCaret Class';
 end;
@@ -1101,7 +1062,7 @@ end;
 
 { TMMColumn_hWndCapture_Class }
 
-function TMMColumn_hWndCapture_Class.GetCaption: string;
+class function TMMColumn_hWndCapture_Class.GetCaption: string;
 begin
   Result := 'hwndCapture Class';
 end;
@@ -1113,7 +1074,7 @@ end;
 
 { TMMColumn_hWndActive_Class }
 
-function TMMColumn_hWndActive_Class.GetCaption: string;
+class function TMMColumn_hWndActive_Class.GetCaption: string;
 begin
   Result := 'hwndActive Class';
 end;
@@ -1125,7 +1086,7 @@ end;
 
 { TMMColumn_hWndFocus_Class }
 
-function TMMColumn_hWndFocus_Class.GetCaption: string;
+class function TMMColumn_hWndFocus_Class.GetCaption: string;
 begin
   Result := 'hwndFocus Class';
 end;
@@ -1135,4 +1096,133 @@ begin
   Result := data.hwndFocus;
 end;
 
+{ TMMColumns }
+
+constructor TMMColumns.Create(context: TMMDataContext);
+begin
+  inherited Create;
+  FContext := context;
+end;
+
+function TMMColumns.FindClassName(ClassName: string): TMMColumn;
+begin
+  for Result in Self do
+    if Result.ClassNameIs(ClassName) then
+      Exit;
+
+  Result := nil;
+end;
+
+procedure TMMColumns.LoadAll;
+var
+  i: Integer;
+  c: TMMColumnClass;
+begin
+  Clear;
+  for i := 0 to FColumnClasses.Count - 1 do
+  begin
+    c := FColumnClasses[i];
+    Add(c.Create(FContext));
+  end;
+end;
+
+procedure TMMColumns.LoadDefault;
+var
+  i: Integer;
+  c: TMMColumnClass;
+begin
+  Clear;
+  for i := 0 to FDefaultColumnClasses.Count - 1 do
+  begin
+    c := FDefaultColumnClasses[i];
+    Add(c.Create(FContext));
+  end;
+end;
+
+procedure TMMColumns.LoadFromJSON(o: TJSONObject);
+begin
+
+end;
+
+procedure TMMColumns.SaveToJSON(o: TJSONObject);
+begin
+
+end;
+
+{ TMMColumnClassList }
+
+function TMMColumnClassList.Find(Name: string): TMMColumnClass;
+var
+  I: Integer;
+begin
+  for I := 0 to Count - 1 do
+    if Items[i].ClassName = Name then
+      Exit(Items[i]);
+  Result := nil;
+end;
+
+function TMMColumnClassList.GetItems(Index: Integer): TMMColumnClass;
+begin
+  Result := TMMColumnClass(inherited Items[Index]);
+end;
+
+procedure TMMColumnClassList.SetItems(Index: Integer; AClass: TMMColumnClass);
+begin
+  inherited Items[Index] := AClass;
+end;
+
+initialization
+  //
+  // All available columns
+  //
+  FColumnClasses := TMMColumnClassList.Create;
+  FColumnClasses.Add(TMMColumn_Sequence);
+  FColumnClasses.Add(TMMColumn_ProcessArchitecture);
+  FColumnClasses.Add(TMMColumn_ProcessName);
+  FColumnClasses.Add(TMMColumn_PID);
+  FColumnClasses.Add(TMMColumn_TID);
+  FColumnClasses.Add(TMMColumn_Mode);
+  FColumnClasses.Add(TMMColumn_hWnd);
+  FColumnClasses.Add(TMMColumn_hWnd_Class);
+  FColumnClasses.Add(TMMColumn_MessageName);
+  FColumnClasses.Add(TMMColumn_MessageScope);
+  FColumnClasses.Add(TMMColumn_wParam);
+  FColumnClasses.Add(TMMColumn_lParam);
+  FColumnClasses.Add(TMMColumn_lResult);
+  FColumnClasses.Add(TMMColumn_Detail);
+  FColumnClasses.Add(TMMColumn_hWndFocus);
+  FColumnClasses.Add(TMMColumn_hWndFocus_Class);
+  FColumnClasses.Add(TMMColumn_hWndActive);
+  FColumnClasses.Add(TMMColumn_hWndActive_Class);
+  FColumnClasses.Add(TMMColumn_hWndCapture);
+  FColumnClasses.Add(TMMColumn_hWndCapture_Class);
+  FColumnClasses.Add(TMMColumn_hWndCaret);
+  FColumnClasses.Add(TMMColumn_hWndCaret_Class);
+  FColumnClasses.Add(TMMColumn_hWndMenuOwner);
+  FColumnClasses.Add(TMMColumn_hWndMenuOwner_Class);
+  FColumnClasses.Add(TMMColumn_hWndMoveSize);
+  FColumnClasses.Add(TMMColumn_hWndMoveSize_Class);
+
+  //
+  // Default columns
+  //
+  FDefaultColumnClasses := TMMColumnClassList.Create;
+  FDefaultColumnClasses.Add(TMMColumn_Sequence);
+  FDefaultColumnClasses.Add(TMMColumn_ProcessArchitecture);
+  FDefaultColumnClasses.Add(TMMColumn_ProcessName);
+  FDefaultColumnClasses.Add(TMMColumn_PID);
+  FDefaultColumnClasses.Add(TMMColumn_TID);
+  FDefaultColumnClasses.Add(TMMColumn_Mode);
+  FDefaultColumnClasses.Add(TMMColumn_hWnd);
+  FDefaultColumnClasses.Add(TMMColumn_hWnd_Class);
+  FDefaultColumnClasses.Add(TMMColumn_MessageName);
+  FDefaultColumnClasses.Add(TMMColumn_MessageScope);
+  FDefaultColumnClasses.Add(TMMColumn_wParam);
+  FDefaultColumnClasses.Add(TMMColumn_lParam);
+  FDefaultColumnClasses.Add(TMMColumn_lResult);
+  FDefaultColumnClasses.Add(TMMColumn_Detail);
+
+finalization
+  FreeAndNil(FColumnClasses);
+  FreeAndNil(FDefaultColumnClasses);
 end.

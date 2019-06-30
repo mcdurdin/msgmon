@@ -167,6 +167,10 @@
         <DCCReference Include="MsgMon.System.ExecConsoleProcess.pas"/>
         <DCCReference Include="MsgMon.System.Util.pas"/>
         <DCCReference Include="MsgMon.System.Data.MessageDetail.pas"/>
+        <DCCReference Include="MsgMon.UI.DisplayColumnForm.pas">
+            <Form>MMDisplayColumnsForm</Form>
+            <FormType>dfm</FormType>
+        </DCCReference>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>

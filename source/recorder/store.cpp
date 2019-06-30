@@ -170,7 +170,6 @@ BOOL GetEventProperties(PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO 
     return FALSE;
   }
 
-  //currentPropertyBufSize = sz;
   if (sz == 0) {
     return TRUE;
   }

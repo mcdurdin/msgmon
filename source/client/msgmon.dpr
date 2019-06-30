@@ -19,7 +19,8 @@ uses
   MsgMon.Data.Database in 'MsgMon.Data.Database.pas',
   MsgMon.System.ExecConsoleProcess in 'MsgMon.System.ExecConsoleProcess.pas',
   MsgMon.System.Util in 'MsgMon.System.Util.pas',
-  MsgMon.System.Data.MessageDetail in 'MsgMon.System.Data.MessageDetail.pas';
+  MsgMon.System.Data.MessageDetail in 'MsgMon.System.Data.MessageDetail.pas',
+  MsgMon.UI.DisplayColumnForm in 'MsgMon.UI.DisplayColumnForm.pas' {MMDisplayColumnsForm};
 
 {$R *.res}
 
