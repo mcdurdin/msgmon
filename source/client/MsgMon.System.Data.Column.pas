@@ -229,31 +229,73 @@ type
 
   TMMColumn_hWndFocus = class(TMMColumn_Window)
   protected
+    function GetCaption: string; override;
+    function GetData(data: TMMMessage): Cardinal; override;
+  end;
+
+  TMMColumn_hWndFocus_Class = class(TMMColumn_WindowClass)
+  protected
+    function GetCaption: string; override;
     function GetData(data: TMMMessage): Cardinal; override;
   end;
 
   TMMColumn_hWndActive = class(TMMColumn_Window)
   protected
+    function GetCaption: string; override;
+    function GetData(data: TMMMessage): Cardinal; override;
+  end;
+
+  TMMColumn_hWndActive_Class = class(TMMColumn_WindowClass)
+  protected
+    function GetCaption: string; override;
     function GetData(data: TMMMessage): Cardinal; override;
   end;
 
   TMMColumn_hWndCapture = class(TMMColumn_Window)
   protected
+    function GetCaption: string; override;
+    function GetData(data: TMMMessage): Cardinal; override;
+  end;
+
+  TMMColumn_hWndCapture_Class = class(TMMColumn_WindowClass)
+  protected
+    function GetCaption: string; override;
     function GetData(data: TMMMessage): Cardinal; override;
   end;
 
   TMMColumn_hWndCaret = class(TMMColumn_Window)
   protected
+    function GetCaption: string; override;
+    function GetData(data: TMMMessage): Cardinal; override;
+  end;
+
+  TMMColumn_hWndCaret_Class = class(TMMColumn_WindowClass)
+  protected
+    function GetCaption: string; override;
     function GetData(data: TMMMessage): Cardinal; override;
   end;
 
   TMMColumn_hWndMenuOwner = class(TMMColumn_Window)
   protected
+    function GetCaption: string; override;
+    function GetData(data: TMMMessage): Cardinal; override;
+  end;
+
+  TMMColumn_hWndMenuOwner_Class = class(TMMColumn_WindowClass)
+  protected
+    function GetCaption: string; override;
     function GetData(data: TMMMessage): Cardinal; override;
   end;
 
   TMMColumn_hWndMoveSize = class(TMMColumn_Window)
   protected
+    function GetCaption: string; override;
+    function GetData(data: TMMMessage): Cardinal; override;
+  end;
+
+  TMMColumn_hWndMoveSize_Class = class(TMMColumn_WindowClass)
+  protected
+    function GetCaption: string; override;
     function GetData(data: TMMMessage): Cardinal; override;
   end;
 
@@ -868,12 +910,22 @@ end;
 
 { TMMColumn_hWndFocus }
 
+function TMMColumn_hWndFocus.GetCaption: string;
+begin
+  Result := 'hwndFocus';
+end;
+
 function TMMColumn_hWndFocus.GetData(data: TMMMessage): Cardinal;
 begin
   Result := data.hwndFocus;
 end;
 
 { TMMColumn_hWndActive }
+
+function TMMColumn_hWndActive.GetCaption: string;
+begin
+  Result := 'hwndActive';
+end;
 
 function TMMColumn_hWndActive.GetData(data: TMMMessage): Cardinal;
 begin
@@ -882,12 +934,22 @@ end;
 
 { TMMColumn_hWndCapture }
 
+function TMMColumn_hWndCapture.GetCaption: string;
+begin
+  Result := 'hwndCapture';
+end;
+
 function TMMColumn_hWndCapture.GetData(data: TMMMessage): Cardinal;
 begin
   Result := data.hwndCapture;
 end;
 
 { TMMColumn_hWndCaret }
+
+function TMMColumn_hWndCaret.GetCaption: string;
+begin
+  Result := 'hwndCaret';
+end;
 
 function TMMColumn_hWndCaret.GetData(data: TMMMessage): Cardinal;
 begin
@@ -896,12 +958,22 @@ end;
 
 { TMMColumn_hWndMenuOwner }
 
+function TMMColumn_hWndMenuOwner.GetCaption: string;
+begin
+  Result := 'hwndMenuOwner';
+end;
+
 function TMMColumn_hWndMenuOwner.GetData(data: TMMMessage): Cardinal;
 begin
   Result := data.hwndMenuOwner;
 end;
 
 { TMMColumn_hWndMoveSize }
+
+function TMMColumn_hWndMoveSize.GetCaption: string;
+begin
+  Result := 'hwndMoveSize';
+end;
 
 function TMMColumn_hWndMoveSize.GetData(data: TMMMessage): Cardinal;
 begin
@@ -989,6 +1061,78 @@ begin
   end
   else
     Result := IntToStr(hwnd);
+end;
+
+{ TMMColumn_hWndMoveSize_Class }
+
+function TMMColumn_hWndMoveSize_Class.GetCaption: string;
+begin
+  Result := 'hwndMoveSize Class';
+end;
+
+function TMMColumn_hWndMoveSize_Class.GetData(data: TMMMessage): Cardinal;
+begin
+  Result := data.hwndMoveSize;
+end;
+
+{ TMMColumn_hWndMenuOwner_Class }
+
+function TMMColumn_hWndMenuOwner_Class.GetCaption: string;
+begin
+  Result := 'hwndMenuOwner Class';
+end;
+
+function TMMColumn_hWndMenuOwner_Class.GetData(data: TMMMessage): Cardinal;
+begin
+  Result := data.hwndMenuOwner;
+end;
+
+{ TMMColumn_hWndCaret_Class }
+
+function TMMColumn_hWndCaret_Class.GetCaption: string;
+begin
+  Result := 'hwndCaret Class';
+end;
+
+function TMMColumn_hWndCaret_Class.GetData(data: TMMMessage): Cardinal;
+begin
+  Result := data.hwndCaret;
+end;
+
+{ TMMColumn_hWndCapture_Class }
+
+function TMMColumn_hWndCapture_Class.GetCaption: string;
+begin
+  Result := 'hwndCapture Class';
+end;
+
+function TMMColumn_hWndCapture_Class.GetData(data: TMMMessage): Cardinal;
+begin
+  Result := data.hwndCapture;
+end;
+
+{ TMMColumn_hWndActive_Class }
+
+function TMMColumn_hWndActive_Class.GetCaption: string;
+begin
+  Result := 'hwndActive Class';
+end;
+
+function TMMColumn_hWndActive_Class.GetData(data: TMMMessage): Cardinal;
+begin
+  Result := data.hwndActive;
+end;
+
+{ TMMColumn_hWndFocus_Class }
+
+function TMMColumn_hWndFocus_Class.GetCaption: string;
+begin
+  Result := 'hwndFocus Class';
+end;
+
+function TMMColumn_hWndFocus_Class.GetData(data: TMMMessage): Cardinal;
+begin
+  Result := data.hwndFocus;
 end;
 
 end.

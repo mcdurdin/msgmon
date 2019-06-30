@@ -21,7 +21,6 @@ Windows user message monitor in the style of procmon.
   - Add detail pane
   - time columns
   - basic column choices (plus load and save)
-  - hwnd needs to show handle as well as classname
   - add icon
   - sort column classes in MsgMon.System.Data.Column more sensibly
   - suggestions for filter values
@@ -34,7 +33,6 @@ Windows user message monitor in the style of procmon.
     - Add filtering on window 'type' - e.g. child, popup, overlapped, topmost, transparent, etc?
     - Add filtering on window visibility, enabled state
     - Add row highlight filters
-    - Filter dialog needs row-select on list view
     - Reset filter button in dialog doesn't work
   - Link to MSDN on WM_*?
   - Highlight window in window tree when clicking on hwnd

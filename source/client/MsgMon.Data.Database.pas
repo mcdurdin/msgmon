@@ -35,7 +35,7 @@ type
     procedure SaveFilter;
     procedure LoadFilter;
   public
-    constructor Create(const AFilename: string);
+    constructor Create(const AFilename, ALastFilterDefinition: string);
     destructor Destroy; override;
     procedure ApplyFilter;
     function LoadMessageRow(index: Integer): TMMMessage;
@@ -51,13 +51,13 @@ implementation
 
 { TMMDatabase }
 
-constructor TMMDatabase.Create(const AFilename: string);
+constructor TMMDatabase.Create(const AFilename, ALastFilterDefinition: string);
 begin
   inherited Create;
   FFilename := AFilename;
   FContext := TMMDataContext.Create;
   FSession := TMMSession.Create(context);
-  session.LoadDefault;
+  session.LoadDefault(ALastFilterDefinition);
 
   Load;
 

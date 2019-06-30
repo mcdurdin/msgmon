@@ -101,7 +101,7 @@ const flags: array[0..10] of TFlag = (
 var
   wp: PWindowPos;
 begin
-  wp := PWindowPos(data.lParam);
+  wp := PWindowPos(@data.detail[0]);
   SetLength(Result, 8);
   Result[0].SetHwnd(context, data.index, 'hwnd', wp.hwnd);
   Result[1].SetHwnd(context, data.index, 'hwndInsertAfter', wp.hwndInsertAfter);

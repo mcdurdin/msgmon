@@ -90,6 +90,7 @@ object MMFilterForm: TMMFilterForm
         Caption = 'Action'
         Width = 80
       end>
+    RowSelect = True
     TabOrder = 7
     ViewStyle = vsReport
   end

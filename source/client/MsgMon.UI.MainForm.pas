@@ -121,6 +121,7 @@ type
     FTraceProcessx64: TRunConsoleApp;
     fIsWow64: LongBool;
     FIsTempDatabase: Boolean;
+    FLastFilterDefinition: string;
 
     procedure BeginLogProcesses;
     procedure EndLogProcesses;
@@ -163,6 +164,7 @@ uses
 const
   SRegKey_MsgMon = 'Software\MsgMon';
   SRegValue_LastTraceFilename = 'LastTraceFilename';
+  SRegValue_Filter = 'Filter';
 
 procedure TMMMainForm.FormCreate(Sender: TObject);
 begin
@@ -171,17 +173,26 @@ begin
   if not IsWow64Process(GetCurrentProcess, fIsWow64) then
     RaiseLastOSError;
 
+  statusBar.Top := Height; // Force statusBar to be at bottom of window
+
   LastIndex := -1;
 end;
 
 procedure TMMMainForm.FormDestroy(Sender: TObject);
 var
   r: TRegistry;
+  filterDefinition: string;
 begin
   if FTracing then
   begin
     FTracing := False;
     DisableTrace;
+  end;
+
+  if Assigned(db) then
+  begin
+    db.Session.filters.SaveToJSON(filterDefinition);
+//    db.Session.displayColumns.SaveToJSON();
   end;
 
   CloseDatabase;
@@ -192,13 +203,22 @@ begin
     begin
       if FileExists(FFilename) then
         DeleteFile(FFilename);
-      if r.OpenKey(SRegKey_MsgMon, True) and r.ValueExists(SRegValue_LastTraceFilename) then
-        r.DeleteValue(SRegValue_LastTraceFilename);
+      if r.OpenKey(SRegKey_MsgMon, True) then
+      begin
+        if r.ValueExists(SRegValue_LastTraceFilename) then
+          r.DeleteValue(SRegValue_LastTraceFilename);
+        if filterDefinition <> '' then
+          r.WriteString(SRegValue_Filter, filterDefinition);
+      end;
     end
     else
     begin
       if r.OpenKey(SRegKey_MsgMon, True) then
+      begin
         r.WriteString(SRegValue_LastTraceFilename, FFilename);
+        if filterDefinition <> '' then
+          r.WriteString(SRegValue_Filter, filterDefinition);
+      end;
     end;
   finally
     r.Free;
@@ -630,8 +650,13 @@ var
   filename: string;
 begin
   r := TRegistry.Create;
-  if r.OpenKeyReadOnly(SRegKey_MsgMon) and r.ValueExists(SRegValue_LastTraceFilename)
-    then filename := r.ReadString(SRegValue_LastTraceFilename);
+  if r.OpenKeyReadOnly(SRegKey_MsgMon) then
+  begin
+    if r.ValueExists(SRegValue_LastTraceFilename) then
+      filename := r.ReadString(SRegValue_LastTraceFilename);
+    if r.ValueExists(SRegValue_Filter) then
+      FLastFilterDefinition := r.ReadString(SRegValue_Filter);
+  end;
 
   if (filename <> '') and FileExists(filename) then
   begin
@@ -660,7 +685,7 @@ begin
 
   try
     try
-      db := TMMDatabase.Create(AFilename);
+      db := TMMDatabase.Create(AFilename, FLastFilterDefinition);
       FFilename := AFilename;
     except
       on E:Exception do
