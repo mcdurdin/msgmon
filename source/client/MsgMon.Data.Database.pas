@@ -42,6 +42,7 @@ type
     property FilteredRowCount: Integer read FFilteredRowCount;
     property Session: TMMSession read FSession;
     property Context: TMMDataContext read FContext;
+    property Filename: string read FFilename;
   end;
 
 implementation
