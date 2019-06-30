@@ -11,6 +11,8 @@ uses
   MsgMon.System.Data.Window;
 
 type
+  TByteArray = TArray<Byte>;
+
   TMMMessage = class
   strict private
   public
@@ -31,7 +33,7 @@ type
     wParam, lParam, lResult: UINT64;
 
     mode: DWORD;
-    detail: string;
+    detail: TByteArray;
     stack: string;
 
     process: TMMProcess;
@@ -55,7 +57,8 @@ type
       lParam,
       lResult: Int64;
       mode: Integer;
-      const detail: string
+      const detail: Pointer;
+      detailLength: Integer
     );
   end;
 
@@ -86,7 +89,8 @@ constructor TMMMessage.Create(AIndex: Integer;
   lParam,
   lResult: Int64;
   mode: Integer;
-  const detail: string
+  const detail: Pointer;
+  detailLength: Integer
 );
 begin
   inherited Create;
@@ -107,7 +111,11 @@ begin
   Self.lParam := lParam;
   Self.lResult := lResult;
   Self.mode := mode;
-  Self.detail := detail;
+  if detailLength > 0 then
+  begin
+    SetLength(Self.detail, detailLength);
+    CopyMemory(@Self.detail[0], detail, detailLength);
+  end;
 end;
 
 procedure TMMMessage.Fill(processes: TMMProcessDictionary; windows: TMMWindowDictionary; messageNames: TMMMessageNameDictionary);

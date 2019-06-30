@@ -17,9 +17,6 @@ Windows user message monitor in the style of procmon.
 # TODO
 
 3. User Interface Improvements
-  - save-to-file
-  - load-from-file
-
   - Add window tree view pane
   - Add detail pane
   - time columns
@@ -28,14 +25,12 @@ Windows user message monitor in the style of procmon.
   - add icon
   - sort column classes in MsgMon.System.Data.Column more sensibly
   - suggestions for filter values
-  - When saving a context, include session. However, session can also be saved separately.
   - Allow separate hwnd-int, classname, realclassname columns for each hwnd referenced (e.g. in WM_SETFOCUS wParam)
   - Drilling into hwnd
   - multi-line copy and paste
   - bookmarks
   - multiple window view
   - Filtering
-    - Save filter to file by default
     - Add filtering on window 'type' - e.g. child, popup, overlapped, topmost, transparent, etc?
     - Add filtering on window visibility, enabled state
     - Add row highlight filters

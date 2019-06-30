@@ -236,7 +236,8 @@ begin
           stmt.ColumnInt64(13),       // 'lParam');
           stmt.ColumnInt64(14),       // 'lResult');
           stmt.ColumnInt(15),         // 'mode');
-          stmt.ColumnText(16)         // 'detail');
+          stmt.ColumnBlob(16),        // 'detail');
+          stmt.ColumnBytes(16)        // sizeof(detail)
         );
         try
     //      stmt.Reset;
@@ -299,7 +300,8 @@ begin
     stmtMessage.ColumnInt64(13),       // 'lParam');
     stmtMessage.ColumnInt64(14),       // 'lResult');
     stmtMessage.ColumnInt(15),         // 'mode');
-    stmtMessage.ColumnText(16)         // 'detail');
+    stmtMessage.ColumnBlob(16),        // 'detail');
+    stmtMessage.ColumnBytes(16)
   );
 
   stmtMessage.Reset;

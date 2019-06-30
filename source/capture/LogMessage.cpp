@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include "LogTraceMonitor.h"
 
 //
 // Log a message
@@ -30,9 +31,12 @@ void LogMessage(DWORD mode, HWND hwnd, DWORD message, WPARAM wParam, LPARAM lPar
 	DWORD tid = GetCurrentThreadId();
 	HKL activeHKL = GetKeyboardLayout(0);
 
-	WCHAR szDetail[768]; // TODO: get rid of this evil; pass detail as structured data
-	if (!GetMessageDetail(hwnd, message, wParam, lParam, lResult, szDetail)) {
-		szDetail[0] = 0;
+  BYTE bDetail[MAX_DETAIL_BUFFER_SIZE], *pbDetail = bDetail;
+  int nDetail;
+
+	if (!GetMessageDetail(hwnd, message, wParam, lParam, lResult, pbDetail, &nDetail)) {
+    pbDetail = NULL;
+    nDetail = 0;
 	}
 
 	// TODO: handle window destruction to remove from info cache
@@ -63,6 +67,6 @@ void LogMessage(DWORD mode, HWND hwnd, DWORD message, WPARAM wParam, LPARAM lPar
 		TraceLoggingValue(lParam64, "lParam"),
 		TraceLoggingValue(lResult64, "lResult"),
 		TraceLoggingValue(mode, "mode"),
-		TraceLoggingValue(szDetail, "detail")
+    TraceLoggingBinary(pbDetail, nDetail, "detail")
 	);
 }

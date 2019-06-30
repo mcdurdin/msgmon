@@ -33,6 +33,7 @@ TRACELOGGING_DECLARE_PROVIDER(g_Provider);
 
 // WINDOW maps
 
+#define MAX_DETAIL_BUFFER_SIZE 768
 
 //
 // System-wide data
@@ -117,7 +118,7 @@ BOOL UninitProcess();
 //PWCHAR GetMessageName(DWORD message);
 //void GetWindowReference(HWND hwnd, PWCHAR buf);
 
-BOOL GetMessageDetail(HWND hwnd, DWORD message, WPARAM wParam, LPARAM lParam, LRESULT lResult, PWCHAR szDetail);
+BOOL GetMessageDetail(HWND hwnd, DWORD message, WPARAM wParam, LPARAM lParam, LRESULT lResult, PBYTE pbDetail, int *nDetail);
 
 void OutputDebugError(PWCHAR functionName, PWCHAR target);
 void OutputDebugError(PWCHAR functionName, PWCHAR target, DWORD dwErr);

@@ -5,10 +5,10 @@ object MMMainForm: TMMMainForm
   ClientHeight = 357
   ClientWidth = 701
   Color = clBtnFace
-  Font.Charset = DEFAULT_CHARSET
+  Font.Charset = ANSI_CHARSET
   Font.Color = clWindowText
   Font.Height = -11
-  Font.Name = 'Tahoma'
+  Font.Name = 'Segoe UI'
   Font.Style = []
   Menu = menu
   OldCreateOrder = False
@@ -80,21 +80,21 @@ object MMMainForm: TMMMainForm
         object lblParentWindow: TLabel
           Left = 13
           Top = 16
-          Width = 71
+          Width = 78
           Height = 13
           Caption = 'Parent window'
         end
         object lblOwnerWindow: TLabel
           Left = 13
           Top = 43
-          Width = 71
+          Width = 80
           Height = 13
           Caption = 'Owner window'
         end
         object lblMessageDetail: TLabel
           Left = 242
           Top = 5
-          Width = 71
+          Width = 77
           Height = 13
           Caption = 'Message detail'
         end
@@ -142,10 +142,6 @@ object MMMainForm: TMMMainForm
       object TabSheet1: TTabSheet
         Caption = 'Log'
         ImageIndex = 2
-        ExplicitLeft = 0
-        ExplicitTop = 0
-        ExplicitWidth = 0
-        ExplicitHeight = 0
         object memoLog: TMemo
           Left = 0
           Top = 0

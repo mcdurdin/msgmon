@@ -155,7 +155,7 @@ BOOL Check(int value) {
 }
 
 PBYTE propertyBuf = NULL;
-ULONG propertyBufSize = 0;
+ULONG currentPropertyBufSize = 0, propertyBufSize = 0;
 
 BOOL GetEventProperties(PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO info, int propertyIndex, PWSTR &propertyName) {
   propertyName = (PWCHAR)((PBYTE)(pInfo)+pInfo->EventPropertyInfoArray[propertyIndex].NameOffset);
@@ -170,20 +170,27 @@ BOOL GetEventProperties(PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO 
     return FALSE;
   }
 
-  if (sz + 2 > propertyBufSize) {
-    if (propertyBuf) delete propertyBuf;
-    propertyBufSize = sz + 2; // add trailing WCHAR nul
-    propertyBuf = new BYTE[propertyBufSize];
+  //currentPropertyBufSize = sz;
+  if (sz == 0) {
+    return TRUE;
   }
-  status = TdhGetProperty(event, 0, NULL, 1, &pdd, propertyBufSize, propertyBuf);
-  // Always nul terminate (even if not a string!)
-  propertyBuf[sz] = 0;
-  propertyBuf[sz + 1] = 0;
-  if (status != ERROR_SUCCESS) {
-    std::wcout << "Table " << tableName << " failed to get property with error " << status << std::endl;
-    return FALSE;
+  else {
+
+    if (sz + 2 > propertyBufSize) {
+      if (propertyBuf) delete propertyBuf;
+      propertyBufSize = sz + 2; // add trailing WCHAR nul
+      propertyBuf = new BYTE[propertyBufSize];
+    }
+    status = TdhGetProperty(event, 0, NULL, 1, &pdd, propertyBufSize, propertyBuf);
+    // Always nul terminate (even if not a string!)
+    propertyBuf[sz] = 0;
+    propertyBuf[sz + 1] = 0;
+    if (status != ERROR_SUCCESS) {
+      std::wcout << "Table " << tableName << " failed to get property with error " << status << std::endl;
+      return FALSE;
+    }
+    return TRUE;
   }
-  return TRUE;
 }
 
 
@@ -204,6 +211,13 @@ BOOL CreateTable(PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO info, i
     PWSTR propertyName;
     if (!GetEventProperties(tableName, event, info, i, propertyName)) return FALSE;
 
+    PWCHAR pdot = wcsstr(propertyName, L".Length");
+    if (pdot) {
+      // We assume this is a property for the length of the next field
+      // We'll use the field but we won't be inserting into the database
+      continue;
+    }
+
     p = strchr(buf, 0);
     sprintf_s(p, bufSize - (p - buf), ", %ws", propertyName);
 
@@ -213,11 +227,16 @@ BOOL CreateTable(PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO info, i
     case TDH_INTYPE_UNICODESTRING:
       strcat_s(buf, bufSize, " TEXT");
       break;
+    case TDH_INTYPE_INT16:
+    case TDH_INTYPE_UINT16:
     case TDH_INTYPE_INT32:
     case TDH_INTYPE_UINT32:
     case TDH_INTYPE_INT64:
     case TDH_INTYPE_UINT64:
       strcat_s(buf, bufSize, " INTEGER");
+      break;
+    case TDH_INTYPE_BINARY:
+      strcat_s(buf, bufSize, " BLOB");
       break;
     default:
       std::wcout << propertyName << " has type " << pInfo->EventPropertyInfoArray[i].nonStructType.InType << std::endl;
@@ -263,26 +282,44 @@ BOOL InsertRecord(int index, PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_
 
   sqlite3_bind_int(stmt->second, 1, index);
 
-  for (ULONG i = 0; i < pInfo->TopLevelPropertyCount; i++) {
+  for (ULONG i = 0, col = 2; i < pInfo->TopLevelPropertyCount; i++) {
     PWSTR propertyName;
     if (!GetEventProperties(tableName, event, info, i, propertyName)) return FALSE;
 
+    PWCHAR pdot = wcsstr(propertyName, L".Length");
+    if (pdot) {
+      // We assume this is a property for the length of the next field
+      // We'll use the field but we won't be inserting into the database
+      currentPropertyBufSize = *(int *)propertyBuf;
+      continue;
+    }
+
     switch (pInfo->EventPropertyInfoArray[i].nonStructType.InType) {
     case TDH_INTYPE_UNICODESTRING:
-      if (!Check(sqlite3_bind_text16(stmt->second, i + 2, propertyBuf, -1, NULL))) return FALSE;
+      if (!Check(sqlite3_bind_text16(stmt->second, col, propertyBuf, -1, NULL))) return FALSE;
+      break;
+    case TDH_INTYPE_INT16:
+    case TDH_INTYPE_UINT16:
+      if (!Check(sqlite3_bind_int(stmt->second, col, *(int16_t *)propertyBuf))) return FALSE;
       break;
     case TDH_INTYPE_INT32:
     case TDH_INTYPE_UINT32:
-      if (!Check(sqlite3_bind_int(stmt->second, i + 2, *(int *)propertyBuf))) return FALSE;
+      if (!Check(sqlite3_bind_int(stmt->second, col, *(int *)propertyBuf))) return FALSE;
       break;
     case TDH_INTYPE_INT64:
     case TDH_INTYPE_UINT64:
-      if (!Check(sqlite3_bind_int64(stmt->second, i + 2, *(sqlite3_int64 *)propertyBuf))) return FALSE;
+      if (!Check(sqlite3_bind_int64(stmt->second, col, *(sqlite3_int64 *)propertyBuf))) return FALSE;
+      break;
+    case TDH_INTYPE_BINARY:
+      if(currentPropertyBufSize > 0)
+        if (!Check(sqlite3_bind_blob(stmt->second, col, propertyBuf, currentPropertyBufSize, SQLITE_STATIC))) return FALSE;
       break;
     default:
       std::wcout << "Property " << propertyName << " has type " << pInfo->EventPropertyInfoArray[i].nonStructType.InType << std::endl;
       return FALSE;
     }
+
+    col++;
   }
 
   int sstatus = sqlite3_step(stmt->second);

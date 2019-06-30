@@ -27,68 +27,31 @@ void FlagToFlagNames(DWORD flags, const PWCHAR *ppszFlagNames, int nFlagNames, P
 	wcscpy(pszBuf, L"}");
 }
 
-BOOL Detail_WindowPosChanged(HWND hwnd, DWORD message, WPARAM wParam, LPARAM lParam, LRESULT lResult, PWCHAR szDetail) {
-	wsprintf(szDetail, L"");
+BOOL Detail_WindowPosChanged(HWND hwnd, DWORD message, WPARAM wParam, LPARAM lParam, LRESULT lResult, PBYTE pbDetail, int *nDetail) {
+  if (sizeof(WINDOWPOS) > MAX_DETAIL_BUFFER_SIZE) return FALSE;
 
-	const PWCHAR pszFlagNames[] = {
-		L"SWP_NOSIZE",
-		L"SWP_NOMOVE",
-		L"SWP_NOZORDER",
-		L"SWP_NOREDRAW",
-		L"SWP_NOACTIVATE",
-		L"SWP_FRAMECHANGED",
-		L"SWP_SHOWWINDOW",
-		L"SWP_HIDEWINDOW",
-		L"SWP_NOCOPYBITS",
-		L"SWP_NOOWNERZORDER",
-		L"SWP_NOSENDCHANGING"
-	};
+  PWINDOWPOS wp = PWINDOWPOS(lParam);
 
-	PWINDOWPOS p = PWINDOWPOS(lParam);
-	WCHAR szHWNDInsertAfter[48] = L"", szHWND[48] = L"";
-
-	if (p->flags & SWP_NOZORDER) {
-		wcscpy(szHWNDInsertAfter, L"N/A");
-	}
-	else {
-		switch ((DWORD_PTR) p->hwndInsertAfter) {
-		case HWND_BOTTOM:
-			wcscpy(szHWNDInsertAfter, L"HWND_BOTTOM");
-			break;
-		case HWND_NOTOPMOST:
-			wcscpy(szHWNDInsertAfter, L"HWND_NOTOPMOST");
-			break;
-		case HWND_TOP:
-			wcscpy(szHWNDInsertAfter, L"HWND_TOP");
-			break;
-		case HWND_TOPMOST:
-			wcscpy(szHWNDInsertAfter, L"HWND_TOPMOST");
-			break;
-		default:
-			wsprintf(szHWNDInsertAfter, L"%x", p->hwndInsertAfter);//TODO
-		}
-	}
-
-	//GetWindowReference(p->hwnd, szHWND);
-	wsprintf(szHWND, L"%x", p->hwnd);//TODO
-
-	wsprintf(szDetail, L"hwndInsertAfter=%s hwnd=%s x=%d y=%d cx=%d cy=%d flags=",
-		szHWNDInsertAfter, szHWND,
-		p->flags & SWP_NOMOVE ? p->x : 0,
-		p->flags & SWP_NOMOVE ? p->y : 0,
-		p->flags & SWP_NOSIZE ? p->cx : 0,
-		p->flags & SWP_NOSIZE ? p->cy : 0);
-
-	FlagToFlagNames(p->flags, pszFlagNames, _countof(pszFlagNames), wcschr(szDetail, 0), 256 - wcslen(szDetail));
-
-	return TRUE;
+  memcpy(pbDetail, wp, sizeof(WINDOWPOS));
+  switch ((int) wp->hwndInsertAfter) {
+    case HWND_NOTOPMOST:
+    case HWND_TOP:
+    case HWND_BOTTOM:
+    case HWND_TOPMOST:
+      break;
+    default:
+      LogWindow(wp->hwndInsertAfter);
+  }
+  LogWindow(wp->hwnd);
+  *nDetail = sizeof(WINDOWPOS);
+  return TRUE;
 }
 
-BOOL GetMessageDetail(HWND hwnd, DWORD message, WPARAM wParam, LPARAM lParam, LRESULT lResult, PWCHAR szDetail) {
+BOOL GetMessageDetail(HWND hwnd, DWORD message, WPARAM wParam, LPARAM lParam, LRESULT lResult, PBYTE pbDetail, int *nDetail) {
 	switch (message) {
 	case WM_WINDOWPOSCHANGING:
 	case WM_WINDOWPOSCHANGED:
-		return Detail_WindowPosChanged(hwnd, message, wParam, lParam, lResult, szDetail);
+		return Detail_WindowPosChanged(hwnd, message, wParam, lParam, lResult, pbDetail, nDetail);
 	}
 
 	return FALSE;

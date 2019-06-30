@@ -156,6 +156,7 @@ uses
   Winapi.ActiveX,
 
   MsgMon.UI.FilterForm,
+  MsgMon.System.Data.MessageDetail,
   MsgMon.System.ExecProcess,
   MsgMon.System.Util;
 
@@ -487,7 +488,7 @@ end;
 
 procedure TMMMainForm.mnuHelpAboutClick(Sender: TObject);
 begin
-  ShowMessage('Message Monitor v0.1');
+  ShowMessage('Message Monitor v0.2');
 end;
 
 procedure TMMMainForm.mnuMessageClick(Sender: TObject);
@@ -559,6 +560,9 @@ procedure TMMMainForm.UpdateMessageDetail(data: TMMMessage);
 var
   ws: TMMWindows;
   owner, parent, w: TMMWindow;
+  d: TMessageDetails;
+  i: Integer;
+  s: string;
 begin
   if not Assigned(db) then
     Exit;
@@ -592,7 +596,11 @@ begin
     if Assigned(parent) then
       editParentWindow.Text := parent.Render(True);
 
-    memoMessageDetail.Text := data.detail;
+    s := '';
+    d := TMessageDetailRenderer.Render(db.Context, data);
+    for i := 0 to High(d) do
+      s := s + d[i].RenderToString + #13#10;
+    memoMessageDetail.Text := s;
     memoCallStack.Text := data.stack;
   end;
 end;

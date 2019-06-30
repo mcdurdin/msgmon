@@ -3,6 +3,7 @@ unit MsgMon.System.Data.Column;
 interface
 
 uses
+  System.Classes,
   System.Generics.Collections,
   System.JSON,
   System.SysUtils,
@@ -92,6 +93,16 @@ type
   public
   end;
 
+  TMMColumn_WindowClass = class(TMMColumn)
+  protected
+    function DefaultWidth: Integer; override;
+    function DoRender(data: TMMMessage): string; override;
+    function DoCompare(d1, d2: TMMMessage): Integer; override;
+    function GetData(data: TMMMessage): Cardinal; virtual; abstract;
+    function DoFilter(data: TMMMessage; relation: TMMFilterRelation; const value: string): Boolean; override;
+  public
+  end;
+
   TMMColumn_Sequence = class(TMMColumn_Integer)
   protected
     function DefaultWidth: Integer; override;
@@ -152,6 +163,12 @@ type
   end;
 
   TMMColumn_hWnd = class(TMMColumn_Window)
+  protected
+    function GetCaption: string; override;
+    function GetData(data: TMMMessage): Cardinal; override;
+  end;
+
+  TMMColumn_hWnd_Class = class(TMMColumn_WindowClass)
   protected
     function GetCaption: string; override;
     function GetData(data: TMMMessage): Cardinal; override;
@@ -243,7 +260,9 @@ type
 implementation
 
 uses
-  System.StrUtils;
+  System.StrUtils,
+
+  MsgMon.System.Data.MessageDetail;
 
 { TMMColumn }
 
@@ -577,8 +596,19 @@ begin
 end;
 
 function TMMColumn_Detail.GetData(data: TMMMessage): string;
+var
+  i: Integer;
+  d: TMessageDetails;
 begin
-  Result := data.detail;
+  d := TMessageDetailRenderer.Render(FContext, data);
+  if High(d) < 0 then
+    Exit('');
+
+  Result := d[0].RenderToString;
+  for i := 1 to High(d) do
+  begin
+    Result := Result + '; ' + d[i].RenderToString;
+  end;
 end;
 
 { TMMColumn_MessageClass }
@@ -702,6 +732,7 @@ begin
   Add(TMMColumn_TID.Create(FContext));
   Add(TMMColumn_Mode.Create(FContext));
   Add(TMMColumn_hWnd.Create(FContext));
+  Add(TMMColumn_hWnd_Class.Create(FContext));
   Add(TMMColumn_MessageName.Create(FContext));
   Add(TMMColumn_MessageScope.Create(FContext));
   Add(TMMColumn_wParam.Create(FContext));
@@ -780,7 +811,7 @@ end;
 
 function TMMColumn_Window.DefaultWidth: Integer;
 begin
-  Result := 128;
+  Result := 80;
 end;
 
 function TMMColumn_Window.DoCompare(d1, d2: TMMMessage): Integer;
@@ -830,21 +861,9 @@ end;
 function TMMColumn_Window.DoRender(data: TMMMessage): string;
 var
   hwnd: Cardinal;
-  ws: TMMWindows;
-  w: TMMWindow;
 begin
   hwnd := GetData(data);
-
-  if FContext.Windows.TryGetValue(hwnd, ws)
-    then w := ws.FromBase(data.index)
-    else w := nil;
-
-  if Assigned(w) then
-  begin
-    Result := w.Render(True); //False);
-  end
-  else
-    Result := IntToStr(hwnd);
+  Result := IntToStr(hwnd);
 end;
 
 { TMMColumn_hWndFocus }
@@ -887,6 +906,89 @@ end;
 function TMMColumn_hWndMoveSize.GetData(data: TMMMessage): Cardinal;
 begin
   Result := data.hwndMoveSize;
+end;
+
+{ TMMColumn_hWndClass }
+
+function TMMColumn_hWnd_Class.GetCaption: string;
+begin
+  Result := 'hwnd class';
+end;
+
+function TMMColumn_hWnd_Class.GetData(data: TMMMessage): Cardinal;
+begin
+  Result := data.hwnd;
+end;
+
+{ TMMColumn_WindowClass }
+
+function TMMColumn_WindowClass.DefaultWidth: Integer;
+begin
+  Result := 128;
+end;
+
+function TMMColumn_WindowClass.DoCompare(d1, d2: TMMMessage): Integer;
+begin
+  Result := Integer(GetData(d1)) - Integer(GetData(d2));
+end;
+
+function TMMColumn_WindowClass.DoFilter(data: TMMMessage;
+  relation: TMMFilterRelation; const value: string): Boolean;
+var
+  dataValue: string;
+  filterValueInt: Integer;
+  dataValueInt: Integer;
+begin
+  Result := False;
+
+  dataValueInt := Integer(GetData(data));
+  dataValue := DoRender(data); // TODO we could be nuanced here
+  if TryStrToInt(value, filterValueInt) then
+  begin
+    case relation of
+      frIs:         Result := filterValueInt = dataValueInt;
+      frIsNot:      Result := filterValueInt <> dataValueInt;
+      frLessThan:   Result := filterValueInt < dataValueInt;
+      frMoreThan:   Result := filterValueInt > dataValueInt;
+      frBeginsWith: Result := IntToStr(dataValueInt).StartsWith(value);
+      frEndsWith:   Result := IntToStr(dataValueInt).EndsWith(value);
+      frContains:   Result := IntToStr(dataValueInt).Contains(value);
+      frExcludes:   Result := not IntToStr(dataValueInt).Contains(value);
+    end;
+  end
+  else
+  begin
+    case relation of
+      frIs:         Result := SameText(value, dataValue);
+      frIsNot:      Result := not SameText(value, dataValue);
+      frLessThan:   Result := CompareText(value, dataValue) < 0;
+      frMoreThan:   Result := CompareText(value, dataValue) > 0;
+      frBeginsWith: Result := dataValue.StartsWith(value, True); // not strictly same as CompareText but good enough
+      frEndsWith:   Result := dataValue.EndsWith(value, True); // not strictly same as CompareText but good enough
+      frContains:   Result := ContainsText(dataValue, value);
+      frExcludes:   Result := not ContainsText(dataValue, value);
+    end;
+  end;
+end;
+
+function TMMColumn_WindowClass.DoRender(data: TMMMessage): string;
+var
+  hwnd: Cardinal;
+  ws: TMMWindows;
+  w: TMMWindow;
+begin
+  hwnd := GetData(data);
+
+  if FContext.Windows.TryGetValue(hwnd, ws)
+    then w := ws.FromBase(data.index)
+    else w := nil;
+
+  if Assigned(w) then
+  begin
+    Result := w.Render(False);
+  end
+  else
+    Result := IntToStr(hwnd);
 end;
 
 end.
