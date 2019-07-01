@@ -23,12 +23,12 @@ Windows user message monitor in the style of procmon.
   - add icon
   - suggestions for filter values
   - Drilling into hwnd
-  - multi-line copy and paste
   - bookmarks
   - multiple window view
   - Handle button, listbox, etc types
   - Break messages down into smaller scopes (keyboard, mouse, etc)
   - Filtering
+    - IsUnicode?
     - Add filtering on window 'type' - e.g. child, popup, overlapped, topmost, transparent, etc?
     - Add filtering on window visibility, enabled state
     - Add row highlight filters
