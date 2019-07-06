@@ -77,12 +77,6 @@ type
     mnuMessageViewDetailPane: TMenuItem;
     PageControl1: TPageControl;
     tabMessageDetail: TTabSheet;
-    editParentWindow: TEdit;
-    lblParentWindow: TLabel;
-    editOwnerWindow: TEdit;
-    lblOwnerWindow: TLabel;
-    lblMessageDetail: TLabel;
-    memoMessageDetail: TMemo;
     TabSheet2: TTabSheet;
     memoCallStack: TMemo;
     mnuItem: TPopupMenu;
@@ -100,6 +94,8 @@ type
     mnuPopupCopyRows: TMenuItem;
     panWindowTree: TPanel;
     Splitter1: TSplitter;
+    gridMessageDetails: TStringGrid;
+    tmrUpdateWindowTree: TTimer;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure mnuFileExitClick(Sender: TObject);
@@ -127,6 +123,9 @@ type
     procedure gridMessagesColumnMoved(Sender: TObject; FromIndex,
       ToIndex: Integer);
     procedure mnuPopupCopyRowsClick(Sender: TObject);
+    procedure gridMessageDetailsClick(Sender: TObject);
+    procedure gridMessageDetailsDblClick(Sender: TObject);
+    procedure tmrUpdateWindowTreeTimer(Sender: TObject);
   private
     db: TMMDatabase;
     FFilename: string;
@@ -168,6 +167,7 @@ type
     procedure DisableTrace;
     procedure EnableTrace;
     procedure CreateNewTempDatabase;
+    function UpdateWindowTree: Boolean;
   end;
 
 var
@@ -184,6 +184,7 @@ uses
 
   MsgMon.UI.FilterForm,
   MsgMon.UI.DisplayColumnForm,
+  MsgMon.UI.DetailRenderToGrid,
   MsgMon.System.Data.MessageDetail,
   MsgMon.System.ExecProcess,
   MsgMon.System.Util;
@@ -196,6 +197,8 @@ const
 
 procedure TMMMainForm.FormCreate(Sender: TObject);
 begin
+  TDetailGridController.Resize(gridMessageDetails);
+
   gridMessages.OnColWidthsChanged := gridMessagesColWidthsChanged;
   CoInitializeEx(nil, COINIT_APARTMENTTHREADED);
 
@@ -264,6 +267,8 @@ procedure TMMMainForm.FormResize(Sender: TObject);
 begin
   if Assigned(db) then
     PrepareView;
+
+  TDetailGridController.Resize(gridMessageDetails);
 end;
 
 procedure TMMMainForm.FormShow(Sender: TObject);
@@ -433,6 +438,31 @@ end;
 //
 // Event handlers
 //
+
+procedure TMMMainForm.gridMessageDetailsClick(Sender: TObject);
+begin
+  tmrUpdateWindowTree.Enabled := False;
+  tmrUpdateWindowTree.Enabled := True;
+end;
+
+function TMMMainForm.UpdateWindowTree: Boolean;
+var
+  v: Integer;
+begin
+  case TDetailGridController.GetClickContext(gridMessageDetails, v) of
+    mdrHwnd: FWindowTreeFrame.ShowWindowInfo(v);
+    mdrPID: FWindowTreeFrame.ShowProcessInfo(v);
+    mdrTID: FWindowTreeFrame.ShowThreadInfo(v);
+    else Exit(False);
+  end;
+  Result := TRue;
+end;
+
+procedure TMMMainForm.gridMessageDetailsDblClick(Sender: TObject);
+begin
+  if UpdateWindowTree then
+    FWindowTreeFrame.SetFocus;
+end;
 
 procedure TMMMainForm.gridMessagesClick(Sender: TObject);
 var
@@ -666,50 +696,25 @@ end;
 
 procedure TMMMainForm.UpdateMessageDetail(data: TMMMessage);
 var
-  ws: TMMWindows;
-  owner, parent, w: TMMWindow;
   d: TMessageDetails;
-  i: Integer;
-  s: string;
 begin
+  gridMessageDetails.RowCount := 1;
+  memoCallStack.Text := '';
+
   if not Assigned(db) then
     Exit;
 
-  editOwnerWindow.Text := '';
-  editParentWindow.Text := '';
-  memoMessageDetail.Text := '';
-  memoCallStack.Text := '';
-
   if panDetail.Visible and Assigned(data) then
   begin
-    owner := nil;
-    w := nil;
-    parent := nil;
-
-    if db.context.Windows.TryGetValue(data.hwnd, ws) then
-      w := ws.FromBase(data.index);
-
-    if Assigned(w) then
-    begin
-      if (w.hwndOwner <> 0) and db.context.Windows.TryGetValue(w.hwndOwner, ws) then
-        owner := ws.FromBase(data.index);
-
-      if (w.hwndParent <> 0) and db.context.Windows.TryGetValue(w.hwndParent, ws) then
-        parent := ws.FromBase(data.index);
-    end;
-
-    if Assigned(owner) then
-      editOwnerWindow.Text := owner.Render(True);
-
-    if Assigned(parent) then
-      editParentWindow.Text := parent.Render(True);
-
-    s := '';
-    d := TMessageDetailRenderer.Render(db.Context, data);
-    for i := 0 to High(d) do
-      s := s + d[i].RenderToString + #13#10;
-    memoMessageDetail.Text := s;
+    d := TDetailRenderer.RenderMessage(db.Context, data, True);
+    TDetailGridController.Render(d, gridMessageDetails);
     memoCallStack.Text := data.stack;
+
+    //if mnuAutomaticallyShowDetails.Checked then
+    begin
+      tmrUpdateWindowTree.Enabled := False;
+      tmrUpdateWindowTree.Enabled := True;
+    end;
   end;
 end;
 
@@ -792,6 +797,7 @@ begin
   PrepareView;
   ApplyFilter;
   FWindowTreeFrame.SetDatabase(db);
+  gridMessagesClick(gridMessages);
 
   Result := True;
 end;
@@ -811,6 +817,12 @@ begin
     Result := LoadDatabase(AFilename); // Load renamed file
     FIsTempDatabase := False;
   end;
+end;
+
+procedure TMMMainForm.tmrUpdateWindowTreeTimer(Sender: TObject);
+begin
+  UpdateWindowTree;
+  tmrUpdateWindowTree.Enabled := False;
 end;
 
 procedure TMMMainForm.CloseDatabase;

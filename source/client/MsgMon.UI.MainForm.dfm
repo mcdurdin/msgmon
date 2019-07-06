@@ -32,7 +32,7 @@ object MMMainForm: TMMMainForm
     ExplicitWidth = 633
   end
   object Splitter1: TSplitter
-    Left = 513
+    Left = 333
     Top = 0
     Height = 181
     Align = alRight
@@ -83,63 +83,25 @@ object MMMainForm: TMMMainForm
       TabOrder = 0
       object tabMessageDetail: TTabSheet
         Caption = 'Message Details'
-        DesignSize = (
-          693
-          126)
-        object lblParentWindow: TLabel
-          Left = 13
-          Top = 16
-          Width = 78
-          Height = 13
-          Caption = 'Parent window'
-        end
-        object lblOwnerWindow: TLabel
-          Left = 13
-          Top = 43
-          Width = 80
-          Height = 13
-          Caption = 'Owner window'
-        end
-        object lblMessageDetail: TLabel
-          Left = 242
-          Top = 5
-          Width = 77
-          Height = 13
-          Caption = 'Message detail'
-        end
-        object editParentWindow: TEdit
-          Left = 90
-          Top = 13
-          Width = 135
-          Height = 21
-          ReadOnly = True
+        object gridMessageDetails: TStringGrid
+          Left = 0
+          Top = 0
+          Width = 693
+          Height = 126
+          Align = alClient
+          ColCount = 3
+          DefaultRowHeight = 16
+          RowCount = 2
+          FixedRows = 0
+          Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goColSizing, goRowSelect]
           TabOrder = 0
-        end
-        object editOwnerWindow: TEdit
-          Left = 90
-          Top = 40
-          Width = 135
-          Height = 21
-          ReadOnly = True
-          TabOrder = 1
-        end
-        object memoMessageDetail: TMemo
-          Left = 242
-          Top = 24
-          Width = 448
-          Height = 99
-          Anchors = [akLeft, akTop, akRight, akBottom]
-          ReadOnly = True
-          TabOrder = 2
+          OnClick = gridMessageDetailsClick
+          OnDblClick = gridMessageDetailsDblClick
         end
       end
       object TabSheet2: TTabSheet
         Caption = 'Call Stack'
         ImageIndex = 1
-        ExplicitLeft = 0
-        ExplicitTop = 0
-        ExplicitWidth = 0
-        ExplicitHeight = 0
         DesignSize = (
           693
           126)
@@ -155,10 +117,6 @@ object MMMainForm: TMMMainForm
       object TabSheet1: TTabSheet
         Caption = 'Log'
         ImageIndex = 2
-        ExplicitLeft = 0
-        ExplicitTop = 0
-        ExplicitWidth = 0
-        ExplicitHeight = 0
         object memoLog: TMemo
           Left = 0
           Top = 0
@@ -182,7 +140,7 @@ object MMMainForm: TMMMainForm
   object gridMessages: TDrawGrid
     Left = 0
     Top = 0
-    Width = 513
+    Width = 333
     Height = 181
     Align = alClient
     DefaultRowHeight = 16
@@ -194,11 +152,12 @@ object MMMainForm: TMMMainForm
     OnClick = gridMessagesClick
     OnColumnMoved = gridMessagesColumnMoved
     OnDrawCell = gridMessagesDrawCell
+    ExplicitWidth = 513
   end
   object panWindowTree: TPanel
-    Left = 516
+    Left = 336
     Top = 0
-    Width = 185
+    Width = 365
     Height = 181
     Align = alRight
     BevelOuter = bvNone
@@ -375,5 +334,12 @@ object MMMainForm: TMMMainForm
     Filter = 'Message Monitor Database Files (*.db)|*.db|All files (*.*)|*.*'
     Left = 536
     Top = 64
+  end
+  object tmrUpdateWindowTree: TTimer
+    Enabled = False
+    Interval = 100
+    OnTimer = tmrUpdateWindowTreeTimer
+    Left = 344
+    Top = 192
   end
 end

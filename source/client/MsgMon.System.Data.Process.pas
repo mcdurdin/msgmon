@@ -8,6 +8,10 @@ uses
 
   MsgMon.System.Data.Thread;
 
+const
+  PLATFORM_X86 = 1;
+  PLATFORM_X64 = 2;
+
 type
   TMMProcess = class
     base: Integer;
@@ -21,6 +25,7 @@ type
     constructor Create(pid, platform_: DWORD; const processPath, commandLine: string; ABase: Integer);
     destructor Destroy; override;
     property Threads: TMMThreads read FThreads;
+    function Render(IncludePID: Boolean): string;
   end;
 
   TMMProcesses = class(TObjectList<TMMProcess>)
@@ -70,6 +75,14 @@ destructor TMMProcess.Destroy;
 begin
   FreeAndNil(FThreads);
   inherited Destroy;
+end;
+
+function TMMProcess.Render(IncludePID: Boolean): string;
+begin
+  Result := processName;
+
+  if IncludePID then
+    Result := Result + ' ['+IntToStr(pid)+']';
 end;
 
 end.

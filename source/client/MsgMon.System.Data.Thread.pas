@@ -11,11 +11,13 @@ type
   TMMThread = class
   private
     FTID: Cardinal;
+    FPID: Cardinal;
     FWindows: TMMWindowDictionary;
   public
-    constructor Create(ATID: Cardinal);
+    constructor Create(ATID, APID: Cardinal);
     destructor Destroy; override;
     property TID: Cardinal read FTID;
+    property PID: Cardinal read FPID;
     property Windows: TMMWindowDictionary read FWindows;
   end;
 
@@ -29,10 +31,11 @@ uses
 
 { TMMThread }
 
-constructor TMMThread.Create(ATID: Cardinal);
+constructor TMMThread.Create(ATID, APID: Cardinal);
 begin
   inherited Create;
   FTID := ATID;
+  FPID := APID;
   FWindows := TMMWindowDictionary.Create;
 end;
 

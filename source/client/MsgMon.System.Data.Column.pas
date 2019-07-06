@@ -673,14 +673,17 @@ var
   i: Integer;
   d: TMessageDetails;
 begin
-  d := TMessageDetailRenderer.Render(FContext, data);
+  d := TDetailRenderer.RenderMessage(FContext, data, False);
   if High(d) < 0 then
     Exit('');
 
-  Result := d[0].RenderToString;
-  for i := 1 to High(d) do
+  Result := '';
+  for i := 0 to High(d) do
   begin
-    Result := Result + '; ' + d[i].RenderToString;
+    if d[i].ValueType = mdrTitle then Continue; // We don't include titles in detail column view
+    if Result <> '' then
+      Result := Result + '; ';
+    Result := Result + d[i].RenderToString(True);
   end;
 end;
 

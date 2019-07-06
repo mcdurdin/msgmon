@@ -18,7 +18,6 @@ Windows user message monitor in the style of procmon.
 
 3. User Interface Improvements
   - Add window tree view pane
-  - Add detail pane
   - time columns
   - add icon
   - suggestions for filter values
@@ -47,6 +46,8 @@ Windows user message monitor in the style of procmon.
 6. Bugs and issues
   - Some messages have only partial data. Why?
   - Add lock table for writing traces
+  - Handle reused PID, TID, HWND situations
+  - Cleanup unsigned vs signed chaos for TID,PID,HWND etc
 
 7. Bundling and deployment
   - bundle into single executable for deployment (extract to same folder or temp folder on run?)

@@ -80,7 +80,7 @@ begin
 
     if not ps[0].Threads.TryGetValue(w.tid, t) then
     begin
-      t := TMMThread.Create(w.tid);
+      t := TMMThread.Create(w.tid, w.pid);
       ps[0].Threads.Add(w.tid, t);
     end;
 
