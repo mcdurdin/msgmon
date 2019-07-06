@@ -21,15 +21,15 @@ uses
   MsgMon.System.Util in 'MsgMon.System.Util.pas',
   MsgMon.System.Data.MessageDetail in 'MsgMon.System.Data.MessageDetail.pas',
   MsgMon.UI.DisplayColumnForm in 'MsgMon.UI.DisplayColumnForm.pas' {MMDisplayColumnsForm},
-  VKeys in '..\..\..\keyman\open\windows\src\global\delphi\general\VKeys.pas',
-  MsgMon.System.Data.VKeyNames in 'MsgMon.System.Data.VKeyNames.pas';
+  MsgMon.System.Data.VKeyNames in 'MsgMon.System.Data.VKeyNames.pas',
+  MsgMon.UI.WindowTreeFrame in 'MsgMon.UI.WindowTreeFrame.pas' {MMWindowTreeFrame},
+  MsgMon.System.Data.Thread in 'MsgMon.System.Data.Thread.pas';
 
 {$R *.res}
 
 begin
   Application.Initialize;
   Application.MainFormOnTaskbar := True;
-//  TStyleManager.TrySetStyle('Windows10');
   Application.CreateForm(TMMMainForm, MMMainForm);
   Application.Run;
 end.

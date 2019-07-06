@@ -119,21 +119,22 @@ void StopMsgMonTrace() {
   }
 }
 
-
 BOOL Capture(wchar_t *eventName, wchar_t *logfile, BOOL overwrite) {
   MSG msg;
   BOOL bResult = FALSE;
 
   HANDLE hEvent = OpenEvent(SYNCHRONIZE, FALSE, eventName);
   if (!hEvent) {
-    std::cout << "OpenEvent failed (GLE=" << GetLastError() << ")" << std::endl;
-    return FALSE;
+    std::cout << "Capture: OpenEvent failed (GLE=" << GetLastError() << ")" << std::endl;
+    goto cleanup;
   }
 
 #ifndef _WIN64
   // Start the trace, only on x86 host (x64 host will piggy back)
-  if (!StartMsgMonTrace(logfile, overwrite))
-    return FALSE;
+  if (!StartMsgMonTrace(logfile, overwrite)) {
+    std::cout << "Capture: StartMsgMonTrace failed" << std::endl;
+    goto cleanup;
+  }
 #endif
 
   if (!BeginLog()) {

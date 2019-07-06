@@ -17,12 +17,14 @@ type
     FLogFile: string;
     FLastError: Integer;
     FApp: string;
+    FPID: Integer;
   protected
     procedure Execute; override;
   public
     class function Run(App, CommandLine, CurrentDirectory, LogFile: string): TRunConsoleApp;
     property RunResult: Boolean read FResult;
     property App: string read FApp write FApp;
+    property PID: Integer read FPID;
     property CommandLine: string read FCommandLine write FCommandLine;
     property CurrentDirectory: string read FCurrentDirectory write FCurrentDirectory;
     property LogText: string read FLogText;
@@ -42,7 +44,7 @@ procedure TRunConsoleApp.Execute;
 var
   str: TStringList;
 begin
-  FResult := TExecProcess.Console(FCommandLine, FCurrentDirectory, FLogText, FExitCode);
+  FResult := TExecProcess.Console(FCommandLine, FCurrentDirectory, FLogText, FPID, FExitCode);
 
   if not FResult then
     FLastError := GetLastError;

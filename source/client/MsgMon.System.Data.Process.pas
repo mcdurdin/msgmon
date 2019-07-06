@@ -4,7 +4,9 @@ interface
 
 uses
   System.Generics.Collections,
-  Winapi.Windows;
+  Winapi.Windows,
+
+  MsgMon.System.Data.Thread;
 
 type
   TMMProcess = class
@@ -13,7 +15,12 @@ type
     platform_: DWORD;
     processPath, commandLine: string;
     processName: string;
+  private
+    FThreads: TMMThreads;
+  public
     constructor Create(pid, platform_: DWORD; const processPath, commandLine: string; ABase: Integer);
+    destructor Destroy; override;
+    property Threads: TMMThreads read FThreads;
   end;
 
   TMMProcesses = class(TObjectList<TMMProcess>)
@@ -33,6 +40,8 @@ uses
 constructor TMMProcess.Create(pid, platform_: DWORD; const processPath, commandLine: string; ABase: Integer);
 begin
   inherited Create;
+
+  FThreads := TMMThreads.Create;
 
   Self.pid := pid;
   Self.platform_ := platform_;
@@ -55,6 +64,12 @@ begin
   if Count = 0 then
     Exit(nil);
   Result := Items[0];
+end;
+
+destructor TMMProcess.Destroy;
+begin
+  FreeAndNil(FThreads);
+  inherited Destroy;
 end;
 
 end.

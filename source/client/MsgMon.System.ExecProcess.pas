@@ -13,7 +13,7 @@ type
     type
       TCallbackEvent = procedure(var Cancelled: Boolean) of object;
       TCallbackWaitEvent = procedure(hProcess: THandle; var Waiting, Cancelled: Boolean) of object;
-    class function Console(const cmdline, curdir: string; var FLogText: string; var ExitCode: Integer; FOnCallback: TCallbackEvent = nil): Boolean; overload; static;   // I3631
+    class function Console(const cmdline, curdir: string; var FLogText: string; var PID, ExitCode: Integer; FOnCallback: TCallbackEvent = nil): Boolean; overload; static;   // I3631
     class function Console(const cmdline, curdir: string; var FLogText: string; FOnCallback: TCallbackEvent = nil): Boolean; overload; static;   // I3631
     class function WaitForProcess(const cmdline, curdir: string; ShowWindow: Integer = SW_SHOWNORMAL; FOnCallback: TCallbackWaitEvent = nil): Boolean; overload; static;
     class function WaitForProcess(const cmdline, curdir: string; var EC: Cardinal; ShowWindow: Integer = SW_SHOWNORMAL; FOnCallback: TCallbackWaitEvent = nil): Boolean; overload; static;
@@ -28,12 +28,12 @@ uses
 
 class function TExecProcess.Console(const cmdline, curdir: string; var FLogText: string; FOnCallback: TCallbackEvent = nil): Boolean;
 var
-  ec: Integer;
+  pid, ec: Integer;
 begin
-  Result := TExecProcess.Console(cmdline, curdir, FLogText, ec, FOnCallback);   // I3631
+  Result := TExecProcess.Console(cmdline, curdir, FLogText, pid, ec, FOnCallback);   // I3631
 end;
 
-class function TExecProcess.Console(const cmdline, curdir: string; var FLogText: string; var ExitCode: Integer; FOnCallback: TCallbackEvent = nil): Boolean;   // I3631
+class function TExecProcess.Console(const cmdline, curdir: string; var FLogText: string; var PID, ExitCode: Integer; FOnCallback: TCallbackEvent = nil): Boolean;   // I3631
 var
   si: TStartupInfo;
   b, ec: DWord;
@@ -66,6 +66,7 @@ begin
 
   { See support.microsoft.com kb 190351 }
 
+  PID := 0;
   n := 0;
   FLogText := '';
 
@@ -89,6 +90,8 @@ begin
     if CreateProcess(nil, PChar(cmdlinebuf),   // I4170
       nil, nil, True, NORMAL_PRIORITY_CLASS, nil, PChar(curdir), si, pi) then
     try
+      PID := pi.dwProcessId;
+
       if GetExitCodeProcess(pi.hProcess, ec) then
       begin
         while ec = STILL_ACTIVE do

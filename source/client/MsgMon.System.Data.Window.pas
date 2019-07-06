@@ -7,14 +7,21 @@ uses
   Winapi.Windows;
 
 type
+  TMMWindows = class;
+
   TMMWindow = class
     base: Integer;  // First reference in messages index
     hwnd: DWORD;
     pid, tid: DWORD;
     hwndOwner, hwndParent: DWORD;
     ClassName, RealClassName: string;
+  private
+    FChildWindows: TMMWindows;
+  public
     constructor Create(hwnd, pid, tid, hwndOwner, hwndParent: Integer; className, realClassName: string; ABase: Integer);
+    destructor Destroy; override;
     function Render(IncludeHandle: Boolean): string;
+    property ChildWindows: TMMWindows read FChildWindows;
   end;
 
   TMMWindows = class(TObjectList<TMMWindow>)
@@ -34,6 +41,8 @@ uses
 constructor TMMWindow.Create(hwnd, pid, tid, hwndOwner, hwndParent: Integer; className, realClassName: string; ABase: Integer);
 begin
   inherited Create;
+
+  FChildWindows := TMMWindows.Create(False); // This object does not own the child window objects
 
   Self.hwnd := hwnd;
   Self.pid := pid;
@@ -58,6 +67,12 @@ begin
   if Count = 0 then
     Exit(nil);
   Result := Items[0];
+end;
+
+destructor TMMWindow.Destroy;
+begin
+  FreeAndNil(FChildWindows);
+  inherited Destroy;
 end;
 
 function TMMWindow.Render(IncludeHandle: Boolean): string;

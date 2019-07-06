@@ -31,6 +31,15 @@ object MMMainForm: TMMMainForm
     ExplicitTop = 6
     ExplicitWidth = 633
   end
+  object Splitter1: TSplitter
+    Left = 513
+    Top = 0
+    Height = 181
+    Align = alRight
+    ExplicitLeft = 360
+    ExplicitTop = 160
+    ExplicitHeight = 100
+  end
   object statusBar: TStatusBar
     Left = 0
     Top = 338
@@ -127,6 +136,10 @@ object MMMainForm: TMMMainForm
       object TabSheet2: TTabSheet
         Caption = 'Call Stack'
         ImageIndex = 1
+        ExplicitLeft = 0
+        ExplicitTop = 0
+        ExplicitWidth = 0
+        ExplicitHeight = 0
         DesignSize = (
           693
           126)
@@ -142,6 +155,10 @@ object MMMainForm: TMMMainForm
       object TabSheet1: TTabSheet
         Caption = 'Log'
         ImageIndex = 2
+        ExplicitLeft = 0
+        ExplicitTop = 0
+        ExplicitWidth = 0
+        ExplicitHeight = 0
         object memoLog: TMemo
           Left = 0
           Top = 0
@@ -165,7 +182,7 @@ object MMMainForm: TMMMainForm
   object gridMessages: TDrawGrid
     Left = 0
     Top = 0
-    Width = 701
+    Width = 513
     Height = 181
     Align = alClient
     DefaultRowHeight = 16
@@ -177,6 +194,15 @@ object MMMainForm: TMMMainForm
     OnClick = gridMessagesClick
     OnColumnMoved = gridMessagesColumnMoved
     OnDrawCell = gridMessagesDrawCell
+  end
+  object panWindowTree: TPanel
+    Left = 516
+    Top = 0
+    Width = 185
+    Height = 181
+    Align = alRight
+    BevelOuter = bvNone
+    TabOrder = 4
   end
   object menu: TMainMenu
     Left = 112

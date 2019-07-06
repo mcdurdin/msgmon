@@ -58,7 +58,7 @@ begin
   inherited Create;
   FFilename := AFilename;
   FContext := TMMDataContext.Create;
-  FSession := TMMSession.Create(context);
+  FSession := TMMSession.Create(FContext);
   session.LoadDefault(ALastFilterDefinition, ALastColumnsDefinition);
 
   Load;
@@ -95,7 +95,7 @@ begin
     stmt.Free;
   end;
 
-  context.Clear;
+  FContext.Clear;
 
   // Load windows
 
@@ -125,10 +125,10 @@ begin
           stmt.ColumnText(7)
           , 0 // TODO: add base offset to database
         );
-        if not context.Windows.TryGetValue(stmt.ColumnInt(1), ws) then
+        if not FContext.Windows.TryGetValue(stmt.ColumnInt(1), ws) then
         begin
           ws := TMMWindows.Create;
-          context.Windows.Add(stmt.ColumnInt(1), ws);
+          FContext.Windows.Add(stmt.ColumnInt(1), ws);
         end;
         ws.Add(w);
       end;
@@ -157,10 +157,10 @@ begin
           stmt.ColumnText(4)
           , 0 // TODO: add base offset to database
         );
-        if not context.Processes.TryGetValue(stmt.ColumnInt(1), ps) then
+        if not FContext.Processes.TryGetValue(stmt.ColumnInt(1), ps) then
         begin
           ps := TMMProcesses.Create;
-          context.Processes.Add(stmt.ColumnInt(1), ps);
+          FContext.Processes.Add(stmt.ColumnInt(1), ps);
         end;
         ps.Add(p);
       end;
@@ -200,6 +200,8 @@ begin
   Assert(stmtMessage.ColumnName(17) = 'filter_row');
 
 //  ApplyFilter;
+
+  FContext.PrepareTrees;
 end;
 
 procedure TMMDatabase.ApplyFilter;
@@ -243,7 +245,7 @@ begin
     //      stmt.Reset;
 
         //  m := context.FilteredMessages[Item.Index];
-          m.Fill(context.Processes, context.Windows, context.MessageNames);
+          m.Fill(FContext.Processes, FContext.Windows, FContext.MessageNames);
 
           v := True;
           for f in session.filters do
@@ -307,7 +309,7 @@ begin
   stmtMessage.Reset;
 
 //  m := context.FilteredMessages[Item.Index];
-  m.Fill(context.Processes, context.Windows, context.MessageNames);
+  m.Fill(FContext.Processes, FContext.Windows, FContext.MessageNames);
   Result := m;
 end;
 

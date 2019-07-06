@@ -19,6 +19,7 @@ uses
   MsgMon.System.Data.Window,
   MsgMon.Data.Database,
   MsgMon.System.ExecConsoleProcess,
+  MsgMon.UI.WindowTreeFrame,
   Vcl.Themes,
   Vcl.Menus, Vcl.ExtCtrls, Vcl.ActnMenus, System.Actions, Vcl.ActnList,
   Vcl.StdActns, Vcl.PlatformDefaultStyleActnCtrls, Vcl.ActnMan, Vcl.ActnCtrls,
@@ -97,6 +98,8 @@ type
     dlgSave: TSaveDialog;
     mnuMessageSelectColumns: TMenuItem;
     mnuPopupCopyRows: TMenuItem;
+    panWindowTree: TPanel;
+    Splitter1: TSplitter;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure mnuFileExitClick(Sender: TObject);
@@ -142,6 +145,7 @@ type
     FIsTempDatabase: Boolean;
     FLastColumnsDefinition, FLastFilterDefinition: string;
     FPreparingView: Boolean;
+    FWindowTreeFrame: TMMWindowTreeFrame;
 
     procedure gridMessagesColWidthsChanged(Sender: TObject);
     procedure BeginLogProcesses;
@@ -199,6 +203,12 @@ begin
     RaiseLastOSError;
 
   statusBar.Top := Height; // Force statusBar to be at bottom of window
+
+  FWindowTreeFrame := TMMWindowTreeFrame.Create(Self);
+  FWindowTreeFrame.Parent := panWindowTree;
+  FWindowTreeFrame.Visible := True;
+
+//  CaptureWindows;
 
   LastIndex := -1;
 end;
@@ -350,9 +360,14 @@ begin
 end;
 
 procedure TMMMainForm.EndLogProcesses;
-  procedure ReportProcessError(app, msg: string; code: Integer = 0);
+  function PIDPrefix(PID: Integer): string;
   begin
-    msg := app + ' ' + msg;
+    Result := '[' + IntToStr(PID) + '] ';
+  end;
+
+  procedure ReportProcessError(PID: Integer; app, msg: string; code: Integer = 0);
+  begin
+    msg := PIDPrefix(PID) + app + ' ' + msg;
     if code <> 0 then
       msg := msg + '. The error ('+IntToStr(code)+') was '+SysErrorMessage(GetLastError);
 
@@ -364,14 +379,17 @@ procedure TMMMainForm.EndLogProcesses;
   var
     a: string;
   begin
+    memoLog.Text := memoLog.Text +
+      PIDPrefix(p.PID) +
+      p.CommandLine + #13#10;
+
     a := ExtractFileName(p.App);
     if not p.RunResult then
-      ReportProcessError(a, 'failed to start', p.LastError)
+      ReportProcessError(p.PID, a, 'failed to start', p.LastError)
     else if p.ExitCode <> 0 then
-      ReportProcessError(a, 'failed with exit code '+IntToStr(p.ExitCode));
+      ReportProcessError(p.PID, a, 'failed with exit code '+IntToStr(p.ExitCode));
 
     memoLog.Text := memoLog.Text +
-      p.CommandLine + #13#10 +
       p.LogText + #13#10 +
       #13#10;
   end;
@@ -773,6 +791,7 @@ begin
 
   PrepareView;
   ApplyFilter;
+  FWindowTreeFrame.SetDatabase(db);
 
   Result := True;
 end;
@@ -796,6 +815,7 @@ end;
 
 procedure TMMMainForm.CloseDatabase;
 begin
+  FWindowTreeFrame.CloseDatabase;
   FreeAndNil(db);
   UpdateStatusBar;
 end;
