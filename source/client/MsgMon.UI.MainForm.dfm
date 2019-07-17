@@ -152,7 +152,6 @@ object MMMainForm: TMMMainForm
     OnClick = gridMessagesClick
     OnColumnMoved = gridMessagesColumnMoved
     OnDrawCell = gridMessagesDrawCell
-    ExplicitWidth = 513
   end
   object panWindowTree: TPanel
     Left = 336

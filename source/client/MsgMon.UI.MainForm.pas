@@ -530,6 +530,7 @@ begin
   FreeAndNil(db);
   CreateNewTempDatabase;
   gridMessages.RowCount := 2;
+  gridMessages.FixedRows := 1;
   gridMessages.Invalidate;
 end;
 
@@ -730,6 +731,8 @@ begin
   // Refresh status
   UpdateStatusBar;
   gridMessages.RowCount := db.FilteredRowCount + 1;
+  if gridMessages.RowCount > 1 then
+    gridMessages.FixedRows := 1;
   gridMessages.Invalidate;
 end;
 

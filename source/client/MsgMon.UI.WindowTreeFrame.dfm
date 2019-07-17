@@ -37,11 +37,8 @@ object MMWindowTreeFrame: TMMWindowTreeFrame
     Indent = 19
     ReadOnly = True
     RightClickSelect = True
-    ShowRoot = False
     TabOrder = 0
     OnChange = tvWindowsChange
-    ExplicitWidth = 635
-    ExplicitHeight = 299
   end
   object gridDetails: TStringGrid
     Left = 0
@@ -55,7 +52,5 @@ object MMWindowTreeFrame: TMMWindowTreeFrame
     Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRowSelect]
     TabOrder = 1
     OnDblClick = gridDetailsDblClick
-    ExplicitLeft = 16
-    ExplicitTop = 279
   end
 end

@@ -17,7 +17,6 @@ Windows user message monitor in the style of procmon.
 # TODO
 
 3. User Interface Improvements
-  - Add window tree view pane
   - time columns
   - add icon
   - suggestions for filter values
@@ -53,6 +52,8 @@ Windows user message monitor in the style of procmon.
   - bundle into single executable for deployment (extract to same folder or temp folder on run?)
  
 8. What data is redundant in each message? (PID, TID)
+
+9. Allow for command-line based trace recording, so we can avoid having the GUI app for remote use.
 
 # Data Model
 
