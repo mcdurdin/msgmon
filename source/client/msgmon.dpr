@@ -24,7 +24,9 @@ uses
   MsgMon.System.Data.VKeyNames in 'MsgMon.System.Data.VKeyNames.pas',
   MsgMon.UI.WindowTreeFrame in 'MsgMon.UI.WindowTreeFrame.pas' {MMWindowTreeFrame},
   MsgMon.System.Data.Thread in 'MsgMon.System.Data.Thread.pas',
-  MsgMon.UI.DetailRenderToGrid in 'MsgMon.UI.DetailRenderToGrid.pas';
+  MsgMon.UI.DetailRenderToGrid in 'MsgMon.UI.DetailRenderToGrid.pas',
+  Vcl.Themes,
+  Vcl.Styles;
 
 {$R *.res}
 

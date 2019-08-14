@@ -127,6 +127,9 @@ type
     procedure gridMessageDetailsDblClick(Sender: TObject);
     procedure tmrUpdateWindowTreeTimer(Sender: TObject);
     procedure mnuFilterHighlightClick(Sender: TObject);
+    procedure gridMessagesDblClick(Sender: TObject);
+    procedure gridMessageDetailsDrawCell(Sender: TObject; ACol, ARow: Integer;
+      Rect: TRect; State: TGridDrawState);
   private
     db: TMMDatabase;
     FFilename: string;
@@ -146,7 +149,7 @@ type
     FLastColumnsDefinition, FLastHighlightDefinition, FLastFilterDefinition: string;
     FPreparingView: Boolean;
     FWindowTreeFrame: TMMWindowTreeFrame;
-    FSelectedWindow: string;
+    FHighlightText: string;
 
     procedure gridMessagesColWidthsChanged(Sender: TObject);
     procedure BeginLogProcesses;
@@ -472,24 +475,21 @@ begin
     FWindowTreeFrame.SetFocus;
 end;
 
+procedure TMMMainForm.gridMessageDetailsDrawCell(Sender: TObject; ACol,
+  ARow: Integer; Rect: TRect; State: TGridDrawState);
+begin
+  TDetailGridController.DrawCellText(gridMessageDetails.Canvas, Rect, gridMessageDetails.Cells[ACol, ARow], FHighlightText, ACol > 0);
+end;
+
 procedure TMMMainForm.gridMessagesClick(Sender: TObject);
 var
   index: Integer;
-  pt: TPoint;
-  ACol, ARow: Integer;
 begin
   index := gridMessages.Row - 1;
   if not LoadMessageRow(index) then
     Exit;
 
   UpdateMessageDetail(currentMessage);
-  gridMessages.MouseToCell(pt.X, pt.Y, ACol, ARow);
-  if ACol < 0 then
-    Exit;
-
-  if db.Session.displayColumns[ACol] is TMMColumn_Window
-    then FSelectedWindow := (db.session.displayColumns[ACol] as TMMColumn_Window).Render(currentMessage)
-    else FSelectedWindow := '';
 end;
 
 procedure TMMMainForm.gridMessagesColumnMoved(Sender: TObject; FromIndex,
@@ -509,11 +509,34 @@ begin
     db.Session.displayColumns[i].Width := gridMessages.ColWidths[i];
 end;
 
+procedure TMMMainForm.gridMessagesDblClick(Sender: TObject);
+var
+  ACol, ARow: Integer;
+  pt: TPoint;
+begin
+  pt := gridMessages.ScreenToClient(Mouse.CursorPos);
+  gridMessages.MouseToCell(pt.X, pt.Y, ACol, ARow);
+  if ACol < 0 then
+    Exit;
+
+  if db.Session.displayColumns[ACol] is TMMColumn_Window
+    then FHighlightText := (db.session.displayColumns[ACol] as TMMColumn_Window).Render(currentMessage)
+    else FHighlightText := '';
+
+  gridMessages.Invalidate;
+  gridMessageDetails.Invalidate;
+  FWindowTreeFrame.HighlightText := FHighlightText;
+  UpdateStatusBar;
+end;
+
 procedure TMMMainForm.gridMessagesDrawCell(Sender: TObject; ACol, ARow: Integer;
   ARect: TRect; AState: TGridDrawState);
 var
-  index: Integer;
+  ALeft, ATop, index: Integer;
   t: string;
+  FLastColor: TColor;
+  n: Integer;
+  t0: string;
 begin
   if not Assigned(db) then
     Exit;
@@ -533,20 +556,13 @@ begin
   end;
 
   db.InitializeFilter(db.Session.highlights); // TODO: Refactor this for when changes are made to the filter
-  if db.DoesFilterMatchMessage(db.Session.highlights, currentMessage) then
+  if (ARow > 0) and (db.Session.highlights.Count > 0) and db.DoesFilterMatchMessage(db.Session.highlights, currentMessage) then
   begin
-    gridMessages.Canvas.Brush.Color := clRed;
-    gridMessages.Canvas.Font.Color := clWhite;
+    gridMessages.Canvas.Brush.Color := RGB($FF, $C0, $c0);
+//    gridMessages.Canvas.Font.Color := clWhite;
   end;
 
-  if StyleServices.Enabled then
-  begin
-    ARect.Left := ARect.Left + 4;
-    gridMessages.Canvas.TextRect(ARect, ARect.Left+2,
-      ARect.Top+((ARect.Height - gridMessages.Canvas.TextHeight(t)) div 2), t)
-  end
-  else
-    gridMessages.Canvas.TextRect(ARect, ARect.Left+2, ARect.Top+2, t);
+  TDetailGridController.DrawCellText(gridMessages.Canvas, ARect, t, FHighlightText, ARow > 0);
 end;
 
 procedure TMMMainForm.mnuEditClearDisplayClick(Sender: TObject);
@@ -923,14 +939,17 @@ begin
   if Assigned(db) then
   begin
     statusBar.Panels[0].Text := ExtractFileName(db.Filename);
-    statusBar.Panels[2].Text := 'Showing '+IntToStr(db.FilteredRowCount)+' of total '+IntToStr(db.TotalRowCount)+' messages';
+    statusBar.Panels[3].Text := 'Showing '+IntToStr(db.FilteredRowCount)+' of total '+IntToStr(db.TotalRowCount)+' messages';
   end
   else
   begin
     statusBar.Panels[0].Text := 'No file loaded.';
-    statusBar.Panels[2].Text := '';
+    statusBar.Panels[3].Text := '';
   end;
 
+  if FHighlightText = ''
+    then statusBar.Panels[2].Text := '(no highlighted text)'
+    else statusBar.Panels[2].Text := FHighlightText;
   statusbar.Update;
 end;
 

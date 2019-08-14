@@ -53,6 +53,9 @@ object MMMainForm: TMMMainForm
         Width = 150
       end
       item
+        Width = 150
+      end
+      item
         Width = 50
       end>
   end
@@ -97,6 +100,7 @@ object MMMainForm: TMMMainForm
           TabOrder = 0
           OnClick = gridMessageDetailsClick
           OnDblClick = gridMessageDetailsDblClick
+          OnDrawCell = gridMessageDetailsDrawCell
         end
       end
       object TabSheet2: TTabSheet
@@ -151,6 +155,7 @@ object MMMainForm: TMMMainForm
     TabOrder = 3
     OnClick = gridMessagesClick
     OnColumnMoved = gridMessagesColumnMoved
+    OnDblClick = gridMessagesDblClick
     OnDrawCell = gridMessagesDrawCell
   end
   object panWindowTree: TPanel

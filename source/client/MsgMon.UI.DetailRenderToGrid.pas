@@ -3,6 +3,9 @@ unit MsgMon.UI.DetailRenderToGrid;
 interface
 
 uses
+  System.Types,
+  Vcl.Controls,
+  Vcl.Graphics,
   Vcl.Grids,
 
   MsgMon.System.Data.MessageDetail;
@@ -12,11 +15,60 @@ type
     class procedure Render(d: TMessageDetails; grid: TStringGrid);
     class function GetClickContext(grid: TStringGrid; var data: Integer): TMessageDetailRowType;
     class procedure Resize(grid: TStringGrid);
+
+    class procedure DrawCellText(ACanvas: TCanvas; ARect: TRect; t, highlight: string; DrawHighlight: Boolean);
+
   end;
 
 implementation
 
+uses
+  Vcl.Themes;
+
 { TDetailRenderToGrid }
+
+class procedure TDetailGridController.DrawCellText(ACanvas: TCanvas;
+  ARect: TRect; t, highlight: string; DrawHighlight: Boolean);
+var
+  FLastColor: TColor;
+  ALeft, ATop, n: Integer;
+  t0: string;
+begin
+  ACanvas.Brush.Style := bsSolid;
+  FLastColor := ACanvas.Font.Color;
+  if StyleServices.Enabled then
+  begin
+    ARect.Left := ARect.Left + 4;
+    ALeft := ARect.Left + 2;
+    ATop := ARect.Top+((ARect.Height - ACanvas.TextHeight(t)) div 2);
+  end
+  else
+  begin
+    ALeft := ARect.Left + 2;
+    ATop := ARect.Top + 2;
+  end;
+
+  if DrawHighlight and (Pos(highlight, t) > 0) then
+  begin
+    // Break the text down for display
+    n := Pos(highlight, t);
+    while n > 0 do
+    begin
+      t0 := Copy(t, 1, n-1);
+      ACanvas.TextRect(ARect, ALeft, ATop, t0);
+      ACanvas.Brush.Style := bsClear;
+      Delete(t, 1, n + Length(highlight) - 1);
+      Inc(ALeft, ACanvas.TextExtent(t0).cx);
+      ACanvas.Font.Color := clBlue;
+      ACanvas.TextRect(ARect, ALeft, ATop, highlight);
+      ACanvas.Font.Color := FLastColor;
+      Inc(ALeft, ACanvas.TextExtent(highlight).cx);
+      n := Pos(highlight, t);
+    end;
+  end;
+
+  ACanvas.TextRect(ARect, ALeft, ATop, t);
+end;
 
 class function TDetailGridController.GetClickContext(grid: TStringGrid;
   var data: Integer): TMessageDetailRowType;

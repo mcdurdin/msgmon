@@ -21,14 +21,21 @@ type
     procedure tvWindowsChange(Sender: TObject; Node: TTreeNode);
     procedure FormResize(Sender: TObject);
     procedure gridDetailsDblClick(Sender: TObject);
+    procedure gridDetailsDrawCell(Sender: TObject; ACol, ARow: Integer;
+      Rect: TRect; State: TGridDrawState);
+    procedure tvWindowsAdvancedCustomDrawItem(Sender: TCustomTreeView;
+      Node: TTreeNode; State: TCustomDrawState; Stage: TCustomDrawStage;
+      var PaintImages, DefaultDraw: Boolean);
   private
     db: TMMDatabase;
+    FHighlightText: string;
     procedure RefreshTree;
     procedure ShowItemDetails(node: TTreeNode);
     procedure ShowProcessDetails(p: TMMProcess);
     procedure ShowThreadDetails(t: TMMThread);
     procedure ShowWindowDetails(w: TMMWindow);
     function ShowInfo(d: Pointer): Boolean;
+    procedure SetHighlightText(const Value: string);
   public
     { Public declarations }
     procedure SetDatabase(Adb: TMMDatabase);
@@ -40,6 +47,7 @@ type
     function ShowProcessInfo(process: TMMProcess): Boolean; overload;
     function ShowThreadInfo(TID: Integer): Boolean; overload;
     function ShowThreadInfo(thread: TMMThread): Boolean; overload;
+    property HighlightText: string read FHighlightText write SetHighlightText;
   end;
 
 implementation
@@ -72,6 +80,12 @@ begin
   end;
 
   tvWindows.SetFocus;
+end;
+
+procedure TMMWindowTreeFrame.gridDetailsDrawCell(Sender: TObject; ACol,
+  ARow: Integer; Rect: TRect; State: TGridDrawState);
+begin
+  TDetailGridController.DrawCellText(gridDetails.Canvas, Rect, gridDetails.Cells[ACol, ARow], FHighlightText, ACol > 0);
 end;
 
 procedure TMMWindowTreeFrame.RefreshTree;
@@ -132,6 +146,13 @@ procedure TMMWindowTreeFrame.SetDatabase(Adb: TMMDatabase);
 begin
   db := Adb;
   RefreshTree;
+end;
+
+procedure TMMWindowTreeFrame.SetHighlightText(const Value: string);
+begin
+  FHighlightText := Value;
+  gridDetails.Invalidate;
+  tvWindows.Invalidate;
 end;
 
 procedure TMMWindowTreeFrame.ShowItemDetails(node: TTreeNode);
@@ -247,6 +268,18 @@ begin
       tvWindows.Select(tvWindows.Items[i]);
       Exit(True);
     end;
+end;
+
+procedure TMMWindowTreeFrame.tvWindowsAdvancedCustomDrawItem(
+  Sender: TCustomTreeView; Node: TTreeNode; State: TCustomDrawState;
+  Stage: TCustomDrawStage; var PaintImages, DefaultDraw: Boolean);
+var
+  ARect: TRect;
+begin
+  ARect := Node.DisplayRect(True);
+  TDetailGridController.DrawCellText(Sender.Canvas, ARect, Node.Text, FHighlightText, True);
+  PaintImages := True;
+  DefaultDraw := False;
 end;
 
 procedure TMMWindowTreeFrame.tvWindowsChange(Sender: TObject; Node: TTreeNode);
