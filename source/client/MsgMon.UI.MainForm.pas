@@ -126,6 +126,7 @@ type
     procedure gridMessageDetailsClick(Sender: TObject);
     procedure gridMessageDetailsDblClick(Sender: TObject);
     procedure tmrUpdateWindowTreeTimer(Sender: TObject);
+    procedure mnuFilterHighlightClick(Sender: TObject);
   private
     db: TMMDatabase;
     FFilename: string;
@@ -142,9 +143,10 @@ type
     FTraceProcessx64: TRunConsoleApp;
     fIsWow64: LongBool;
     FIsTempDatabase: Boolean;
-    FLastColumnsDefinition, FLastFilterDefinition: string;
+    FLastColumnsDefinition, FLastHighlightDefinition, FLastFilterDefinition: string;
     FPreparingView: Boolean;
     FWindowTreeFrame: TMMWindowTreeFrame;
+    FSelectedWindow: string;
 
     procedure gridMessagesColWidthsChanged(Sender: TObject);
     procedure BeginLogProcesses;
@@ -194,6 +196,7 @@ const
   SRegKey_MsgMon = 'Software\MsgMon';
   SRegValue_LastTraceFilename = 'LastTraceFilename';
   SRegValue_Filter = 'Filter';
+  SRegValue_Highlight = 'Highlight';
   SRegValue_Columns = 'Columns';
 
 procedure TMMMainForm.FormCreate(Sender: TObject);
@@ -222,6 +225,7 @@ var
   r: TRegistry;
   filterDefinition: string;
   columnsDefinition: string;
+  highlightDefinition: string;
 begin
   if FTracing then
   begin
@@ -232,6 +236,7 @@ begin
   if Assigned(db) then
   begin
     db.Session.filters.SaveToJSON(filterDefinition);
+    db.Session.highlights.SaveToJSON(highlightDefinition);
     db.Session.displayColumns.SaveToJSON(columnsDefinition);
   end;
 
@@ -256,6 +261,8 @@ begin
         r.WriteString(SRegValue_Filter, filterDefinition);
       if columnsDefinition <> '' then
         r.WriteString(SRegValue_Columns, columnsDefinition);
+      if highlightDefinition <> '' then
+        r.WriteString(SRegValue_Highlight, highlightDefinition);
     end;
   finally
     r.Free;
@@ -468,12 +475,21 @@ end;
 procedure TMMMainForm.gridMessagesClick(Sender: TObject);
 var
   index: Integer;
+  pt: TPoint;
+  ACol, ARow: Integer;
 begin
   index := gridMessages.Row - 1;
   if not LoadMessageRow(index) then
     Exit;
 
   UpdateMessageDetail(currentMessage);
+  gridMessages.MouseToCell(pt.X, pt.Y, ACol, ARow);
+  if ACol < 0 then
+    Exit;
+
+  if db.Session.displayColumns[ACol] is TMMColumn_Window
+    then FSelectedWindow := (db.session.displayColumns[ACol] as TMMColumn_Window).Render(currentMessage)
+    else FSelectedWindow := '';
 end;
 
 procedure TMMMainForm.gridMessagesColumnMoved(Sender: TObject; FromIndex,
@@ -514,6 +530,13 @@ begin
     index := ARow - 1;
     if not LoadMessageRow(index) then Exit;
     t := db.session.displayColumns[ACol].Render(currentMessage);
+  end;
+
+  db.InitializeFilter(db.Session.highlights); // TODO: Refactor this for when changes are made to the filter
+  if db.DoesFilterMatchMessage(db.Session.highlights, currentMessage) then
+  begin
+    gridMessages.Canvas.Brush.Color := clRed;
+    gridMessages.Canvas.Font.Color := clWhite;
   end;
 
   if StyleServices.Enabled then
@@ -581,11 +604,27 @@ begin
   if not Assigned(db) then
     Exit;
 
-  with TMMFilterForm.Create(Self, db.session) do
+  with TMMFilterForm.Create(Self, 'Message Monitor Filter', db.session.filters) do
   try
     if ShowModal = mrOk then
     begin
       Self.ApplyFilter;
+    end;
+  finally
+    Free;
+  end;
+end;
+
+procedure TMMMainForm.mnuFilterHighlightClick(Sender: TObject);
+begin
+  if not Assigned(db) then
+    Exit;
+
+  with TMMFilterForm.Create(Self, 'Message Monitor Highlight', db.session.highlights) do
+  try
+    if ShowModal = mrOk then
+    begin
+      gridMessages.Invalidate;
     end;
   finally
     Free;
@@ -782,6 +821,8 @@ begin
       filename := r.ReadString(SRegValue_LastTraceFilename);
     if r.ValueExists(SRegValue_Filter) then
       FLastFilterDefinition := r.ReadString(SRegValue_Filter);
+    if r.ValueExists(SRegValue_Highlight) then
+      FLastHighlightDefinition := r.ReadString(SRegValue_Highlight);
     if r.ValueExists(SRegValue_Columns) then
       FLastColumnsDefinition := r.ReadString(SRegValue_Columns);
   end;
@@ -814,7 +855,7 @@ begin
 
   try
     try
-      db := TMMDatabase.Create(AFilename, FLastFilterDefinition, FLastColumnsDefinition);
+      db := TMMDatabase.Create(AFilename, FLastFilterDefinition, FLastHighlightDefinition, FLastColumnsDefinition);
       FFilename := AFilename;
     except
       on E:Exception do
@@ -986,7 +1027,7 @@ begin
   if not Assigned(db) then
     Exit;
   f := CreateFilterFromPopup;
-  with TMMFilterForm.Create(Self, db.session) do
+  with TMMFilterForm.Create(Self, 'Message Monitor Filter', db.session.filters) do
   try
     cbColumn.ItemIndex := cbColumn.Items.IndexOfObject(f.column);
     cbRelation.ItemIndex := 0; // frIs

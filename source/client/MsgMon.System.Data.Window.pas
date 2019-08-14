@@ -77,10 +77,11 @@ end;
 
 function TMMWindow.Render(IncludeHandle: Boolean): string;
 begin
+  // TODO: Merge with TMMColumn render
   Result := ClassName;
 
   if IncludeHandle then
-    Result := Result + ' ['+IntToStr(hwnd)+']'
+    Result := Result + ' ['+IntToHex(hwnd, 8)+']'
   else if RealClassName <> ClassName
     then Result := Result + ' ('+RealClassName+')';
 end;

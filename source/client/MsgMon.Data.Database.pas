@@ -20,6 +20,8 @@ uses
   MsgMon.System.Data.Window;
 
 type
+  TMMFilterType = (ftFilter = 1, ftHighlight = 2);
+
   TMMDatabase = class
   private
     FFilename: string;
@@ -32,14 +34,18 @@ type
     FFilteredRowCount: Integer;
     stmtMessage: TSQLite3Statement;
     procedure Load;
-    procedure SaveFilter;
-    procedure LoadFilter;
+    procedure SaveFilter(filters: TMMFilters; filter_id: TMMFilterType);
+    procedure LoadFilter(filters: TMMFilters; filter_id: TMMFilterType);
     procedure LoadColumns;
     procedure SaveColumns;
   public
-    constructor Create(const AFilename, ALastFilterDefinition, ALastColumnsDefinition: string);
+    constructor Create(const AFilename, ALastFilterDefinition, ALastHighlightDefinition, ALastColumnsDefinition: string);
     destructor Destroy; override;
+
     procedure ApplyFilter;
+    procedure InitializeFilter(filters: TMMFilters);
+    function DoesFilterMatchMessage(filters: TMMFilters; m: TMMMessage): Boolean;
+
     function LoadMessageRow(index: Integer): TMMMessage;
 
     property TotalRowCount: Integer read FTotalRowCount;
@@ -53,13 +59,13 @@ implementation
 
 { TMMDatabase }
 
-constructor TMMDatabase.Create(const AFilename, ALastFilterDefinition, ALastColumnsDefinition: string);
+constructor TMMDatabase.Create(const AFilename, ALastFilterDefinition, ALastHighlightDefinition, ALastColumnsDefinition: string);
 begin
   inherited Create;
   FFilename := AFilename;
   FContext := TMMDataContext.Create;
   FSession := TMMSession.Create(FContext);
-  session.LoadDefault(ALastFilterDefinition, ALastColumnsDefinition);
+  session.LoadDefault(ALastFilterDefinition, ALastHighlightDefinition, ALastColumnsDefinition);
 
   Load;
 end;
@@ -173,7 +179,8 @@ begin
   db.Execute('CREATE INDEX IF NOT EXISTS ix_FilterKey_filterid ON FilterKey (filter_id, filter_row)');
   db.Execute('CREATE TABLE IF NOT EXISTS Filter (filter_id INT, definition TEXT)');
   db.Execute('CREATE TABLE IF NOT EXISTS Settings (id TEXT, value TEXT)');
-  LoadFilter;
+  LoadFilter(session.filters, ftFilter);
+  LoadFilter(session.highlights, ftHighlight);
   LoadColumns;
 
   // Load Messages<!>
@@ -204,39 +211,66 @@ begin
   FContext.PrepareTrees;
 end;
 
+procedure TMMDatabase.InitializeFilter(filters: TMMFilters);
+var
+  f: TMMFilter;
+begin
+  // Filtering for includes: if we have 'include' filters for a column,
+  // then we exclude anything that doesn't match. If no 'include' filter
+  // exists for a given column, then it is included by default.
+
+  for f in filters do
+    f.column.vIncludeDefault := True;
+
+  for f in filters do
+    if f.action = faInclude then f.column.vIncludeDefault := False;
+end;
+
+function TMMDatabase.DoesFilterMatchMessage(filters: TMMFilters; m: TMMMessage): Boolean;
+var
+  f: TMMFilter;
+  vInclude, vExclude: Boolean;
+begin
+  vInclude := True;
+  vExclude := False;
+
+  for f in filters do
+    f.column.vInclude := f.column.vIncludeDefault;
+
+  for f in filters do
+  begin
+    if f.column.Filter(m, f.relation, f.value) then
+      if f.action = faInclude then
+        f.column.vInclude := True
+      else
+      begin
+        vExclude := True;
+        Break;
+      end;
+  end;
+
+  for f in filters do
+    vInclude := vInclude and f.column.vInclude;
+
+  Result := vInclude and not vExclude;
+end;
+
 procedure TMMDatabase.ApplyFilter;
 var
   m: TMMMessage;
-  f: TMMFilter;
-  cStart, c: array of Boolean;
-  v: Boolean;
   row: Integer;
   stmt: TSQLite3Statement;
-  vInclude: Boolean;
-  vExclude: Boolean;
-  fc: array of TMMColumn;
-  i: Integer;
 begin
   row := 0;
 
-  TODO: create a set of columns from the filter columns in order to
-        apply our per-column logic below. The allColumns list does not match
-        the filter column list (each is created separately)
+  InitializeFilter(session.filters);
 
-  SetLength(cStart, session.allColumns.Count);
-  for i := 0 to session.allColumns.Count - 1 do
-    cStart[i] := True;
-
-  // If we have 'include' filters for a column, then
-  // the we exclude anything that doesn't match
-  for f in session.filters do
-    if f.action = faInclude then
-      cStart[session.allColumns.IndexOf(f.column)] := False;
+  //
 
   db.BeginTransaction;
   try
-    SaveFilter;
-    db.Execute('DELETE FROM FilterKey WHERE filter_id = 1');
+    SaveFilter(session.filters, ftFilter);
+    db.Execute('DELETE FROM FilterKey WHERE filter_id = '+Ord(ftFilter).ToString);
     stmt := TSQLite3Statement.Create(db, 'SELECT Message.* FROM Message');
     try
       while stmt.Step <> SQLITE_DONE do
@@ -267,31 +301,9 @@ begin
         //  m := context.FilteredMessages[Item.Index];
           m.Fill(FContext.Processes, FContext.Windows, FContext.MessageNames);
 
-          vInclude := True;
-          vExclude := False;
-          c := cStart;
-
-          for f in session.filters do
-          begin
-            v := f.column.Filter(m, f.relation, f.value);
-            if f.action = faInclude then
-            begin
-              i := session.allColumns.IndexOf(f.column);
-              c[i] := c[i] or v;
-            end
-            else if v then
-            begin
-              vExclude := True;
-              Break;
-            end;
-          end;
-
-          for i := 0 to session.allColumns.Count - 1 do
-            vInclude := vInclude and c[i];
-
-          if vInclude and not vExclude then
+          if DoesFilterMatchMessage(session.filters, m) then
           begin                                                                                   // TODO rename index to row
-            db.Execute('INSERT INTO FilterKey (filter_id, filter_row, row) VALUES (1, '+IntToStr(row)+', '+IntToStr(m.index)+')');
+            db.Execute('INSERT INTO FilterKey (filter_id, filter_row, row) VALUES ('+Ord(ftFilter).ToString+', '+IntToStr(row)+', '+IntToStr(m.index)+')');
             Inc(row);
           end;
         finally
@@ -312,7 +324,7 @@ function TMMDatabase.LoadMessageRow(index: Integer): TMMMessage;
 var
   m: TMMMessage;
 begin
-  stmtMessage.BindInt(1, 1); // filter_id
+  stmtMessage.BindInt(1, Ord(ftFilter)); // filter_id
   stmtMessage.BindInt(2, index); // filter_row
 
   if stmtMessage.Step <> SQLITE_ROW then
@@ -348,38 +360,40 @@ begin
   Result := m;
 end;
 
-procedure TMMDatabase.SaveFilter;
+procedure TMMDatabase.SaveFilter(filters: TMMFilters; filter_id: TMMFilterType);
 var
   stmt: TSQLite3Statement;
   definition: string;
 const
   sql_SaveFilter =
-    'INSERT INTO Filter (filter_id, definition) SELECT 1, ?';
+    'INSERT INTO Filter (filter_id, definition) SELECT ?, ?';
 begin
-  session.filters.SaveToJSON(definition);
-  db.Execute('DELETE FROM Filter WHERE filter_id = 1');
+  filters.SaveToJSON(definition);
+  db.Execute('DELETE FROM Filter WHERE filter_id = '+Ord(filter_id).ToString);
   stmt := TSQLite3Statement.Create(db, sql_SaveFilter);
   try
-    stmt.BindText(1, definition);
+    stmt.BindInt(1, Ord(filter_id));
+    stmt.BindText(2, definition);
     stmt.Step;
   finally
     stmt.Free;
   end;
 end;
 
-procedure TMMDatabase.LoadFilter;
+procedure TMMDatabase.LoadFilter(filters: TMMFilters; filter_id: TMMFilterType);
 var
   stmt: TSQLite3Statement;
 const
   sql_LoadFilter =
-    'SELECT filter_id, definition FROM Filter WHERE filter_id = 1';
+    'SELECT filter_id, definition FROM Filter WHERE filter_id = ?';
 begin
   stmt := TSQLite3Statement.Create(db, sql_LoadFilter);
   try
+    stmt.BindInt(1, Ord(filter_id));
     if stmt.Step <> SQLITE_DONE then
     begin
-      if not session.filters.LoadFromJSON(stmt.ColumnText(1)) then
-        session.filters.LoadDefault;
+      if not filters.LoadFromJSON(stmt.ColumnText(1)) then
+        filters.LoadDefault;
       ApplyFilter;
     end;
   finally

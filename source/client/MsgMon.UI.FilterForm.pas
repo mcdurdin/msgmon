@@ -34,7 +34,7 @@ type
     FFilters: TMMFilters;
     procedure FillFilterView;
   public
-    constructor Create(AOwner: TComponent; ASession: TMMSession); reintroduce;
+    constructor Create(AOwner: TComponent; const ACaption: string; AFilters: TMMFilters); reintroduce;
   end;
 
 implementation
@@ -77,14 +77,16 @@ begin
   FillFilterView;
 end;
 
-constructor TMMFilterForm.Create(AOwner: TComponent; ASession: TMMSession);
+constructor TMMFilterForm.Create(AOwner: TComponent; const ACaption: string; AFilters: TMMFilters);
 var
   c: TMMColumn;
   r: TMMFilterRelation;
   a: TMMFilterAction;
 begin
   inherited Create(AOwner);
-  FFilters := ASession.filters;
+  Caption := ACaption;
+
+  FFilters := AFilters;
 
   // Prepare lookups
 

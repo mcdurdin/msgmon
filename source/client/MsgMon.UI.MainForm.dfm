@@ -282,8 +282,8 @@ object MMMainForm: TMMMainForm
       end
       object mnuFilterHighlight: TMenuItem
         Caption = 'Highlight...'
-        Enabled = False
         ShortCut = 16456
+        OnClick = mnuFilterHighlightClick
       end
     end
     object mnuHelp: TMenuItem

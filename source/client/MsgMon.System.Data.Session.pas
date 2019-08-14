@@ -12,14 +12,14 @@ type
   private
     FContext: TMMDataContext;
   public
-    filters: TMMFilters;
+    highlights, filters: TMMFilters;
     displayColumns: TMMColumns;
     allColumns: TMMColumns;
     constructor Create(AContext: TMMDataContext);
     destructor Destroy; override;
     procedure LoadFromFile(const Filename: string);
     procedure SaveToFile(const Filename: string);
-    procedure LoadDefault(ALastFilterDefinition, ALastColumnDefinition: string);
+    procedure LoadDefault(ALastFilterDefinition, ALastHighlightDefinition, ALastColumnDefinition: string);
   end;
 
 implementation
@@ -31,6 +31,7 @@ begin
   inherited Create;
   FContext := AContext;
   filters := TMMFilters.Create(AContext);
+  highlights := TMMFilters.Create(AContext);
   displayColumns := TMMColumns.Create(AContext);
   allColumns := TMMColumns.Create(AContext);
 end;
@@ -40,9 +41,10 @@ begin
   displayColumns.Free;
   allColumns.Free;
   filters.Free;
+  highlights.Free;
 end;
 
-procedure TMMSession.LoadDefault(ALastFilterDefinition, ALastColumnDefinition: string);
+procedure TMMSession.LoadDefault(ALastFilterDefinition, ALastHighlightDefinition, ALastColumnDefinition: string);
 begin
   allColumns.LoadAll;
 
@@ -53,6 +55,10 @@ begin
   if (ALastFilterDefinition = '') or
       not filters.LoadFromJSON(ALastFilterDefinition)
     then filters.LoadDefault;
+
+  if (ALastHighlightDefinition = '') or
+      not highlights.LoadFromJSON(ALastHighlightDefinition)
+    then highlights.LoadDefault;
 end;
 
 procedure TMMSession.LoadFromFile(const Filename: string);

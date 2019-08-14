@@ -24,6 +24,8 @@ type
   private
     FWidth: Integer;
     FContext: TMMDataContext;
+    FvInclude: Boolean;
+    FvIncludeDefault: Boolean;
   protected
     class function DefaultWidth: Integer; virtual;
     class function GetCaption: string; virtual;
@@ -42,6 +44,10 @@ type
     function Filter(data: TMMMessage; relation: TMMFilterRelation; const value: string): Boolean;
     class function Caption: string;
     property Width: Integer read FWidth write FWidth;
+
+    // Properties used during application of filter
+    property vInclude: Boolean read FvInclude write FvInclude;
+    property vIncludeDefault: Boolean read FvIncludeDefault write FvIncludeDefault;
   end;
 
   TMMColumnClass = class of TMMColumn;

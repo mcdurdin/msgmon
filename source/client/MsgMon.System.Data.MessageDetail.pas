@@ -267,6 +267,7 @@ var
   ps: TMMProcesses;
   p: TMMProcess;
 begin
+  // TODO: Merge this with column rendering
   case ValueType of
     mdrInteger: Result := IntToStr(FValueInteger);
     mdrString: Result := FValueString;
@@ -298,7 +299,7 @@ begin
           Result := w.Render(True);
         end
         else
-          Result := IntToStr(FValueHwnd);
+          Result := IntToHex(FValueHwnd, 8);
       end;
   end;
   if IncludeTitle then
