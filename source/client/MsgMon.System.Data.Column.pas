@@ -39,7 +39,7 @@ type
     procedure Save(o: TJSONObject);
     function Render(data: TMMMessage): string;
     function Compare(d1, d2: TMMMessage): Integer;
-    function Filter(data: TMMMessage; relation: TMMFilterRelation; const value: string; action: TMMFilterAction): Boolean;
+    function Filter(data: TMMMessage; relation: TMMFilterRelation; const value: string): Boolean;
     class function Caption: string;
     property Width: Integer read FWidth write FWidth;
   end;
@@ -372,11 +372,9 @@ begin
 end;
 
 function TMMColumn.Filter(data: TMMMessage; relation: TMMFilterRelation;
-  const value: string; action: TMMFilterAction): Boolean;
+  const value: string): Boolean;
 begin
   Result := DoFilter(data, relation, value);
-  if action = faExclude then
-    Result := not Result;
 end;
 
 function TMMColumn.Load(o: TJSONObject): Boolean;
@@ -857,7 +855,7 @@ var
   hwnd: Cardinal;
 begin
   hwnd := GetData(data);
-  Result := IntToStr(hwnd);
+  Result := IntToHex(hwnd, 8);
 end;
 
 { TMMColumn_hWndFocus }

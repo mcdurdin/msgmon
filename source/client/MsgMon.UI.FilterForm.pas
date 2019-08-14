@@ -1,5 +1,7 @@
 unit MsgMon.UI.FilterForm;
 
+// TODO: Group filters by column, so we can see all related filters together
+
 interface
 
 uses

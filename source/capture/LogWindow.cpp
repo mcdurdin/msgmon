@@ -13,7 +13,10 @@ void LogWindow(HWND hwnd) {
 
 	auto v = pThreadData->windows->find(hwnd);
 	if (v != pThreadData->windows->end()) {
-		return;
+		//TODO: Handle changes to window state here
+//		if(v->second.hwndParent == GetParent(hwnd))
+			return;
+//		delete v->second;
 	}
 
 	if (!TraceLoggingProviderEnabled(g_Provider, WINEVENT_LEVEL_INFO, READ_KEYWORD)) {

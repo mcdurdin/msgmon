@@ -63,6 +63,7 @@ type
   private
     class function WMWindowPosChanging(context: TMMDataContext; data: TMMMessage): TMessageDetails;
     class function WMKey(context: TMMDataContext; data: TMMMessage): TMessageDetails;
+    class function WMCreate(context: TMMDataContext; data: TMMMessage): TMessageDetails;
     class function RenderDefaults(context: TMMDataContext; data: TMMMessage): TMessageDetails;
   public
   end;
@@ -103,6 +104,8 @@ begin
     WM_WINDOWPOSCHANGED,
     WM_WINDOWPOSCHANGING:
       Result := TMessageDetailRenderer.WMWindowPosChanging(context, data);
+    WM_CREATE:
+      Result := TMessageDetailRenderer.WMCreate(context, data);
   else
     SetLength(Result, 0);
   end;
@@ -129,6 +132,75 @@ begin
       if Result <> ''
         then Result := Result + ', ' + f[i].n
         else Result := f[i].n;
+end;
+
+class function TMessageDetailRenderer.WMCreate(context: TMMDataContext;
+  data: TMMMessage): TMessageDetails;
+var
+  wp: PCreateStructW;
+const style: array[0..19] of TFlag = (
+  (v: WS_BORDER; n: 'WS_BORDER'),
+  (v: WS_CAPTION; n: 'WS_CAPTION'),
+  (v: WS_CHILD; n: 'WS_CHILD'),
+  (v: WS_CLIPCHILDREN; n: 'WS_CLIPCHILDREN'),
+  (v: WS_CLIPSIBLINGS; n: 'WS_CLIPSIBLINGS'),
+  (v: WS_DISABLED; n: 'WS_DISABLED'),
+  (v: WS_DLGFRAME; n: 'WS_DLGFRAME'),
+  (v: WS_GROUP; n: 'WS_GROUP'),
+  (v: WS_HSCROLL; n: 'WS_HSCROLL'),
+  (v: WS_ICONIC; n: 'WS_ICONIC'),
+  (v: WS_MAXIMIZE; n: 'WS_MAXIMIZE'),
+  (v: WS_MAXIMIZEBOX; n: 'WS_MAXIMIZEBOX'),
+  (v: WS_MINIMIZE; n: 'WS_MINIMIZE'),
+  (v: WS_MINIMIZEBOX; n: 'WS_MINIMIZEBOX'),
+  (v: WS_POPUP; n: 'WS_POPUP'),
+  (v: WS_SIZEBOX; n: 'WS_SIZEBOX'),
+  (v: WS_SYSMENU; n: 'WS_SYSMENU'),
+  (v: WS_TABSTOP; n: 'WS_TABSTOP'),
+  (v: WS_VISIBLE; n: 'WS_VISIBLE'),
+  (v: WS_VSCROLL; n: 'WS_VSCROLL')
+);
+const WS_EX_NOREDIRECTIONBITMAP = $00200000;
+const dwExStyle: array[0..22] of TFlag = (
+  (v: WS_EX_ACCEPTFILES; n: 'WS_EX_ACCEPTFILES'),
+  (v: WS_EX_APPWINDOW; n: 'WS_EX_APPWINDOW'),
+  (v: WS_EX_CLIENTEDGE; n: 'WS_EX_CLIENTEDGE'),
+  (v: WS_EX_COMPOSITED; n: 'WS_EX_COMPOSITED'),
+  (v: WS_EX_CONTEXTHELP; n: 'WS_EX_CONTEXTHELP'),
+  (v: WS_EX_CONTROLPARENT; n: 'WS_EX_CONTROLPARENT'),
+  (v: WS_EX_DLGMODALFRAME; n: 'WS_EX_DLGMODALFRAME'),
+  (v: WS_EX_LAYERED; n: 'WS_EX_LAYERED'),
+  (v: WS_EX_LAYOUTRTL; n: 'WS_EX_LAYOUTRTL'),
+  (v: WS_EX_LEFTSCROLLBAR; n: 'WS_EX_LEFTSCROLLBAR'),
+  (v: WS_EX_LTRREADING; n: 'WS_EX_LTRREADING'),
+  (v: WS_EX_MDICHILD; n: 'WS_EX_MDICHILD'),
+  (v: WS_EX_NOACTIVATE; n: 'WS_EX_NOACTIVATE'),
+  (v: WS_EX_NOINHERITLAYOUT; n: 'WS_EX_NOINHERITLAYOUT'),
+  (v: WS_EX_NOPARENTNOTIFY; n: 'WS_EX_NOPARENTNOTIFY'),
+  (v: WS_EX_NOREDIRECTIONBITMAP; n: 'WS_EX_NOREDIRECTIONBITMAP'),
+  (v: WS_EX_RIGHT; n: 'WS_EX_RIGHT'),
+  (v: WS_EX_RTLREADING; n: 'WS_EX_RTLREADING'),
+  (v: WS_EX_STATICEDGE; n: 'WS_EX_STATICEDGE'),
+  (v: WS_EX_TOOLWINDOW; n: 'WS_EX_TOOLWINDOW'),
+  (v: WS_EX_TOPMOST; n: 'WS_EX_TOPMOST'),
+  (v: WS_EX_TRANSPARENT; n: 'WS_EX_TRANSPARENT'),
+  (v: WS_EX_WINDOWEDGE; n: 'WS_EX_WINDOWEDGE')
+);
+begin
+  wp := PCreateStructW(@data.detail[0]);
+  SetLength(Result, 12);
+  Result[0].SetTitle('(CREATESTRUCT) lParam');
+  Result[1].SetInt('hInstance', wp.hInstance);
+  Result[2].SetInt('hMenu', wp.hMenu);
+  Result[3].SetHwnd('hwndParent', wp.hwndParent);
+  Result[4].SetInt('cy', wp.cy);
+  Result[5].SetInt('cx', wp.cx);
+  Result[6].SetInt('y', wp.y);
+  Result[7].SetInt('x', wp.x);
+  Result[8].SetInt('style', wp.style);
+  Result[9].SetString('style', FlagsToString(wp.style, style));
+  Result[10].SetInt('dwExStyle', wp.dwExStyle);
+  Result[11].SetString('dwExStyle', FlagsToString(wp.dwExStyle, dwExStyle));
 end;
 
 class function TMessageDetailRenderer.WMKey(context: TMMDataContext;

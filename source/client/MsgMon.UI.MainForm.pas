@@ -168,6 +168,7 @@ type
     procedure EnableTrace;
     procedure CreateNewTempDatabase;
     function UpdateWindowTree: Boolean;
+    procedure FindRecordByIndex(value: Integer);
   end;
 
 var
@@ -719,12 +720,38 @@ begin
   end;
 end;
 
+procedure TMMMainForm.FindRecordByIndex(value: Integer);
+var
+  i: Integer;
+  m: TMMMessage;
+begin
+  // TODO: Ouch: scanning ... but good enough for now
+  for i := 0 to db.FilteredRowCount - 1 do
+  begin
+    m := db.LoadMessageRow(i);
+    try
+      if m.index >= value then
+      begin
+        gridMessages.Row := i + 1;
+        Exit;
+      end;
+    finally
+      m.Free;
+    end;
+  end;
+end;
+
 procedure TMMMainForm.ApplyFilter;
+var
+  FIndex: Integer;
 begin
   if not Assigned(db) then
     Exit;
 
-  // TODO: Remember selected item by index
+  // Remember selected item by index
+  if (gridMessages.Row > 0) and (db.FilteredRowCount > 0) and LoadMessageRow(gridMessages.Row-1)
+      then FIndex := currentMessage.index
+      else FIndex := -1;
 
   db.ApplyFilter;
 
@@ -734,6 +761,9 @@ begin
   if gridMessages.RowCount > 1 then
     gridMessages.FixedRows := 1;
   gridMessages.Invalidate;
+
+  if (FIndex >= 0) and (gridMessages.RowCount > 1) then
+    FindRecordByIndex(FIndex);
 end;
 
 //

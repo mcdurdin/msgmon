@@ -279,6 +279,8 @@ BOOL InsertRecord(int index, PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_
     return FALSE;
   }
 
+  // TODO: Add stack data
+  
   sqlite3_bind_int(stmt->second, 1, index);
 
   for (ULONG i = 0, col = 2; i < pInfo->TopLevelPropertyCount; i++) {

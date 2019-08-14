@@ -208,11 +208,31 @@ procedure TMMDatabase.ApplyFilter;
 var
   m: TMMMessage;
   f: TMMFilter;
+  cStart, c: array of Boolean;
   v: Boolean;
   row: Integer;
   stmt: TSQLite3Statement;
+  vInclude: Boolean;
+  vExclude: Boolean;
+  fc: array of TMMColumn;
+  i: Integer;
 begin
   row := 0;
+
+  TODO: create a set of columns from the filter columns in order to
+        apply our per-column logic below. The allColumns list does not match
+        the filter column list (each is created separately)
+
+  SetLength(cStart, session.allColumns.Count);
+  for i := 0 to session.allColumns.Count - 1 do
+    cStart[i] := True;
+
+  // If we have 'include' filters for a column, then
+  // the we exclude anything that doesn't match
+  for f in session.filters do
+    if f.action = faInclude then
+      cStart[session.allColumns.IndexOf(f.column)] := False;
+
   db.BeginTransaction;
   try
     SaveFilter;
@@ -247,14 +267,29 @@ begin
         //  m := context.FilteredMessages[Item.Index];
           m.Fill(FContext.Processes, FContext.Windows, FContext.MessageNames);
 
-          v := True;
+          vInclude := True;
+          vExclude := False;
+          c := cStart;
+
           for f in session.filters do
           begin
-            v := f.column.Filter(m, f.relation, f.value, f.action);
-            if not v then
+            v := f.column.Filter(m, f.relation, f.value);
+            if f.action = faInclude then
+            begin
+              i := session.allColumns.IndexOf(f.column);
+              c[i] := c[i] or v;
+            end
+            else if v then
+            begin
+              vExclude := True;
               Break;
+            end;
           end;
-          if v then
+
+          for i := 0 to session.allColumns.Count - 1 do
+            vInclude := vInclude and c[i];
+
+          if vInclude and not vExclude then
           begin                                                                                   // TODO rename index to row
             db.Execute('INSERT INTO FilterKey (filter_id, filter_row, row) VALUES (1, '+IntToStr(row)+', '+IntToStr(m.index)+')');
             Inc(row);

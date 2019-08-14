@@ -80,7 +80,8 @@ procedure TMMWindowTreeFrame.RefreshTree;
     wnode: TTreeNode;
     w0: TMMWindow;
   begin
-    wnode := tvWindows.Items.AddChild(p, IntToStr(w.hwnd) + ' ' + w.ClassName);
+    // TODO: Use column renderer for window
+    wnode := tvWindows.Items.AddChild(p, IntToHex(w.hwnd, 8) + ' ' + w.ClassName);
     wnode.Data := w;
     for w0 in w.ChildWindows do
     begin
@@ -101,9 +102,11 @@ begin
     // For each process, get the windows
     for pp in db.Context.Processes do
     begin
+      // TODO: Use column renderer for PID?
       pnode := tvWindows.Items.AddObject(nil, IntToStr(pp.Value[0].PID) + ' ' + pp.Value[0].processName, pp.Value[0]);
       for tp in pp.Value[0].Threads do
       begin
+        // TODO: Use column renderer for TID?
         tnode := tvWindows.Items.AddChildObject(pnode, IntToStr(tp.Value.TID), tp.Value);
         for wp in tp.Value.Windows do
         begin
