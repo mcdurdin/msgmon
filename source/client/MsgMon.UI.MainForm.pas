@@ -19,6 +19,7 @@ uses
   MsgMon.System.Data.Window,
   MsgMon.Data.Database,
   MsgMon.System.ExecConsoleProcess,
+  MsgMon.UI.DetailRenderToGrid,
   MsgMon.UI.WindowTreeFrame,
   Vcl.Themes,
   Vcl.Menus, Vcl.ExtCtrls, Vcl.ActnMenus, System.Actions, Vcl.ActnList,
@@ -96,6 +97,13 @@ type
     Splitter1: TSplitter;
     gridMessageDetails: TStringGrid;
     tmrUpdateWindowTree: TTimer;
+    panTop: TPanel;
+    panHighlight1: TPanel;
+    panHighlight2: TPanel;
+    panHighlight3: TPanel;
+    panHighlight4: TPanel;
+    Shape1: TShape;
+    panToolbar: TPanel;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure mnuFileExitClick(Sender: TObject);
@@ -130,6 +138,8 @@ type
     procedure gridMessagesDblClick(Sender: TObject);
     procedure gridMessageDetailsDrawCell(Sender: TObject; ACol, ARow: Integer;
       Rect: TRect; State: TGridDrawState);
+    procedure panHighlightDblClick(Sender: TObject);
+  private
   private
     db: TMMDatabase;
     FFilename: string;
@@ -149,7 +159,9 @@ type
     FLastColumnsDefinition, FLastHighlightDefinition, FLastFilterDefinition: string;
     FPreparingView: Boolean;
     FWindowTreeFrame: TMMWindowTreeFrame;
-    FHighlightText: string;
+
+    FHighlights: THighlightInfoArray;
+    FActiveHighlight: Integer;
 
     procedure gridMessagesColWidthsChanged(Sender: TObject);
     procedure BeginLogProcesses;
@@ -190,7 +202,6 @@ uses
 
   MsgMon.UI.FilterForm,
   MsgMon.UI.DisplayColumnForm,
-  MsgMon.UI.DetailRenderToGrid,
   MsgMon.System.Data.MessageDetail,
   MsgMon.System.ExecProcess,
   MsgMon.System.Util;
@@ -203,8 +214,18 @@ const
   SRegValue_Columns = 'Columns';
 
 procedure TMMMainForm.FormCreate(Sender: TObject);
+var
+  i: Integer;
 begin
   TDetailGridController.Resize(gridMessageDetails);
+
+  SetLength(FHighlights, 4);
+  FHighlights[0].Control := panHighlight1;
+  FHighlights[1].Control := panHighlight2;
+  FHighlights[2].Control := panHighlight3;
+  FHighlights[3].Control := panHighlight4;
+  for i := Low(FHighlights) to High(FHighlights) do
+    FHighlights[i].Color := FHighlights[i].Control.Font.Color;
 
   gridMessages.OnColWidthsChanged := gridMessagesColWidthsChanged;
   CoInitializeEx(nil, COINIT_APARTMENTTHREADED);
@@ -219,6 +240,8 @@ begin
   FWindowTreeFrame.Visible := True;
 
 //  CaptureWindows;
+
+  UpdateStatusBar;
 
   LastIndex := -1;
 end;
@@ -478,7 +501,7 @@ end;
 procedure TMMMainForm.gridMessageDetailsDrawCell(Sender: TObject; ACol,
   ARow: Integer; Rect: TRect; State: TGridDrawState);
 begin
-  TDetailGridController.DrawCellText(gridMessageDetails.Canvas, Rect, gridMessageDetails.Cells[ACol, ARow], FHighlightText, ACol > 0);
+  TDetailGridController.DrawCellText(gridMessageDetails.Canvas, Rect, gridMessageDetails.Cells[ACol, ARow], FHighlights, ACol > 0);
 end;
 
 procedure TMMMainForm.gridMessagesClick(Sender: TObject);
@@ -513,30 +536,29 @@ procedure TMMMainForm.gridMessagesDblClick(Sender: TObject);
 var
   ACol, ARow: Integer;
   pt: TPoint;
+  t: string;
 begin
   pt := gridMessages.ScreenToClient(Mouse.CursorPos);
   gridMessages.MouseToCell(pt.X, pt.Y, ACol, ARow);
   if ACol < 0 then
     Exit;
 
-  if db.Session.displayColumns[ACol] is TMMColumn_Window
-    then FHighlightText := (db.session.displayColumns[ACol] as TMMColumn_Window).Render(currentMessage)
-    else FHighlightText := '';
+  t := db.session.displayColumns[ACol].Render(currentMessage);
+  if t = FHighlights[FActiveHighlight].Text
+    then FHighlights[FActiveHighlight].Text := ''
+    else FHighlights[FActiveHighlight].Text := t;
 
   gridMessages.Invalidate;
   gridMessageDetails.Invalidate;
-  FWindowTreeFrame.HighlightText := FHighlightText;
+  FWindowTreeFrame.Highlights := FHighlights;
   UpdateStatusBar;
 end;
 
 procedure TMMMainForm.gridMessagesDrawCell(Sender: TObject; ACol, ARow: Integer;
   ARect: TRect; AState: TGridDrawState);
 var
-  ALeft, ATop, index: Integer;
+  index: Integer;
   t: string;
-  FLastColor: TColor;
-  n: Integer;
-  t0: string;
 begin
   if not Assigned(db) then
     Exit;
@@ -562,7 +584,7 @@ begin
 //    gridMessages.Canvas.Font.Color := clWhite;
   end;
 
-  TDetailGridController.DrawCellText(gridMessages.Canvas, ARect, t, FHighlightText, ARow > 0);
+  TDetailGridController.DrawCellText(gridMessages.Canvas, ARect, t, FHighlights, ARow > 0);
 end;
 
 procedure TMMMainForm.mnuEditClearDisplayClick(Sender: TObject);
@@ -927,6 +949,8 @@ end;
 //
 
 procedure TMMMainForm.UpdateStatusBar(const simpleMessage: string);
+var
+  h: THighlightInfo;
 begin
   if simpleMessage <> '' then
   begin
@@ -947,9 +971,18 @@ begin
     statusBar.Panels[3].Text := '';
   end;
 
-  if FHighlightText = ''
-    then statusBar.Panels[2].Text := '(no highlighted text)'
-    else statusBar.Panels[2].Text := FHighlightText;
+  for h in FHighlights do
+  begin
+    if h.Text = ''
+      then h.Control.Caption := '(no highlighted text)'
+      else h.Control.Caption := h.Text;
+    if h.Control = FHighlights[FActiveHighlight].Control
+      then h.Control.Font.Style := [fsBold]
+      else h.Control.Font.Style := [];
+    Canvas.Font := h.Control.Font;
+    h.Control.Width := Canvas.TextWidth(h.Control.Caption) + 8;
+  end;
+
   statusbar.Update;
 end;
 
@@ -1081,6 +1114,17 @@ begin
   f := CreateFilterFromPopup;
   db.session.filters.Add(f);
   ApplyFilter;
+end;
+
+procedure TMMMainForm.panHighlightDblClick(Sender: TObject);
+var
+  i: Integer;
+begin
+  for i := 0 to High(FHighLights) do
+    if FHighlights[i].Control = Sender then
+      FActiveHighlight := i;
+
+  UpdateStatusBar;
 end;
 
 function TMMMainForm.CreateFilterFromPopup: TMMFilter;

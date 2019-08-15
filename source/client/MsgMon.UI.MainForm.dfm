@@ -33,8 +33,8 @@ object MMMainForm: TMMMainForm
   end
   object Splitter1: TSplitter
     Left = 333
-    Top = 0
-    Height = 181
+    Top = 25
+    Height = 156
     Align = alRight
     ExplicitLeft = 360
     ExplicitTop = 160
@@ -143,9 +143,9 @@ object MMMainForm: TMMMainForm
   end
   object gridMessages: TDrawGrid
     Left = 0
-    Top = 0
+    Top = 25
     Width = 333
-    Height = 181
+    Height = 156
     Align = alClient
     DefaultRowHeight = 16
     FixedCols = 0
@@ -157,15 +157,127 @@ object MMMainForm: TMMMainForm
     OnColumnMoved = gridMessagesColumnMoved
     OnDblClick = gridMessagesDblClick
     OnDrawCell = gridMessagesDrawCell
+    ExplicitTop = 0
+    ExplicitHeight = 181
   end
   object panWindowTree: TPanel
     Left = 336
-    Top = 0
+    Top = 25
     Width = 365
-    Height = 181
+    Height = 156
     Align = alRight
     BevelOuter = bvNone
     TabOrder = 4
+    ExplicitTop = 0
+    ExplicitHeight = 181
+  end
+  object panTop: TPanel
+    Left = 0
+    Top = 0
+    Width = 701
+    Height = 25
+    Align = alTop
+    BevelOuter = bvNone
+    TabOrder = 5
+    object Shape1: TShape
+      Left = 0
+      Top = 24
+      Width = 701
+      Height = 1
+      Align = alBottom
+      ExplicitTop = -40
+    end
+    object panHighlight1: TPanel
+      Left = 185
+      Top = 0
+      Width = 88
+      Height = 24
+      Align = alLeft
+      BevelKind = bkTile
+      BevelOuter = bvNone
+      Caption = '(no highlight)'
+      Font.Charset = ANSI_CHARSET
+      Font.Color = clBlue
+      Font.Height = -11
+      Font.Name = 'Segoe UI'
+      Font.Style = []
+      ParentFont = False
+      TabOrder = 0
+      OnDblClick = panHighlightDblClick
+      ExplicitLeft = 169
+      ExplicitTop = -5
+    end
+    object panHighlight2: TPanel
+      Left = 273
+      Top = 0
+      Width = 88
+      Height = 24
+      Align = alLeft
+      BevelKind = bkTile
+      BevelOuter = bvNone
+      Caption = '(no highlight)'
+      Font.Charset = ANSI_CHARSET
+      Font.Color = clFuchsia
+      Font.Height = -11
+      Font.Name = 'Segoe UI'
+      Font.Style = []
+      ParentFont = False
+      TabOrder = 1
+      OnDblClick = panHighlightDblClick
+      ExplicitTop = -5
+    end
+    object panHighlight3: TPanel
+      Left = 361
+      Top = 0
+      Width = 88
+      Height = 24
+      Align = alLeft
+      BevelKind = bkTile
+      BevelOuter = bvNone
+      Caption = '(no highlight)'
+      Font.Charset = ANSI_CHARSET
+      Font.Color = clOlive
+      Font.Height = -11
+      Font.Name = 'Segoe UI'
+      Font.Style = []
+      ParentFont = False
+      TabOrder = 2
+      OnDblClick = panHighlightDblClick
+      ExplicitLeft = 1
+      ExplicitTop = 1
+      ExplicitHeight = 23
+    end
+    object panHighlight4: TPanel
+      Left = 449
+      Top = 0
+      Width = 88
+      Height = 24
+      Align = alLeft
+      BevelKind = bkTile
+      BevelOuter = bvNone
+      Caption = '(no highlight)'
+      Font.Charset = ANSI_CHARSET
+      Font.Color = clRed
+      Font.Height = -11
+      Font.Name = 'Segoe UI'
+      Font.Style = []
+      ParentFont = False
+      TabOrder = 3
+      OnDblClick = panHighlightDblClick
+      ExplicitLeft = 393
+      ExplicitTop = -4
+      ExplicitHeight = 23
+    end
+    object panToolbar: TPanel
+      Left = 0
+      Top = 0
+      Width = 185
+      Height = 24
+      Align = alLeft
+      BevelOuter = bvNone
+      TabOrder = 4
+      ExplicitLeft = -48
+    end
   end
   object menu: TMainMenu
     Left = 112

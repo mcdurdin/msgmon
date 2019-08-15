@@ -7,16 +7,25 @@ uses
   Vcl.Controls,
   Vcl.Graphics,
   Vcl.Grids,
+  Vcl.ExtCtrls,
 
   MsgMon.System.Data.MessageDetail;
 
 type
+  THighlightInfo = record
+    Text: string;
+    Color: TColor;
+    Control: TPanel;
+  end;
+
+  THighlightInfoArray = array of THighlightInfo;
+
   TDetailGridController = class
     class procedure Render(d: TMessageDetails; grid: TStringGrid);
     class function GetClickContext(grid: TStringGrid; var data: Integer): TMessageDetailRowType;
     class procedure Resize(grid: TStringGrid);
 
-    class procedure DrawCellText(ACanvas: TCanvas; ARect: TRect; t, highlight: string; DrawHighlight: Boolean);
+    class procedure DrawCellText(ACanvas: TCanvas; ARect: TRect; t: string; highlights: THighlightInfoArray; DrawHighlight: Boolean);
 
   end;
 
@@ -28,11 +37,63 @@ uses
 { TDetailRenderToGrid }
 
 class procedure TDetailGridController.DrawCellText(ACanvas: TCanvas;
-  ARect: TRect; t, highlight: string; DrawHighlight: Boolean);
+  ARect: TRect; t: string; highlights: THighlightInfoArray; DrawHighlight: Boolean);
+type
+  TTextRun = record
+    t: string;
+    Color: TColor;
+  end;
+
+  TTextRuns = array of TTextRun;
+
+  function SplitTextByHighlights(t: string; highlights: THighlightInfoArray): TTextRuns;
+  var
+    I, n, x0, x: Integer;
+  begin
+    SetLength(Result, 0);
+    while t <> '' do
+    begin
+      n := -1; x := MaxInt;
+      for I := Low(highlights) to High(highlights) do
+      begin
+        if highlights[I].Text <> '' then
+        begin
+          x0 := Pos(highlights[I].Text, t);
+          if (x0 > 0) and (x0 < x) then
+          begin
+            x := x0;
+            n := I;
+          end;
+        end;
+      end;
+
+      if n >= 0 then
+      begin
+        SetLength(Result, Length(Result)+2);
+        Result[High(Result)-1].t := Copy(t, 1, x-1);
+        Result[High(Result)-1].Color := clNone;
+        Result[High(Result)].t := Copy(t, x, Length(highlights[n].Text));
+        Result[High(Result)].Color := highlights[n].Color;
+        Delete(t, 1, x + Length(highlights[n].Text) - 1);
+      end
+      else
+        Break;
+    end;
+
+    if t <> '' then
+    begin
+      SetLength(Result, Length(Result)+1);
+      Result[High(Result)].t := t;
+      Result[High(Result)].Color := clNone;
+    end;
+  end;
+
+
 var
   FLastColor: TColor;
-  ALeft, ATop, n: Integer;
-  t0: string;
+  ALeft, ATop: Integer;
+  FTexts: TTextRuns;
+  FText: TTextRun;
 begin
   ACanvas.Brush.Style := bsSolid;
   FLastColor := ACanvas.Font.Color;
@@ -48,26 +109,18 @@ begin
     ATop := ARect.Top + 2;
   end;
 
-  if DrawHighlight and (Pos(highlight, t) > 0) then
+  FTexts := SplitTextByHighlights(t, highlights);
+  for FText in FTexts do
   begin
-    // Break the text down for display
-    n := Pos(highlight, t);
-    while n > 0 do
-    begin
-      t0 := Copy(t, 1, n-1);
-      ACanvas.TextRect(ARect, ALeft, ATop, t0);
-      ACanvas.Brush.Style := bsClear;
-      Delete(t, 1, n + Length(highlight) - 1);
-      Inc(ALeft, ACanvas.TextExtent(t0).cx);
-      ACanvas.Font.Color := clBlue;
-      ACanvas.TextRect(ARect, ALeft, ATop, highlight);
-      ACanvas.Font.Color := FLastColor;
-      Inc(ALeft, ACanvas.TextExtent(highlight).cx);
-      n := Pos(highlight, t);
-    end;
-  end;
+    if FText.Color = clNone
+      then ACanvas.Font.Color := FLastColor
+      else ACanvas.Font.Color := FText.Color;
 
-  ACanvas.TextRect(ARect, ALeft, ATop, t);
+    ACanvas.TextRect(ARect, ALeft, ATop, FText.t);
+    ACanvas.Brush.Style := bsClear;
+    Inc(ALeft, ACanvas.TextExtent(FText.t).cx);
+  end;
+//  ACanvas.TextRect(ARect, ALeft, ATop, t);
 end;
 
 class function TDetailGridController.GetClickContext(grid: TStringGrid;

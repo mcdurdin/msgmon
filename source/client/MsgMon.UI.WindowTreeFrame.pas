@@ -9,6 +9,7 @@ uses
   System.Generics.Collections,
 
   MsgMon.Data.Database,
+  MsgMon.UI.DetailRenderToGrid,
   MsgMon.System.Data.Process,
   MsgMon.System.Data.Thread,
   MsgMon.System.Data.Window, Vcl.Grids, Vcl.ExtCtrls;
@@ -28,14 +29,14 @@ type
       var PaintImages, DefaultDraw: Boolean);
   private
     db: TMMDatabase;
-    FHighlightText: string;
+    FHighlights: THighlightInfoArray;
     procedure RefreshTree;
     procedure ShowItemDetails(node: TTreeNode);
     procedure ShowProcessDetails(p: TMMProcess);
     procedure ShowThreadDetails(t: TMMThread);
     procedure ShowWindowDetails(w: TMMWindow);
     function ShowInfo(d: Pointer): Boolean;
-    procedure SetHighlightText(const Value: string);
+    procedure SetHighlights(const Value: THighlightInfoArray);
   public
     { Public declarations }
     procedure SetDatabase(Adb: TMMDatabase);
@@ -47,14 +48,13 @@ type
     function ShowProcessInfo(process: TMMProcess): Boolean; overload;
     function ShowThreadInfo(TID: Integer): Boolean; overload;
     function ShowThreadInfo(thread: TMMThread): Boolean; overload;
-    property HighlightText: string read FHighlightText write SetHighlightText;
+    property Highlights: THighlightInfoArray read FHighlights write SetHighlights;
   end;
 
 implementation
 
 uses
-  MsgMon.System.Data.MessageDetail,
-  MsgMon.UI.DetailRenderToGrid;
+  MsgMon.System.Data.MessageDetail;
 
 {$R *.dfm}
 
@@ -85,7 +85,7 @@ end;
 procedure TMMWindowTreeFrame.gridDetailsDrawCell(Sender: TObject; ACol,
   ARow: Integer; Rect: TRect; State: TGridDrawState);
 begin
-  TDetailGridController.DrawCellText(gridDetails.Canvas, Rect, gridDetails.Cells[ACol, ARow], FHighlightText, ACol > 0);
+  TDetailGridController.DrawCellText(gridDetails.Canvas, Rect, gridDetails.Cells[ACol, ARow], FHighlights, ACol > 0);
 end;
 
 procedure TMMWindowTreeFrame.RefreshTree;
@@ -148,9 +148,9 @@ begin
   RefreshTree;
 end;
 
-procedure TMMWindowTreeFrame.SetHighlightText(const Value: string);
+procedure TMMWindowTreeFrame.SetHighlights(const Value: THighlightInfoArray);
 begin
-  FHighlightText := Value;
+  FHighlights := Value;
   gridDetails.Invalidate;
   tvWindows.Invalidate;
 end;
@@ -277,7 +277,7 @@ var
   ARect: TRect;
 begin
   ARect := Node.DisplayRect(True);
-  TDetailGridController.DrawCellText(Sender.Canvas, ARect, Node.Text, FHighlightText, True);
+  TDetailGridController.DrawCellText(Sender.Canvas, ARect, Node.Text, FHighlights, True);
   PaintImages := True;
   DefaultDraw := False;
 end;
