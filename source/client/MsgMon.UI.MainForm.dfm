@@ -157,8 +157,6 @@ object MMMainForm: TMMMainForm
     OnColumnMoved = gridMessagesColumnMoved
     OnDblClick = gridMessagesDblClick
     OnDrawCell = gridMessagesDrawCell
-    ExplicitTop = 0
-    ExplicitHeight = 181
   end
   object panWindowTree: TPanel
     Left = 336
@@ -168,8 +166,6 @@ object MMMainForm: TMMMainForm
     Align = alRight
     BevelOuter = bvNone
     TabOrder = 4
-    ExplicitTop = 0
-    ExplicitHeight = 181
   end
   object panTop: TPanel
     Left = 0
@@ -204,8 +200,6 @@ object MMMainForm: TMMMainForm
       ParentFont = False
       TabOrder = 0
       OnDblClick = panHighlightDblClick
-      ExplicitLeft = 169
-      ExplicitTop = -5
     end
     object panHighlight2: TPanel
       Left = 273
@@ -224,7 +218,6 @@ object MMMainForm: TMMMainForm
       ParentFont = False
       TabOrder = 1
       OnDblClick = panHighlightDblClick
-      ExplicitTop = -5
     end
     object panHighlight3: TPanel
       Left = 361
@@ -243,9 +236,6 @@ object MMMainForm: TMMMainForm
       ParentFont = False
       TabOrder = 2
       OnDblClick = panHighlightDblClick
-      ExplicitLeft = 1
-      ExplicitTop = 1
-      ExplicitHeight = 23
     end
     object panHighlight4: TPanel
       Left = 449
@@ -264,9 +254,6 @@ object MMMainForm: TMMMainForm
       ParentFont = False
       TabOrder = 3
       OnDblClick = panHighlightDblClick
-      ExplicitLeft = 393
-      ExplicitTop = -4
-      ExplicitHeight = 23
     end
     object panToolbar: TPanel
       Left = 0
@@ -276,7 +263,6 @@ object MMMainForm: TMMMainForm
       Align = alLeft
       BevelOuter = bvNone
       TabOrder = 4
-      ExplicitLeft = -48
     end
   end
   object menu: TMainMenu
@@ -361,6 +347,23 @@ object MMMainForm: TMMMainForm
       object mnuMessageSelectColumns: TMenuItem
         Caption = 'Select &columns...'
         OnClick = mnuMessageSelectColumnsClick
+      end
+      object N8: TMenuItem
+        Caption = '-'
+      end
+      object mnuMessageFind: TMenuItem
+        Caption = '&Find...'
+        OnClick = mnuMessageFindClick
+      end
+      object mnuMessageFindPrevious: TMenuItem
+        Caption = 'Find &Previous'
+        ShortCut = 32806
+        OnClick = mnuMessageFindPreviousClick
+      end
+      object mnuMessageFindNext: TMenuItem
+        Caption = 'Find &Next'
+        ShortCut = 32808
+        OnClick = mnuMessageFindNextClick
       end
     end
     object mnuFilter: TMenuItem
@@ -457,5 +460,11 @@ object MMMainForm: TMMMainForm
     OnTimer = tmrUpdateWindowTreeTimer
     Left = 344
     Top = 192
+  end
+  object dlgFind: TFindDialog
+    Options = [frDown, frHideUpDown]
+    OnFind = dlgFindFind
+    Left = 352
+    Top = 200
   end
 end

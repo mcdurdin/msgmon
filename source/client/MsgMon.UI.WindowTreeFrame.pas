@@ -15,6 +15,11 @@ uses
   MsgMon.System.Data.Window, Vcl.Grids, Vcl.ExtCtrls;
 
 type
+  TTreeView = class(Vcl.ComCtrls.TTreeView)
+  protected
+    procedure CreateWnd; override;
+  end;
+
   TMMWindowTreeFrame = class(TForm)
     tvWindows: TTreeView;
     Splitter1: TSplitter;
@@ -27,6 +32,7 @@ type
     procedure tvWindowsAdvancedCustomDrawItem(Sender: TCustomTreeView;
       Node: TTreeNode; State: TCustomDrawState; Stage: TCustomDrawStage;
       var PaintImages, DefaultDraw: Boolean);
+    procedure tvWindowsDblClick(Sender: TObject);
   private
     db: TMMDatabase;
     FHighlights: THighlightInfoArray;
@@ -54,6 +60,7 @@ type
 implementation
 
 uses
+  Winapi.UxTheme,
   MsgMon.System.Data.MessageDetail;
 
 {$R *.dfm}
@@ -276,15 +283,53 @@ procedure TMMWindowTreeFrame.tvWindowsAdvancedCustomDrawItem(
 var
   ARect: TRect;
 begin
-  ARect := Node.DisplayRect(True);
-  TDetailGridController.DrawCellText(Sender.Canvas, ARect, Node.Text, FHighlights, True);
-  PaintImages := True;
-  DefaultDraw := False;
+  if Stage = cdPostPaint then
+  begin
+    ARect := Node.DisplayRect(True);
+    if cdsSelected in State then
+    begin
+      Sender.Canvas.Brush.Color := clHighlight;
+      Sender.Canvas.Font.Color := clHighlightText;
+    end
+    else
+    begin
+      Sender.Canvas.Brush.Color := clWindow;
+      Sender.Canvas.Font.Color := clWindowText;
+    end;
+
+    TDetailGridController.DrawCellText(Sender.Canvas, ARect, Node.Text, FHighlights, True);
+    PaintImages := False;
+    DefaultDraw := False;
+  end
+  else
+    DefaultDraw := True;
 end;
 
 procedure TMMWindowTreeFrame.tvWindowsChange(Sender: TObject; Node: TTreeNode);
 begin
   ShowItemDetails(Node);
+end;
+
+procedure TMMWindowTreeFrame.tvWindowsDblClick(Sender: TObject);
+var
+  node: TTreeNode;
+  pt: TPoint;
+begin
+  pt := tvWindows.ScreenToClient(Mouse.CursorPos);
+  node := tvWindows.GetNodeAt(pt.X, pt.Y);
+  if Assigned(node) then
+  begin
+    // TODO: dblclick to find this window
+  end;
+end;
+
+{ TTreeView }
+
+procedure TTreeView.CreateWnd;
+begin
+  inherited;
+  // TODO: Enables custom theme drawing, is this necessary?
+  SetWindowTheme(Handle, nil, nil);
 end;
 
 end.

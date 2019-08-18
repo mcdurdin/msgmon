@@ -104,6 +104,11 @@ type
     panHighlight4: TPanel;
     Shape1: TShape;
     panToolbar: TPanel;
+    N8: TMenuItem;
+    mnuMessageFind: TMenuItem;
+    mnuMessageFindPrevious: TMenuItem;
+    mnuMessageFindNext: TMenuItem;
+    dlgFind: TFindDialog;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure mnuFileExitClick(Sender: TObject);
@@ -139,6 +144,10 @@ type
     procedure gridMessageDetailsDrawCell(Sender: TObject; ACol, ARow: Integer;
       Rect: TRect; State: TGridDrawState);
     procedure panHighlightDblClick(Sender: TObject);
+    procedure mnuMessageFindClick(Sender: TObject);
+    procedure mnuMessageFindPreviousClick(Sender: TObject);
+    procedure mnuMessageFindNextClick(Sender: TObject);
+    procedure dlgFindFind(Sender: TObject);
   private
   private
     db: TMMDatabase;
@@ -186,6 +195,8 @@ type
     procedure CreateNewTempDatabase;
     function UpdateWindowTree: Boolean;
     procedure FindRecordByIndex(value: Integer);
+    procedure FindHighlightText(FindDown: Boolean);
+    procedure SetActiveHighlight(t: string; UpdateForSearch: Boolean);
   end;
 
 var
@@ -331,6 +342,12 @@ begin
   UpdateStatusBar('Stopping trace, please wait.');
   EndLogProcesses;
   LoadDatabase(FFilename);
+end;
+
+procedure TMMMainForm.dlgFindFind(Sender: TObject);
+begin
+  SetActiveHighlight(dlgFind.FindText, True);
+  FindHighlightText(frDown in dlgFind.Options);
 end;
 
 function TMMMainForm.GetTraceEventName: string;
@@ -544,9 +561,18 @@ begin
     Exit;
 
   t := db.session.displayColumns[ACol].Render(currentMessage);
-  if t = FHighlights[FActiveHighlight].Text
-    then FHighlights[FActiveHighlight].Text := ''
-    else FHighlights[FActiveHighlight].Text := t;
+
+  SetActiveHighlight(t, False);
+end;
+
+procedure TMMMainForm.SetActiveHighlight(t: string; UpdateForSearch: Boolean);
+begin
+  if UpdateForSearch then
+    FHighlights[FActiveHighlight].Text := t
+  else
+    if t = FHighlights[FActiveHighlight].Text
+      then FHighlights[FActiveHighlight].Text := ''
+      else FHighlights[FActiveHighlight].Text := t;
 
   gridMessages.Invalidate;
   gridMessageDetails.Invalidate;
@@ -625,7 +651,8 @@ procedure TMMMainForm.mnuFileOpenClick(Sender: TObject);
 begin
   if dlgOpen.Execute then
   begin
-    LoadDatabase(dlgOpen.Filename);
+    if LoadDatabase(dlgOpen.Filename) then
+      FIsTempDatabase := False;
   end;
 end;
 
@@ -685,6 +712,51 @@ end;
 procedure TMMMainForm.mnuMessageClick(Sender: TObject);
 begin
   mnuMessageViewDetailPane.Checked := panDetail.Visible;
+  mnuMessageFindPrevious.Enabled := FHighlights[FActiveHighlight].Text <> '';
+  mnuMessageFindNext.Enabled := FHighlights[FActiveHighlight].Text <> '';
+end;
+
+procedure TMMMainForm.mnuMessageFindClick(Sender: TObject);
+begin
+  dlgFind.Execute;
+end;
+
+procedure TMMMainForm.mnuMessageFindNextClick(Sender: TObject);
+begin
+  FindHighlightText(True);
+end;
+
+procedure TMMMainForm.mnuMessageFindPreviousClick(Sender: TObject);
+begin
+  FindHighlightText(False);
+end;
+
+procedure TMMMainForm.FindHighlightText(FindDown: Boolean);
+var
+  row: Integer;
+begin
+  if FHighlights[FActiveHighlight].Text = '' then
+    Exit;
+
+  if FindDown then
+  begin
+    row := gridMessages.Row;
+    if row >= gridMessages.RowCount then
+      Exit;
+  end
+  else
+  begin
+    row := gridMessages.Row - 2;
+    if row <= 0 then
+      Exit;
+  end;
+
+  row := db.FindText(FHighlights[FActiveHighlight].Text, row, FindDown);
+  if row >= 0 then
+  begin
+    gridMessages.Row := row + 1;
+    gridMessagesClick(gridMessages);
+  end;
 end;
 
 procedure TMMMainForm.mnuMessageSelectColumnsClick(Sender: TObject);
@@ -867,8 +939,11 @@ begin
 
   if (filename <> '') and FileExists(filename) then
   begin
-    FIsTempDatabase := False;
-    if LoadDatabase(filename) then Exit;
+    if LoadDatabase(filename) then
+    begin
+      FIsTempDatabase := False;
+      Exit;
+    end;
   end;
 
   // File was not found or could not be loaded, so start fresh

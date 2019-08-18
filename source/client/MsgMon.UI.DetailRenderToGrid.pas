@@ -3,6 +3,7 @@ unit MsgMon.UI.DetailRenderToGrid;
 interface
 
 uses
+  Winapi.Windows,
   System.Types,
   Vcl.Controls,
   Vcl.Graphics,
@@ -116,11 +117,15 @@ begin
       then ACanvas.Font.Color := FLastColor
       else ACanvas.Font.Color := FText.Color;
 
+    // Bug in VCL: TTreeView overrides font.onchange which means canvas never updates it
+    // TODO: Report this bug to Embarcadero
+    SetTextColor(ACanvas.Handle, ColorToRGB(ACanvas.Font.Color));
+
     ACanvas.TextRect(ARect, ALeft, ATop, FText.t);
     ACanvas.Brush.Style := bsClear;
     Inc(ALeft, ACanvas.TextExtent(FText.t).cx);
   end;
-//  ACanvas.TextRect(ARect, ALeft, ATop, t);
+  ACanvas.Font.Color := FLastColor;
 end;
 
 class function TDetailGridController.GetClickContext(grid: TStringGrid;

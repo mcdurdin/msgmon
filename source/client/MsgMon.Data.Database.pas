@@ -47,6 +47,7 @@ type
     function DoesFilterMatchMessage(filters: TMMFilters; m: TMMMessage): Boolean;
 
     function LoadMessageRow(index: Integer): TMMMessage;
+    function FindText(text: string; Row: Integer; FindDown: Boolean): Integer;
 
     property TotalRowCount: Integer read FTotalRowCount;
     property FilteredRowCount: Integer read FFilteredRowCount;
@@ -253,6 +254,35 @@ begin
     vInclude := vInclude and f.column.vInclude;
 
   Result := vInclude and not vExclude;
+end;
+
+function TMMDatabase.FindText(text: string; Row: Integer; FindDown: Boolean): Integer;
+var
+  s: string;
+  m: TMMMessage;
+  col: TMMColumn;
+begin
+  // We search through the visible columns in the view. Otherwise it is too confusing?
+
+  // TODO: for now, we do a naive scan. We may later do this via SQL.
+  while (Row >= 0) and (Row < FFilteredRowCount) do
+  begin
+    m := LoadMessageRow(Row);
+    try
+      for col in FSession.displayColumns do
+      begin
+        s := col.Render(m);
+        if Pos(text, s) > 0 then
+          Exit(Row);
+      end;
+    finally
+      m.Free;
+    end;
+    if FindDown
+      then Inc(Row)
+      else Dec(Row);
+  end;
+  Exit(-1);
 end;
 
 procedure TMMDatabase.ApplyFilter;

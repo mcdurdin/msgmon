@@ -40,6 +40,7 @@ object MMWindowTreeFrame: TMMWindowTreeFrame
     TabOrder = 0
     OnAdvancedCustomDrawItem = tvWindowsAdvancedCustomDrawItem
     OnChange = tvWindowsChange
+    OnDblClick = tvWindowsDblClick
   end
   object gridDetails: TStringGrid
     Left = 0
@@ -49,7 +50,6 @@ object MMWindowTreeFrame: TMMWindowTreeFrame
     Align = alBottom
     ColCount = 3
     DefaultRowHeight = 16
-    DefaultDrawing = False
     FixedRows = 0
     Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRowSelect]
     TabOrder = 1
