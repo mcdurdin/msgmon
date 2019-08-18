@@ -183,7 +183,7 @@ object MMMainForm: TMMMainForm
       Align = alBottom
       ExplicitTop = -40
     end
-    object panHighlight1: TPanel
+    object panSearch1: TPanel
       Left = 185
       Top = 0
       Width = 88
@@ -199,9 +199,10 @@ object MMMainForm: TMMMainForm
       Font.Style = []
       ParentFont = False
       TabOrder = 0
-      OnDblClick = panHighlightDblClick
+      OnDblClick = panSearchDblClick
     end
-    object panHighlight2: TPanel
+    object panSearch2: TPanel
+      Tag = 1
       Left = 273
       Top = 0
       Width = 88
@@ -217,9 +218,10 @@ object MMMainForm: TMMMainForm
       Font.Style = []
       ParentFont = False
       TabOrder = 1
-      OnDblClick = panHighlightDblClick
+      OnDblClick = panSearchDblClick
     end
-    object panHighlight3: TPanel
+    object panSearch3: TPanel
+      Tag = 2
       Left = 361
       Top = 0
       Width = 88
@@ -229,15 +231,16 @@ object MMMainForm: TMMMainForm
       BevelOuter = bvNone
       Caption = '(no highlight)'
       Font.Charset = ANSI_CHARSET
-      Font.Color = clOlive
+      Font.Color = clGreen
       Font.Height = -11
       Font.Name = 'Segoe UI'
       Font.Style = []
       ParentFont = False
       TabOrder = 2
-      OnDblClick = panHighlightDblClick
+      OnDblClick = panSearchDblClick
     end
-    object panHighlight4: TPanel
+    object panSearch4: TPanel
+      Tag = 3
       Left = 449
       Top = 0
       Width = 88
@@ -253,7 +256,7 @@ object MMMainForm: TMMMainForm
       Font.Style = []
       ParentFont = False
       TabOrder = 3
-      OnDblClick = panHighlightDblClick
+      OnDblClick = panSearchDblClick
     end
     object panToolbar: TPanel
       Left = 0
@@ -263,6 +266,7 @@ object MMMainForm: TMMMainForm
       Align = alLeft
       BevelOuter = bvNone
       TabOrder = 4
+      Visible = False
     end
   end
   object menu: TMainMenu
@@ -349,6 +353,32 @@ object MMMainForm: TMMMainForm
         OnClick = mnuMessageSelectColumnsClick
       end
       object N8: TMenuItem
+        Caption = '-'
+      end
+      object mnuMessageSearchContext1: TMenuItem
+        Caption = 'Search context &1'
+        ShortCut = 24625
+        OnClick = panSearchDblClick
+      end
+      object mnuMessageSearchContext2: TMenuItem
+        Tag = 1
+        Caption = 'Search context &2'
+        ShortCut = 24626
+        OnClick = panSearchDblClick
+      end
+      object mnuMessageSearchContext3: TMenuItem
+        Tag = 2
+        Caption = 'Search context &3'
+        ShortCut = 24627
+        OnClick = panSearchDblClick
+      end
+      object mnuMessageSearchContext4: TMenuItem
+        Tag = 3
+        Caption = 'Search context &4'
+        ShortCut = 24628
+        OnClick = panSearchDblClick
+      end
+      object N9: TMenuItem
         Caption = '-'
       end
       object mnuMessageFind: TMenuItem

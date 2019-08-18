@@ -35,14 +35,14 @@ type
     procedure tvWindowsDblClick(Sender: TObject);
   private
     db: TMMDatabase;
-    FHighlights: THighlightInfoArray;
+    FHighlights: TSearchInfoArray;
     procedure RefreshTree;
     procedure ShowItemDetails(node: TTreeNode);
     procedure ShowProcessDetails(p: TMMProcess);
     procedure ShowThreadDetails(t: TMMThread);
     procedure ShowWindowDetails(w: TMMWindow);
     function ShowInfo(d: Pointer): Boolean;
-    procedure SetHighlights(const Value: THighlightInfoArray);
+    procedure SetHighlights(const Value: TSearchInfoArray);
   public
     { Public declarations }
     procedure SetDatabase(Adb: TMMDatabase);
@@ -54,7 +54,7 @@ type
     function ShowProcessInfo(process: TMMProcess): Boolean; overload;
     function ShowThreadInfo(TID: Integer): Boolean; overload;
     function ShowThreadInfo(thread: TMMThread): Boolean; overload;
-    property Highlights: THighlightInfoArray read FHighlights write SetHighlights;
+    property Highlights: TSearchInfoArray read FHighlights write SetHighlights;
   end;
 
 implementation
@@ -155,7 +155,7 @@ begin
   RefreshTree;
 end;
 
-procedure TMMWindowTreeFrame.SetHighlights(const Value: THighlightInfoArray);
+procedure TMMWindowTreeFrame.SetHighlights(const Value: TSearchInfoArray);
 begin
   FHighlights := Value;
   gridDetails.Invalidate;

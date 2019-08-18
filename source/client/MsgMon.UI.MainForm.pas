@@ -98,10 +98,10 @@ type
     gridMessageDetails: TStringGrid;
     tmrUpdateWindowTree: TTimer;
     panTop: TPanel;
-    panHighlight1: TPanel;
-    panHighlight2: TPanel;
-    panHighlight3: TPanel;
-    panHighlight4: TPanel;
+    panSearch1: TPanel;
+    panSearch2: TPanel;
+    panSearch3: TPanel;
+    panSearch4: TPanel;
     Shape1: TShape;
     panToolbar: TPanel;
     N8: TMenuItem;
@@ -109,6 +109,11 @@ type
     mnuMessageFindPrevious: TMenuItem;
     mnuMessageFindNext: TMenuItem;
     dlgFind: TFindDialog;
+    N9: TMenuItem;
+    mnuMessageSearchContext4: TMenuItem;
+    mnuMessageSearchContext3: TMenuItem;
+    mnuMessageSearchContext2: TMenuItem;
+    mnuMessageSearchContext1: TMenuItem;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure mnuFileExitClick(Sender: TObject);
@@ -143,7 +148,7 @@ type
     procedure gridMessagesDblClick(Sender: TObject);
     procedure gridMessageDetailsDrawCell(Sender: TObject; ACol, ARow: Integer;
       Rect: TRect; State: TGridDrawState);
-    procedure panHighlightDblClick(Sender: TObject);
+    procedure panSearchDblClick(Sender: TObject);
     procedure mnuMessageFindClick(Sender: TObject);
     procedure mnuMessageFindPreviousClick(Sender: TObject);
     procedure mnuMessageFindNextClick(Sender: TObject);
@@ -165,12 +170,12 @@ type
     FTraceProcessx64: TRunConsoleApp;
     fIsWow64: LongBool;
     FIsTempDatabase: Boolean;
-    FLastColumnsDefinition, FLastHighlightDefinition, FLastFilterDefinition: string;
+    FLastColumnsDefinition, FLastHighlightDefinition, FLastFilterDefinition, FLastSearchesDefinition: string;
     FPreparingView: Boolean;
     FWindowTreeFrame: TMMWindowTreeFrame;
 
-    FHighlights: THighlightInfoArray;
-    FActiveHighlight: Integer;
+    FSearchInfos: TSearchInfoArray;
+    FActiveSearch: Integer;
 
     procedure gridMessagesColWidthsChanged(Sender: TObject);
     procedure BeginLogProcesses;
@@ -197,6 +202,7 @@ type
     procedure FindRecordByIndex(value: Integer);
     procedure FindHighlightText(FindDown: Boolean);
     procedure SetActiveHighlight(t: string; UpdateForSearch: Boolean);
+    procedure ApplySearches;
   end;
 
 var
@@ -214,6 +220,7 @@ uses
   MsgMon.UI.FilterForm,
   MsgMon.UI.DisplayColumnForm,
   MsgMon.System.Data.MessageDetail,
+  MsgMon.System.Data.Search,
   MsgMon.System.ExecProcess,
   MsgMon.System.Util;
 
@@ -223,6 +230,7 @@ const
   SRegValue_Filter = 'Filter';
   SRegValue_Highlight = 'Highlight';
   SRegValue_Columns = 'Columns';
+  SRegValue_Searches = 'Searches';
 
 procedure TMMMainForm.FormCreate(Sender: TObject);
 var
@@ -230,13 +238,19 @@ var
 begin
   TDetailGridController.Resize(gridMessageDetails);
 
-  SetLength(FHighlights, 4);
-  FHighlights[0].Control := panHighlight1;
-  FHighlights[1].Control := panHighlight2;
-  FHighlights[2].Control := panHighlight3;
-  FHighlights[3].Control := panHighlight4;
-  for i := Low(FHighlights) to High(FHighlights) do
-    FHighlights[i].Color := FHighlights[i].Control.Font.Color;
+  // The SearchInfo data will be invalid until a
+  // database is loaded
+  SetLength(FSearchInfos, 4);
+  FSearchInfos[0].Control := panSearch1;
+  FSearchInfos[1].Control := panSearch2;
+  FSearchInfos[2].Control := panSearch3;
+  FSearchInfos[3].Control := panSearch4;
+  FSearchInfos[0].MenuItem := mnuMessageSearchContext1;
+  FSearchInfos[1].MenuItem := mnuMessageSearchContext2;
+  FSearchInfos[2].MenuItem := mnuMessageSearchContext3;
+  FSearchInfos[3].MenuItem := mnuMessageSearchContext4;
+  for i := 0 to High(FSearchInfos) do
+    FSearchInfos[i].Search := nil;
 
   gridMessages.OnColWidthsChanged := gridMessagesColWidthsChanged;
   CoInitializeEx(nil, COINIT_APARTMENTTHREADED);
@@ -263,6 +277,7 @@ var
   filterDefinition: string;
   columnsDefinition: string;
   highlightDefinition: string;
+  searchDefinition: string;
 begin
   if FTracing then
   begin
@@ -275,8 +290,13 @@ begin
     db.Session.filters.SaveToJSON(filterDefinition);
     db.Session.highlights.SaveToJSON(highlightDefinition);
     db.Session.displayColumns.SaveToJSON(columnsDefinition);
+    db.Session.searches.SaveToJSON(searchDefinition);
   end;
 
+  // TODO: Save session data to database as well; this local machine context
+  // is intended for running across multiple captures but saving to database
+  // allows us to move the db to another machine and still be able to keep
+  // our existing analysis.
   CloseDatabase;
 
   r := TRegistry.Create;
@@ -300,6 +320,8 @@ begin
         r.WriteString(SRegValue_Columns, columnsDefinition);
       if highlightDefinition <> '' then
         r.WriteString(SRegValue_Highlight, highlightDefinition);
+      if searchDefinition <> '' then
+        r.WriteString(SRegValue_Searches, searchDefinition);
     end;
   finally
     r.Free;
@@ -518,7 +540,7 @@ end;
 procedure TMMMainForm.gridMessageDetailsDrawCell(Sender: TObject; ACol,
   ARow: Integer; Rect: TRect; State: TGridDrawState);
 begin
-  TDetailGridController.DrawCellText(gridMessageDetails.Canvas, Rect, gridMessageDetails.Cells[ACol, ARow], FHighlights, ACol > 0);
+  TDetailGridController.DrawCellText(gridMessageDetails.Canvas, Rect, gridMessageDetails.Cells[ACol, ARow], FSearchInfos, ACol > 0);
 end;
 
 procedure TMMMainForm.gridMessagesClick(Sender: TObject);
@@ -568,15 +590,15 @@ end;
 procedure TMMMainForm.SetActiveHighlight(t: string; UpdateForSearch: Boolean);
 begin
   if UpdateForSearch then
-    FHighlights[FActiveHighlight].Text := t
+    FSearchInfos[FActiveSearch].Search.Text := t
   else
-    if t = FHighlights[FActiveHighlight].Text
-      then FHighlights[FActiveHighlight].Text := ''
-      else FHighlights[FActiveHighlight].Text := t;
+    if t = FSearchInfos[FActiveSearch].Search.Text
+      then FSearchInfos[FActiveSearch].Search.Text := ''
+      else FSearchInfos[FActiveSearch].Search.Text := t;
 
   gridMessages.Invalidate;
   gridMessageDetails.Invalidate;
-  FWindowTreeFrame.Highlights := FHighlights;
+  FWindowTreeFrame.Highlights := FSearchInfos;
   UpdateStatusBar;
 end;
 
@@ -610,7 +632,7 @@ begin
 //    gridMessages.Canvas.Font.Color := clWhite;
   end;
 
-  TDetailGridController.DrawCellText(gridMessages.Canvas, ARect, t, FHighlights, ARow > 0);
+  TDetailGridController.DrawCellText(gridMessages.Canvas, ARect, t, FSearchInfos, ARow > 0);
 end;
 
 procedure TMMMainForm.mnuEditClearDisplayClick(Sender: TObject);
@@ -710,10 +732,18 @@ begin
 end;
 
 procedure TMMMainForm.mnuMessageClick(Sender: TObject);
+var
+  i: Integer;
+  e: Boolean;
 begin
   mnuMessageViewDetailPane.Checked := panDetail.Visible;
-  mnuMessageFindPrevious.Enabled := FHighlights[FActiveHighlight].Text <> '';
-  mnuMessageFindNext.Enabled := FHighlights[FActiveHighlight].Text <> '';
+
+  for i := 0 to High(FSearchInfos) do
+    FSearchInfos[i].MenuItem.Checked := i = FActiveSearch;
+
+  e := (FSearchInfos[FActiveSearch].Search <> nil) and (FSearchInfos[FActiveSearch].Search.Text <> '');
+  mnuMessageFindPrevious.Enabled := e;
+  mnuMessageFindNext.Enabled := e;
 end;
 
 procedure TMMMainForm.mnuMessageFindClick(Sender: TObject);
@@ -735,7 +765,7 @@ procedure TMMMainForm.FindHighlightText(FindDown: Boolean);
 var
   row: Integer;
 begin
-  if FHighlights[FActiveHighlight].Text = '' then
+  if FSearchInfos[FActiveSearch].Search.Text = '' then
     Exit;
 
   if FindDown then
@@ -751,7 +781,7 @@ begin
       Exit;
   end;
 
-  row := db.FindText(FHighlights[FActiveHighlight].Text, row, FindDown);
+  row := db.FindText(FSearchInfos[FActiveSearch].Search.Text, row, FindDown);
   if row >= 0 then
   begin
     gridMessages.Row := row + 1;
@@ -915,6 +945,26 @@ begin
     FindRecordByIndex(FIndex);
 end;
 
+procedure TMMMainForm.ApplySearches;
+var
+  i: Integer;
+  s: TMMSearch;
+begin
+  for i := 0 to High(FSearchInfos) do
+  begin
+    if i >= db.Session.searches.Count then
+    begin
+      s := TMMSearch.Create;
+      db.Session.searches.Add(s);
+    end
+    else
+      s := db.Session.searches[i];
+    FSearchInfos[i].Search := s;
+    // TODO: Consider moving the color data into code and dynamically creating the search controls
+    FSearchInfos[i].Search.Color := FSearchInfos[i].Control.Font.Color;
+  end;
+end;
+
 //
 // Database file management
 //
@@ -935,6 +985,8 @@ begin
       FLastHighlightDefinition := r.ReadString(SRegValue_Highlight);
     if r.ValueExists(SRegValue_Columns) then
       FLastColumnsDefinition := r.ReadString(SRegValue_Columns);
+    if r.ValueExists(SRegValue_Searches) then
+      FLastSearchesDefinition := r.ReadString(SRegValue_Searches);
   end;
 
   if (filename <> '') and FileExists(filename) then
@@ -968,7 +1020,7 @@ begin
 
   try
     try
-      db := TMMDatabase.Create(AFilename, FLastFilterDefinition, FLastHighlightDefinition, FLastColumnsDefinition);
+      db := TMMDatabase.Create(AFilename, FLastFilterDefinition, FLastHighlightDefinition, FLastColumnsDefinition, FLastSearchesDefinition);
       FFilename := AFilename;
     except
       on E:Exception do
@@ -983,8 +1035,10 @@ begin
 
   PrepareView;
   ApplyFilter;
+  ApplySearches;
   FWindowTreeFrame.SetDatabase(db);
   gridMessagesClick(gridMessages);
+  UpdateStatusBar;
 
   Result := True;
 end;
@@ -1013,9 +1067,13 @@ begin
 end;
 
 procedure TMMMainForm.CloseDatabase;
+var
+  i: Integer;
 begin
   FWindowTreeFrame.CloseDatabase;
   FreeAndNil(db);
+  for i := 0 to High(FSearchInfos) do
+    FSearchInfos[i].Search := nil;
   UpdateStatusBar;
 end;
 
@@ -1025,7 +1083,8 @@ end;
 
 procedure TMMMainForm.UpdateStatusBar(const simpleMessage: string);
 var
-  h: THighlightInfo;
+  i: Integer;
+  si: TSearchInfo;
 begin
   if simpleMessage <> '' then
   begin
@@ -1046,16 +1105,26 @@ begin
     statusBar.Panels[3].Text := '';
   end;
 
-  for h in FHighlights do
+  i := 0;
+  for si in FSearchInfos do
   begin
-    if h.Text = ''
-      then h.Control.Caption := '(no highlighted text)'
-      else h.Control.Caption := h.Text;
-    if h.Control = FHighlights[FActiveHighlight].Control
-      then h.Control.Font.Style := [fsBold]
-      else h.Control.Font.Style := [];
-    Canvas.Font := h.Control.Font;
-    h.Control.Width := Canvas.TextWidth(h.Control.Caption) + 8;
+    if (si.Search = nil) or (si.Search.Text = '') then
+    begin
+      si.Control.Caption := '(no search text)';
+      si.MenuItem.Caption := 'Search context &'+IntToStr(i+1);
+    end
+    else
+    begin
+      si.Control.Caption := si.Search.Text;
+      si.MenuItem.Caption := 'Search context &'+IntToStr(i+1)+' - '+si.Search.Text;
+    end;
+    si.MenuItem.Checked := i = FActiveSearch;
+    if i = FActiveSearch
+      then si.Control.Font.Style := [fsBold]
+      else si.Control.Font.Style := [];
+    Canvas.Font := si.Control.Font;
+    si.Control.Width := Canvas.TextWidth(si.Control.Caption) + 8;
+    Inc(i);
   end;
 
   statusbar.Update;
@@ -1191,13 +1260,14 @@ begin
   ApplyFilter;
 end;
 
-procedure TMMMainForm.panHighlightDblClick(Sender: TObject);
+procedure TMMMainForm.panSearchDblClick(Sender: TObject);
 var
   i: Integer;
 begin
-  for i := 0 to High(FHighLights) do
-    if FHighlights[i].Control = Sender then
-      FActiveHighlight := i;
+  FActiveSearch := TComponent(Sender).Tag;
+  for i := 0 to High(FSearchInfos) do
+    if FSearchInfos[i].Control = Sender then
+      FActiveSearch := i;
 
   UpdateStatusBar;
 end;

@@ -18,17 +18,21 @@ type
     action: TMMFilterAction;
   end;
 
+  TMMFilterType = (ftFilter, ftHighlight);
+
   TMMFilters = class(TObjectList<TMMFilter>)
   private
     FContext: TMMDataContext;
     FColumns: TMMColumns;
+    FFilterType: TMMFilterType;
   public
-    constructor Create(AContext: TMMDataContext);
+    constructor Create(AContext: TMMDataContext; AFilterType: TMMFilterType);
     destructor Destroy; override;
     procedure LoadDefault;
     function LoadFromJSON(definition: string): Boolean;
     procedure SaveToJSON(var definition: string);
     property Columns: TMMColumns read FColumns;
+    property FilterType: TMMFilterType read FFilterType;
   end;
 
 const
@@ -51,9 +55,10 @@ uses
 
 { TMMFilters }
 
-constructor TMMFilters.Create(AContext: TMMDataContext);
+constructor TMMFilters.Create(AContext: TMMDataContext; AFilterType: TMMFilterType);
 begin
   inherited Create;
+  FFilterType := AFilterType;
   FContext := AContext;
   FColumns := TMMColumns.Create(AContext);
   FColumns.LoadAll;
@@ -69,15 +74,19 @@ procedure TMMFilters.LoadDefault;
 var
   f: TMMFilter;
 begin
-  // Exclude msgmon by default
   Clear;
-  f := TMMFilter.Create;
-  f.column := FColumns.FindClassName(TMMColumn_ProcessName.ClassName);
-  Assert(Assigned(f.column));
-  f.relation := frBeginsWith;
-  f.value := 'msgmon';
-  f.action := faExclude;
-  Add(f);
+
+  if FFilterType = ftFilter then
+  begin
+    // Exclude msgmon by default
+    f := TMMFilter.Create;
+    f.column := FColumns.FindClassName(TMMColumn_ProcessName.ClassName);
+    Assert(Assigned(f.column));
+    f.relation := frBeginsWith;
+    f.value := 'msgmon';
+    f.action := faExclude;
+    Add(f);
+  end;
 end;
 
 function TMMFilters.LoadFromJSON(definition: string): Boolean;

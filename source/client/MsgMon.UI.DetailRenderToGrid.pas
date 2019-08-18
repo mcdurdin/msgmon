@@ -9,24 +9,26 @@ uses
   Vcl.Graphics,
   Vcl.Grids,
   Vcl.ExtCtrls,
+  Vcl.Menus,
 
-  MsgMon.System.Data.MessageDetail;
+  MsgMon.System.Data.MessageDetail,
+  MsgMon.System.Data.Search;
 
 type
-  THighlightInfo = record
-    Text: string;
-    Color: TColor;
+  TSearchInfo = record
+    Search: TMMSearch;
     Control: TPanel;
+    MenuItem: TMenuItem;
   end;
 
-  THighlightInfoArray = array of THighlightInfo;
+  TSearchInfoArray = array of TSearchInfo;
 
   TDetailGridController = class
     class procedure Render(d: TMessageDetails; grid: TStringGrid);
     class function GetClickContext(grid: TStringGrid; var data: Integer): TMessageDetailRowType;
     class procedure Resize(grid: TStringGrid);
 
-    class procedure DrawCellText(ACanvas: TCanvas; ARect: TRect; t: string; highlights: THighlightInfoArray; DrawHighlight: Boolean);
+    class procedure DrawCellText(ACanvas: TCanvas; ARect: TRect; t: string; highlights: TSearchInfoArray; DrawHighlight: Boolean);
 
   end;
 
@@ -38,7 +40,7 @@ uses
 { TDetailRenderToGrid }
 
 class procedure TDetailGridController.DrawCellText(ACanvas: TCanvas;
-  ARect: TRect; t: string; highlights: THighlightInfoArray; DrawHighlight: Boolean);
+  ARect: TRect; t: string; highlights: TSearchInfoArray; DrawHighlight: Boolean);
 type
   TTextRun = record
     t: string;
@@ -47,7 +49,7 @@ type
 
   TTextRuns = array of TTextRun;
 
-  function SplitTextByHighlights(t: string; highlights: THighlightInfoArray): TTextRuns;
+  function SplitTextByHighlights(t: string; highlights: TSearchInfoArray): TTextRuns;
   var
     I, n, x0, x: Integer;
   begin
@@ -57,9 +59,9 @@ type
       n := -1; x := MaxInt;
       for I := Low(highlights) to High(highlights) do
       begin
-        if highlights[I].Text <> '' then
+        if (highlights[I].Search <> nil) and (highlights[I].Search.Text <> '') then
         begin
-          x0 := Pos(highlights[I].Text, t);
+          x0 := Pos(highlights[I].Search.Text, t);
           if (x0 > 0) and (x0 < x) then
           begin
             x := x0;
@@ -73,9 +75,9 @@ type
         SetLength(Result, Length(Result)+2);
         Result[High(Result)-1].t := Copy(t, 1, x-1);
         Result[High(Result)-1].Color := clNone;
-        Result[High(Result)].t := Copy(t, x, Length(highlights[n].Text));
-        Result[High(Result)].Color := highlights[n].Color;
-        Delete(t, 1, x + Length(highlights[n].Text) - 1);
+        Result[High(Result)].t := Copy(t, x, Length(highlights[n].Search.Text));
+        Result[High(Result)].Color := highlights[n].Search.Color;
+        Delete(t, 1, x + Length(highlights[n].Search.Text) - 1);
       end
       else
         Break;

@@ -26,7 +26,8 @@ uses
   MsgMon.System.Data.Thread in 'MsgMon.System.Data.Thread.pas',
   MsgMon.UI.DetailRenderToGrid in 'MsgMon.UI.DetailRenderToGrid.pas',
   Vcl.Themes,
-  Vcl.Styles;
+  Vcl.Styles,
+  MsgMon.System.Data.Search in 'MsgMon.System.Data.Search.pas';
 
 {$R *.res}
 

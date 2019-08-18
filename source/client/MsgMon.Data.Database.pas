@@ -39,7 +39,7 @@ type
     procedure LoadColumns;
     procedure SaveColumns;
   public
-    constructor Create(const AFilename, ALastFilterDefinition, ALastHighlightDefinition, ALastColumnsDefinition: string);
+    constructor Create(const AFilename, ALastFilterDefinition, ALastHighlightDefinition, ALastColumnsDefinition, ALastSearchDefinition: string);
     destructor Destroy; override;
 
     procedure ApplyFilter;
@@ -60,13 +60,13 @@ implementation
 
 { TMMDatabase }
 
-constructor TMMDatabase.Create(const AFilename, ALastFilterDefinition, ALastHighlightDefinition, ALastColumnsDefinition: string);
+constructor TMMDatabase.Create(const AFilename, ALastFilterDefinition, ALastHighlightDefinition, ALastColumnsDefinition, ALastSearchDefinition: string);
 begin
   inherited Create;
   FFilename := AFilename;
   FContext := TMMDataContext.Create;
   FSession := TMMSession.Create(FContext);
-  session.LoadDefault(ALastFilterDefinition, ALastHighlightDefinition, ALastColumnsDefinition);
+  session.LoadDefault(ALastFilterDefinition, ALastHighlightDefinition, ALastColumnsDefinition, ALastSearchDefinition);
 
   Load;
 end;

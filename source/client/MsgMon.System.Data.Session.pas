@@ -5,7 +5,8 @@ interface
 uses
   MsgMon.System.Data.Context,
   MsgMon.System.Data.Filter,
-  MsgMon.System.Data.Column;
+  MsgMon.System.Data.Column,
+  MsgMon.System.Data.Search;
 
 type
   TMMSession = class
@@ -13,13 +14,12 @@ type
     FContext: TMMDataContext;
   public
     highlights, filters: TMMFilters;
+    searches: TMMSearches;
     displayColumns: TMMColumns;
     allColumns: TMMColumns;
     constructor Create(AContext: TMMDataContext);
     destructor Destroy; override;
-    procedure LoadFromFile(const Filename: string);
-    procedure SaveToFile(const Filename: string);
-    procedure LoadDefault(ALastFilterDefinition, ALastHighlightDefinition, ALastColumnDefinition: string);
+    procedure LoadDefault(ALastFilterDefinition, ALastHighlightDefinition, ALastColumnDefinition, ALastSearchDefinition: string);
   end;
 
 implementation
@@ -30,10 +30,11 @@ constructor TMMSession.Create(AContext: TMMDataContext);
 begin
   inherited Create;
   FContext := AContext;
-  filters := TMMFilters.Create(AContext);
-  highlights := TMMFilters.Create(AContext);
+  filters := TMMFilters.Create(AContext, ftFilter);
+  highlights := TMMFilters.Create(AContext, ftHighlight);
   displayColumns := TMMColumns.Create(AContext);
   allColumns := TMMColumns.Create(AContext);
+  searches := TMMSearches.Create;
 end;
 
 destructor TMMSession.Destroy;
@@ -42,9 +43,10 @@ begin
   allColumns.Free;
   filters.Free;
   highlights.Free;
+  searches.Free;
 end;
 
-procedure TMMSession.LoadDefault(ALastFilterDefinition, ALastHighlightDefinition, ALastColumnDefinition: string);
+procedure TMMSession.LoadDefault(ALastFilterDefinition, ALastHighlightDefinition, ALastColumnDefinition, ALastSearchDefinition: string);
 begin
   allColumns.LoadAll;
 
@@ -59,16 +61,10 @@ begin
   if (ALastHighlightDefinition = '') or
       not highlights.LoadFromJSON(ALastHighlightDefinition)
     then highlights.LoadDefault;
-end;
 
-procedure TMMSession.LoadFromFile(const Filename: string);
-begin
-
-end;
-
-procedure TMMSession.SaveToFile(const Filename: string);
-begin
-
+  if (ALastSearchDefinition = '') or
+      not searches.LoadFromJSON(ALastSearchDefinition)
+    then searches.LoadDefault;
 end;
 
 end.
