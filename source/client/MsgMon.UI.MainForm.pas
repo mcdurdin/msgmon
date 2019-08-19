@@ -625,11 +625,10 @@ begin
     t := db.session.displayColumns[ACol].Render(currentMessage);
   end;
 
-  db.InitializeFilter(db.Session.highlights); // TODO: Refactor this for when changes are made to the filter
+  db.InitializeFilter(db.Session.highlights); // TODO: Refactor this to when changes are made to the filter; silly to do this for every paint
   if (ARow > 0) and (db.Session.highlights.Count > 0) and db.DoesFilterMatchMessage(db.Session.highlights, currentMessage) then
   begin
     gridMessages.Canvas.Brush.Color := RGB($FF, $C0, $c0);
-//    gridMessages.Canvas.Font.Color := clWhite;
   end;
 
   TDetailGridController.DrawCellText(gridMessages.Canvas, ARect, t, FSearchInfos, ARow > 0);

@@ -383,6 +383,7 @@ object MMMainForm: TMMMainForm
       end
       object mnuMessageFind: TMenuItem
         Caption = '&Find...'
+        ShortCut = 16454
         OnClick = mnuMessageFindClick
       end
       object mnuMessageFindPrevious: TMenuItem
