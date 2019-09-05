@@ -13,6 +13,7 @@ Windows user message monitor in the style of procmon.
 
 1. From a git bash prompt, in the root of the repo, run `./configure.sh`. This configures Windows SDK versions
 2. From the `source/` folder, run `./build.sh` (optionally, with `-debug` parameter).
+3. If you modify the .vcxproj projects, you need to merge the changes in to the .vcxproj.in projects (these exist to allow for differing Windows SDK versions)
 
 # TODO
 
@@ -31,6 +32,8 @@ Windows user message monitor in the style of procmon.
     - Add filtering on window visibility, enabled state
     - Add row highlight filters
     - Reset filter button in dialog doesn't work
+    - Apply button in Filter should be A&pply.
+    - Remove filter should fill the parameter controls with the removed data
   - Link to MSDN on WM_*?
   - Highlight window in window tree when clicking on hwnd
 
@@ -54,6 +57,25 @@ Windows user message monitor in the style of procmon.
 8. What data is redundant in each message? (PID, TID)
 
 9. Allow for command-line based trace recording, so we can avoid having the GUI app for remote use.
+
+***
+1. Search is case sensitive
+2. Ctrl+F is not working
+3. May need more than 4 search params?
+4. Window treeview should show state at time of selected message.
+5. Window treeview should also use filters for process name, pid, thread.
+6. Window treeview should show icons for apps and windows, and a B&W thread icon.
+7. This all means that Window treeview should be implemented as a custom draw control rather than a TTreeView which has sucky perf.
+8. A change to how the capture works, to correspond with all this. The capture should be recording transforms from an initial window snapshot, with each thread mapped independently.
+
+* For perf reasons, periodically, the whole transformed snapshot should be written out to the database while converting the trace?
+
+* When a window has a parent from another thread, the child window thread should be responsible for documenting the ownership and this needs to be presented appropriately in the treeview.
+
+* Include/Exclude on window handle fails (int vs hex discrepancy?)
+
+9. Add message time to trace view.
+
 
 # Data Model
 
