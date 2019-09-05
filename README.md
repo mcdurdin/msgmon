@@ -34,8 +34,16 @@ Windows user message monitor in the style of procmon.
     - Reset filter button in dialog doesn't work
     - Apply button in Filter should be A&pply.
     - Remove filter should fill the parameter controls with the removed data
+  - Copy selected rows on Ctrl+C; also right-click shows selected row count off by 1
   - Link to MSDN on WM_*?
   - Highlight window in window tree when clicking on hwnd
+  - Start Trace should have an Administrator elevation icon on it if not already running as Admin (and then do the hoops); 
+    this is because, according to docs for StartTrace:
+
+      > Only users with administrative privileges, users in the Performance Log Users group, and services running as
+      > LocalSystem, LocalService, NetworkService can control event tracing sessions. To grant a restricted user the
+      > ability to control trace sessions, add them to the Performance Log Users group. Only users with 
+      > administrative privileges and services running as LocalSystem can control an NT Kernel Logger session.
 
 4. Trace comparisons
 

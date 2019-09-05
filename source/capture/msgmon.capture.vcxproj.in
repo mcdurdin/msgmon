@@ -72,26 +72,26 @@
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <LinkIncremental>true</LinkIncremental>
-    <OutDir>$(SolutionDir)..\..\build\bin\$(Configuration)\</OutDir>
-    <IntDir>$(SolutionDir)..\..\build\obj\x86\$(Configuration)\capture\</IntDir>
+    <OutDir>$(ProjectDir)..\..\build\bin\$(Configuration)\</OutDir>
+    <IntDir>$(ProjectDir)..\..\build\obj\x86\$(Configuration)\capture\</IntDir>
     <TargetName>$(ProjectName).x86</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <LinkIncremental>true</LinkIncremental>
-    <OutDir>$(SolutionDir)..\..\build\bin\$(Configuration)\</OutDir>
-    <IntDir>$(SolutionDir)..\..\build\obj\x64\$(Configuration)\capture\</IntDir>
+    <OutDir>$(ProjectDir)..\..\build\bin\$(Configuration)\</OutDir>
+    <IntDir>$(ProjectDir)..\..\build\obj\x64\$(Configuration)\capture\</IntDir>
     <TargetName>$(ProjectName).x64</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>$(SolutionDir)..\..\build\bin\$(Configuration)\</OutDir>
-    <IntDir>$(SolutionDir)..\..\build\obj\x86\$(Configuration)\capture\</IntDir>
+    <OutDir>$(ProjectDir)..\..\build\bin\$(Configuration)\</OutDir>
+    <IntDir>$(ProjectDir)..\..\build\obj\x86\$(Configuration)\capture\</IntDir>
     <TargetName>$(ProjectName).x86</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <LinkIncremental>false</LinkIncremental>
-    <OutDir>$(SolutionDir)..\..\build\bin\$(Configuration)\</OutDir>
-    <IntDir>$(SolutionDir)..\..\build\obj\x64\$(Configuration)\capture\</IntDir>
+    <OutDir>$(ProjectDir)..\..\build\bin\$(Configuration)\</OutDir>
+    <IntDir>$(ProjectDir)..\..\build\obj\x64\$(Configuration)\capture\</IntDir>
     <TargetName>$(ProjectName).x64</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">

@@ -60,14 +60,14 @@ BOOL StartMsgMonTrace(wchar_t *logfile, BOOL overwrite) {
     // We'll stop it and restart it
     status = ControlTraceW(FSessionHandle, SESSION_NAME, pSessionProperties, EVENT_TRACE_CONTROL_STOP);
     if (ERROR_SUCCESS != status) {
-      std::cout << "ControlTrace failed with error " << status << std::endl;
+      MMLogError(L"ControlTrace failed with error %d", status);
       StopMsgMonTrace();
       return FALSE;
     }
     status = StartTrace(&FSessionHandle, SESSION_NAME, pSessionProperties);
   }
   if (ERROR_SUCCESS != status) {
-    std::cout << "StartTrace failed with error " << status << std::endl;
+    MMLogError(L"StartTrace failed with error %d", status);
     StopMsgMonTrace();
     return FALSE;
   }
@@ -94,7 +94,7 @@ BOOL StartMsgMonTrace(wchar_t *logfile, BOOL overwrite) {
   );
 
   if (ERROR_SUCCESS != status) {
-    std::cout << "EnableTraceEx2 failed with error " << status << std::endl;
+    MMLogError(L"EnableTraceEx2 failed with error %d", status);
     StopMsgMonTrace();
     return FALSE;
   }
@@ -107,7 +107,7 @@ void StopMsgMonTrace() {
 
     ULONG status = ControlTrace(FSessionHandle, SESSION_NAME, pSessionProperties, EVENT_TRACE_CONTROL_STOP);
     if (ERROR_SUCCESS != status) {
-      //OutputDebugString(PChar('ControlTrace failed with ' + IntToStr(status) + ' ' + SysErrorMessage(status)));
+      MMLogError(L"ControlTrace failed with %d", status);
     }
 
     FSessionHandle = NULL;
@@ -122,37 +122,65 @@ void StopMsgMonTrace() {
 BOOL Capture(wchar_t *eventName, wchar_t *logfile, BOOL overwrite) {
   MSG msg;
   BOOL bResult = FALSE;
+  DWORD mode;
+  HANDLE hstdin = NULL;
+  HANDLE hEvent = NULL;
 
-  HANDLE hEvent = OpenEvent(SYNCHRONIZE, FALSE, eventName);
-  if (!hEvent) {
-    std::cout << "Capture: OpenEvent failed (GLE=" << GetLastError() << ")" << std::endl;
-    goto cleanup;
+  if (eventName) {
+	  hEvent = OpenEvent(SYNCHRONIZE, FALSE, eventName);
+	  if (!hEvent) {
+      MMLogError(L"Capture: OpenEvent failed with error %d", GetLastError());
+		  goto cleanup;
+	  }
   }
+  else {
+    // Switch to raw mode
+    hstdin = GetStdHandle(STD_INPUT_HANDLE);
+    GetConsoleMode(hstdin, &mode);
+    SetConsoleMode(hstdin, 0);
+
+    MMShowInfo(L"Press any key to end trace.");
+  }
+  
+  HANDLE hWaitObject = hEvent ? hEvent : hstdin;
 
 #ifndef _WIN64
   // Start the trace, only on x86 host (x64 host will piggy back)
   if (!StartMsgMonTrace(logfile, overwrite)) {
-    std::cout << "Capture: StartMsgMonTrace failed" << std::endl;
+    MMLogError(L"Capture: StartMsgMonTrace failed");
     goto cleanup;
   }
 #endif
 
   if (!BeginLog()) {
-    std::cout << "BeginLog failed (GLE=" << GetLastError() << ")" << std::endl;
+    MMLogError(L"BeginLog failed (GLE=%d)", GetLastError());
     goto cleanup;
   }
 
   bResult = TRUE;
 
-  //WaitForSingleObject(hEvent, INFINITE);
-  // Because we are running a hook, it's a good idea to run our own message loop.
-  while (MsgWaitForMultipleObjects(1, &hEvent, FALSE, INFINITE, QS_ALLINPUT) == WAIT_OBJECT_0 + 1) {
-    while (PeekMessage(&msg, NULL, NULL, NULL, PM_REMOVE)) {
-      DispatchMessage(&msg);
-    }
+	// Because we are running a hook, it's a good idea to run our own message loop.
+	while (MsgWaitForMultipleObjects(1, &hWaitObject, FALSE, INFINITE, QS_ALLINPUT) == WAIT_OBJECT_0 + 1) {
+		while (PeekMessage(&msg, NULL, NULL, NULL, PM_REMOVE)) {
+			DispatchMessage(&msg);
+		}
+	}
+
+  if (hstdin) {
+    // Flush console and restore
+    WCHAR ch;
+    DWORD count;
+
+    // Read the (single) key pressed
+    ReadConsole(hstdin, &ch, 1, &count, NULL);
+  }
+  
+cleanup:
+  if (hstdin) {
+    // Restore the console to its previous state
+    SetConsoleMode(hstdin, mode);
   }
 
-cleanup:
   if (hEvent != NULL) {
     CloseHandle(hEvent);
   }

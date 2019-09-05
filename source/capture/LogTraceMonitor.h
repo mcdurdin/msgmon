@@ -132,3 +132,4 @@ void LogProcess();
 PTHREADDATA ThreadData();
 PPROCESSDATA ProcessData();
 
+#include "../shared/mmlog.h"

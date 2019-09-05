@@ -4,6 +4,8 @@ extra/
 # Visual Studio local files
 
 **/.vs/
+*.vcxproj.user
+*.vcxproj.filters
 
 # VS, Delphi local files
 
@@ -20,3 +22,4 @@ extra/
 
 source/capture/msgmon.capture.vcxproj
 source/recorder/msgmon.recorder.vcxproj
+

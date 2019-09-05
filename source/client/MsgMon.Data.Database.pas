@@ -94,6 +94,11 @@ begin
   db := TSQLite3Database.Create;
   db.Open(FFilename);
 
+  db.Execute('CREATE TABLE IF NOT EXISTS FilterKey (filter_id INT, filter_row INT, row INT)');
+  db.Execute('CREATE INDEX IF NOT EXISTS ix_FilterKey_filterid ON FilterKey (filter_id, filter_row)');
+  db.Execute('CREATE TABLE IF NOT EXISTS Filter (filter_id INT, definition TEXT)');
+  db.Execute('CREATE TABLE IF NOT EXISTS Settings (id TEXT, value TEXT)');
+
   stmt := TSQLite3Statement.Create(db, 'SELECT COUNT(*) FROM Message');
   try
     stmt.Step;
@@ -176,10 +181,6 @@ begin
     stmt.Free;
   end;
 
-  db.Execute('CREATE TABLE IF NOT EXISTS FilterKey (filter_id INT, filter_row INT, row INT)');
-  db.Execute('CREATE INDEX IF NOT EXISTS ix_FilterKey_filterid ON FilterKey (filter_id, filter_row)');
-  db.Execute('CREATE TABLE IF NOT EXISTS Filter (filter_id INT, definition TEXT)');
-  db.Execute('CREATE TABLE IF NOT EXISTS Settings (id TEXT, value TEXT)');
   LoadFilter(session.filters, ftFilter);
   LoadFilter(session.highlights, ftHighlight);
   LoadColumns;
@@ -322,8 +323,9 @@ begin
           stmt.ColumnInt64(13),       // 'lParam');
           stmt.ColumnInt64(14),       // 'lResult');
           stmt.ColumnInt(15),         // 'mode');
-          stmt.ColumnBlob(16),        // 'detail');
-          stmt.ColumnBytes(16)        // sizeof(detail)
+          stmt.ColumnText(16)
+//          stmt.ColumnBlob(16),        // 'detail');
+//          stmt.ColumnBytes(16)        // sizeof(detail)
         );
         try
     //      stmt.Reset;
@@ -379,8 +381,9 @@ begin
     stmtMessage.ColumnInt64(13),       // 'lParam');
     stmtMessage.ColumnInt64(14),       // 'lResult');
     stmtMessage.ColumnInt(15),         // 'mode');
-    stmtMessage.ColumnBlob(16),        // 'detail');
-    stmtMessage.ColumnBytes(16)
+    stmtMessage.ColumnText(16)
+//    stmtMessage.ColumnBlob(16),        // 'detail');
+//    stmtMessage.ColumnBytes(16)
   );
 
   stmtMessage.Reset;

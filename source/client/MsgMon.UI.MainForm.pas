@@ -154,6 +154,7 @@ type
     procedure mnuMessageFindNextClick(Sender: TObject);
     procedure dlgFindFind(Sender: TObject);
   private
+    type TLogLevel = (llInfo, llWarning, llError, llDebug);
   private
     db: TMMDatabase;
     FFilename: string;
@@ -177,6 +178,8 @@ type
     FSearchInfos: TSearchInfoArray;
     FActiveSearch: Integer;
 
+    procedure Log(LogLevel: TLogLevel; Msg: string); overload;
+    procedure Log(LogLevel: TLogLevel; Msg: string; const Args: array of const); overload;
     procedure gridMessagesColWidthsChanged(Sender: TObject);
     procedure BeginLogProcesses;
     procedure EndLogProcesses;
@@ -355,12 +358,14 @@ end;
 
 procedure TMMMainForm.EnableTrace;
 begin
+  Log(llInfo, 'Starting trace; recording to %s', [FFilename]);
   BeginLogProcesses;
   UpdateStatusBar('Recording trace to '+FFilename);
 end;
 
 procedure TMMMainForm.DisableTrace;
 begin
+  Log(llInfo, 'Stopping trace; recorded to %s', [FFilename]);
   UpdateStatusBar('Stopping trace, please wait.');
   EndLogProcesses;
   LoadDatabase(FFilename);
@@ -391,8 +396,8 @@ begin
 
   BeginLogCaptureProcess;
 
-  if fIsWow64 then
-    BeginLogCaptureX64Process;
+//  if fIsWow64 then
+//    BeginLogCaptureX64Process;
 
   BeginLogStoreProcess(shouldAppend);
 end;
@@ -450,16 +455,14 @@ procedure TMMMainForm.EndLogProcesses;
       msg := msg + '. The error ('+IntToStr(code)+') was '+SysErrorMessage(GetLastError);
 
     UpdateStatusBar(msg);
-    memoLog.Lines.Add(msg);
+    Log(llError, msg);
   end;
 
   procedure ReportProcessResult(p: TRunConsoleApp);
   var
     a: string;
   begin
-    memoLog.Text := memoLog.Text +
-      PIDPrefix(p.PID) +
-      p.CommandLine + #13#10;
+    Log(llInfo, PIDPrefix(p.PID) + p.CommandLine);
 
     a := ExtractFileName(p.App);
     if not p.RunResult then
@@ -467,9 +470,8 @@ procedure TMMMainForm.EndLogProcesses;
     else if p.ExitCode <> 0 then
       ReportProcessError(p.PID, a, 'failed with exit code '+IntToStr(p.ExitCode));
 
-    memoLog.Text := memoLog.Text +
-      p.LogText + #13#10 +
-      #13#10;
+    Log(llInfo, p.LogText);
+    Log(llInfo, '');
   end;
 begin
   Assert(Assigned(FTraceEvent));
@@ -547,7 +549,11 @@ procedure TMMMainForm.gridMessagesClick(Sender: TObject);
 var
   index: Integer;
 begin
+  if gridMessages.Row = 0 then
+    Exit;
+
   index := gridMessages.Row - 1;
+
   if not LoadMessageRow(index) then
     Exit;
 
@@ -838,6 +844,18 @@ begin
   Result := True;
 end;
 
+procedure TMMMainForm.Log(LogLevel: TLogLevel; Msg: string;
+  const Args: array of const);
+begin
+  Log(LogLevel, Format(Msg, Args));
+end;
+
+procedure TMMMainForm.Log(LogLevel: TLogLevel; Msg: string);
+begin
+  // TODO: use LogLevel for highlighting?
+  memoLog.Lines.Add(Msg);
+end;
+
 procedure TMMMainForm.PrepareView;
 var
   c: TMMColumn;
@@ -1024,7 +1042,7 @@ begin
     except
       on E:Exception do
       begin
-        memoLog.Lines.Add('Error '+E.ClassName+' loading database '+AFilename+': '+E.Message);
+        Log(llError, 'Error %s loading database %s: %s', [E.ClassName, AFilename, E.Message]);
         Exit(False);
       end;
     end;

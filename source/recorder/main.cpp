@@ -32,10 +32,6 @@ int wmain(int argc, wchar_t *argv[])
     PrintUsage();
     return 0; // not an error
   case ACTION_CAPTURE:
-    if (cmdline.eventName == NULL) {
-      puts("Event name is required.");
-      return 3;
-    }
     return Capture(cmdline.eventName, cmdline.logfile, cmdline.overwrite) ? 0 : 1;
 #ifndef _WIN64
   case ACTION_STORE:
@@ -112,3 +108,5 @@ void PrintUsage() {
   puts("  -f, --overwrite    Deletes existing output file; if not specified, appends to it");
 #endif
 }
+
+

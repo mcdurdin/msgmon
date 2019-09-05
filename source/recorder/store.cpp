@@ -30,27 +30,31 @@ BOOL Store(wchar_t *logfile, wchar_t *database, BOOL overwrite) {
   DWORD status;
 
   if (!CreateDatabase(database, overwrite)) {
-    std::cout << "Failed to CreateDatabase" << std::endl;
+    MMLogError(L"CreateDatabase failed");
     return FALSE;
   }
 
   if (!LoadTrace(logfile)) {
-    std::cout << "Failed to LoadTrace" << std::endl;
+    MMLogError(L"LoadTrace failed");
     return FALSE;
   }
 
   int repeat = 0;
 
+  MMLogInfo(L"Starting to process trace from %s into %s", logfile ? logfile : L"realtime session", database);
+  
   do {
     status = ProcessTrace(&hTrace, 1, NULL, NULL);
     if (status != ERROR_SUCCESS) {
-      std::cout << "Failed to ProcessTrace with " << status << ". Waiting 0.1 seconds" << std::endl;
+      MMLogError(L"ProcessTrace is not ready (received error %d). Waiting 0.1 seconds");
       Sleep(100);
       if (++repeat > 20) break;
     }
   } while (status != ERROR_SUCCESS);
 
   CloseTrace(hTrace);
+
+  MMLogInfo(L"Finishing trace");
 
   CommitTransaction();
   FreeStatements();
@@ -77,7 +81,7 @@ BOOL LoadTrace(PTSTR szPath) {
 
   hTrace = OpenTrace(&trace);
   if (hTrace == INVALID_PROCESSTRACE_HANDLE) {
-    std::cout << GetLastError() << std::endl;
+    MMLogError(L"OpenTrace failed with error %d", GetLastError());
     return FALSE;
   }
 
@@ -95,7 +99,7 @@ void WINAPI EventRecordCallback(PEVENT_RECORD event) {
     // realtime trace, in the future
     if (!CommitTransaction()) return;
     if (!BeginTransaction()) return;
-    std::cout << recordNum << std::endl;
+    MMShowInfo(L"... %d records", recordNum);
   }
 
   DWORD status = TdhGetEventInformation(event, 0, NULL, pInfo, &pInfoBufferSize);
@@ -105,50 +109,56 @@ void WINAPI EventRecordCallback(PEVENT_RECORD event) {
     status = TdhGetEventInformation(event, 0, NULL, pInfo, &pInfoBufferSize);
   }
 
-  if (status != ERROR_SUCCESS) return;
+  if (status != ERROR_SUCCESS) {
+    MMLogError(L"Failed to get event information with error %d", status);
+    return;
+  }
 
-  if (pInfo->TaskNameOffset == 0) return;
+  if (pInfo->TaskNameOffset == 0) {
+    MMLogError(L"Event has no task name");
+    return;
+  }
 
   PWSTR pTask = (PWSTR)((PBYTE)(pInfo)+pInfo->TaskNameOffset);
   if (wcscmp(pTask, L"Message") == 0) {
     if (!CreateTable(pTask, event, pInfo, &msgIndex)) {
-      std::cout << "Failed to create Message table" << std::endl;
+      MMLogError(L"Failed to create Message table");
       return;
     }
     if (!InsertRecord(msgIndex++, pTask, event, pInfo)) {
-      std::cout << "Failed to insert Message record" << std::endl;
+      MMLogError(L"Failed to insert Message record");
       return;
     }
   }
   else if (wcscmp(pTask, L"Window") == 0) {
     if (!CreateTable(pTask, event, pInfo, &windowIndex)) {
-      std::cout << "Failed to create Window table" << std::endl;
+      MMLogError(L"Failed to create Window table");
       return;
     }
     if (!InsertRecord(windowIndex++, pTask, event, pInfo)) {
-      std::cout << "Failed to insert Window record" << std::endl;
+      MMLogError(L"Failed to insert Window record");
       return;
     }
   }
   else if (wcscmp(pTask, L"Process") == 0) {
     if (!CreateTable(pTask, event, pInfo, &processIndex)) {
-      std::cout << "Failed to create Process table" << std::endl;
+      MMLogError(L"Failed to create Process table");
       return;
     }
     if (!InsertRecord(processIndex++, pTask, event, pInfo)) {
-      std::cout << "Failed to insert Process record" << std::endl;
+      MMLogError(L"Failed to insert Process record");
       return;
     }
   }
   else {
-    std::wcout << "Unexpected event " << pTask << std::endl;
+    MMLogError(L"Received an event with an unexpected name '%s'", pTask);
     return;
   }
 }
 
 BOOL Check(int value) {
   if (value != SQLITE_OK) {
-    std::cout << "sqlite3 failed with code: " << value << ", message: " << sqlite3_errmsg(db) << std::endl;
+    MMLogError(L"sqlite3 failed with code: %d, message: %S", value, sqlite3_errmsg(db));
     return FALSE;
   }
   return TRUE;
@@ -166,7 +176,7 @@ BOOL GetEventProperties(PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO 
   ULONG sz;
   DWORD status = TdhGetPropertySize(event, 0, NULL, 1, &pdd, &sz);
   if (status != ERROR_SUCCESS) {
-    std::wcout << "Table " << tableName << " failed to get property size with error " << status << std::endl;
+    MMLogError(L"Table %s failed to get property size with error %d", tableName, status);
     return FALSE;
   }
 
@@ -185,7 +195,7 @@ BOOL GetEventProperties(PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO 
     propertyBuf[sz] = 0;
     propertyBuf[sz + 1] = 0;
     if (status != ERROR_SUCCESS) {
-      std::wcout << "Table " << tableName << " failed to get property with error " << status << std::endl;
+      MMLogError(L"Table %s failed to get property with error %d", tableName, status);
       return FALSE;
     }
     return TRUE;
@@ -238,7 +248,7 @@ BOOL CreateTable(PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO info, i
       strcat_s(buf, bufSize, " BLOB");
       break;
     default:
-      std::wcout << propertyName << " has type " << pInfo->EventPropertyInfoArray[i].nonStructType.InType << std::endl;
+      MMLogError(L"Table has a property %s with unexpected type %d", propertyName, pInfo->EventPropertyInfoArray[i].nonStructType.InType);
       return FALSE;
     }
   }
@@ -316,7 +326,7 @@ BOOL InsertRecord(int index, PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_
         if (!Check(sqlite3_bind_blob(stmt->second, col, propertyBuf, currentPropertyBufSize, SQLITE_STATIC))) return FALSE;
       break;
     default:
-      std::wcout << "Property " << propertyName << " has type " << pInfo->EventPropertyInfoArray[i].nonStructType.InType << std::endl;
+      MMLogError(L"Table has a property %s with unexpected type %d", propertyName, pInfo->EventPropertyInfoArray[i].nonStructType.InType);
       return FALSE;
     }
 
@@ -325,7 +335,7 @@ BOOL InsertRecord(int index, PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_
 
   int sstatus = sqlite3_step(stmt->second);
   if (sstatus != SQLITE_DONE) {
-    std::wcout << "Table " << tableName << "[" << index << "] failed to insert with code " << sstatus << std::endl;
+    MMLogError(L"Table %s [%d] failed to insert with code %d", tableName, index, sstatus);
     return FALSE;
   }
   if (!Check(sqlite3_reset(stmt->second))) {

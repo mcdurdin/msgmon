@@ -57,8 +57,9 @@ type
       lParam,
       lResult: Int64;
       mode: Integer;
-      const detail: Pointer;
-      detailLength: Integer
+      detail: string
+//      const detail: Pointer;
+//      detailLength: Integer
     );
   end;
 
@@ -69,6 +70,7 @@ type
 implementation
 
 uses
+  System.Classes,
   System.SysUtils;
 
 { TMsgMonMessage }
@@ -89,8 +91,9 @@ constructor TMMMessage.Create(AIndex: Integer;
   lParam,
   lResult: Int64;
   mode: Integer;
-  const detail: Pointer;
-  detailLength: Integer
+  detail: string
+//  const detail: Pointer;
+//  detailLength: Integer
 );
 begin
   inherited Create;
@@ -111,11 +114,19 @@ begin
   Self.lParam := lParam;
   Self.lResult := lResult;
   Self.mode := mode;
-  if detailLength > 0 then
+
+  if Length(detail) > 0 then
   begin
-    SetLength(Self.detail, detailLength);
-    CopyMemory(@Self.detail[0], detail, detailLength);
+    // detail is a hex string; convert to binary
+    SetLength(Self.detail, Length(detail) div 2);
+    HexToBin(PWideChar(detail), @Self.detail[0], Length(Self.detail));
   end;
+
+//  if detailLength > 0 then
+//  begin
+//    SetLength(Self.detail, detailLength);
+//    CopyMemory(@Self.detail[0], detail, detailLength);
+//  end;
 end;
 
 procedure TMMMessage.Fill(processes: TMMProcessDictionary; windows: TMMWindowDictionary; messageNames: TMMMessageNameDictionary);
