@@ -17,6 +17,24 @@ Windows user message monitor in the style of procmon.
 
 # TODO
 
+>> state includes: current focus, current active, parent + owner hierarchy, z-order, window size/position, capture, etc. State transforms need to be captured
+>> but for purpose of rapid spelunking should probably be a complete snapshot for a given window state change, attached to a specific message. This changes the
+>> window table to capture complete state incl. caption, etc. Focus + activation + capture are a single window for the system, but need to investigate how this
+>> works per-thread?
+
+>> UX: The window tree should be refactored to be a point-in-time view:
+    >> allow either parent or owner hierarchy (by process/thread at top level), or flat list grouped by process/thread
+	>> current focus, current active, current capture should all be highlighted
+>> Add a lifetime view: a flat per-thread window list with life diagram highlighting events such as:
+    >> activation
+	>> focus
+	>> movement
+	>> input event
+	>> creation
+	>> destruction
+	>> caption change
+	>> etc.
+
 3. User Interface Improvements
   - time columns
   - add icon
