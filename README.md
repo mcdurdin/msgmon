@@ -32,12 +32,13 @@ Windows user message monitor in the style of procmon.
 	>> input event
 	>> creation
 	>> destruction
-	>> caption change
+	>> caption change [internalgetwindowtext]
 	>> etc.
 
 3. User Interface Improvements
   - time columns
   - add icon
+  - tooltips for long fields
   - suggestions for filter values
   - Drilling into hwnd
   - bookmarks
@@ -100,7 +101,14 @@ Windows user message monitor in the style of procmon.
 
 * Include/Exclude on window handle fails (int vs hex discrepancy?)
 
-9. Add message time to trace view.
+9. Add:
+   * message time to trace view.
+   * InSendMessageEx data
+   * IsWindowUnicode data
+   * layered window attributes
+   * message extra info
+   * process dpi aware; process default layout; window layout (WS_?)
+
 
 
 # Data Model
