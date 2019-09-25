@@ -62,7 +62,7 @@ void LogMessage(DWORD mode, HWND hwnd, DWORD message, WPARAM wParam, LPARAM lPar
 
 	// TODO: handle window destruction to remove from info cache
 
-	LogWindow(hwnd);
+	LogWindow(hwnd, TRUE);
 
 	// These parameters are 64 bit on 64 bit Windows, 32 bit otherwise
 	UINT64 wParam64 = (UINT64)wParam;

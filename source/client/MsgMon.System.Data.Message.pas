@@ -101,6 +101,14 @@ begin
 
   Self.pid := pid;
   Self.tid := tid;
+
+  // This is conceptually state information that doesn't belong per-message
+  // We should move that into state notifications.
+  // thread-level state:
+  //   IsForegroundThread? Set to true when GetWindowThreadProcessId(GetForegroundWindow) = GetCurrentThreadId
+  //   hwndFocus, hwndActive, hwndCapture, hwndCaret, hwndMenuOwner, hwndMoveSize (GetGUIThreadInfo(GetCurrentThreadId)
+  //   activeHKL
+  //   window list.
   Self.hwndFocus := hwndFocus;
   Self.hwndActive := hwndActive;
   Self.hwndCapture := hwndCapture;
@@ -108,6 +116,7 @@ begin
   Self.hwndMenuOwner := hwndMenuOwner;
   Self.hwndMoveSize := hwndMoveSize;
   Self.activeHKL := activeHKL;
+
   Self.hwnd := hwnd;
   Self.message := message;
   Self.wParam := wParam;

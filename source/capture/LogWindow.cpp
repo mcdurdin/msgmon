@@ -4,7 +4,16 @@
 // Log a message
 //
 
-void LogWindow(HWND hwnd) {
+void LogWindow(HWND hwnd, BOOL recordStateChanges) {
+  if (GetWindowThreadProcessId(hwnd, NULL) != GetCurrentThreadId()) {
+    // We don't want to log window data for a window we don't own.
+    return;
+  }
+
+  if (!TraceLoggingProviderEnabled(g_Provider, WINEVENT_LEVEL_INFO, READ_KEYWORD)) {
+    return;
+  }
+
 	PTHREADDATA pThreadData = ThreadData();
 	if (pThreadData == NULL) {
 		// We'll silently fail so we don't spam debug console
@@ -13,21 +22,28 @@ void LogWindow(HWND hwnd) {
 
 	auto v = pThreadData->windows->find(hwnd);
 	if (v != pThreadData->windows->end()) {
-		//TODO: Handle changes to window state here
-//		if(v->second.hwndParent == GetParent(hwnd))
+    // If the window has already been logged, we only want to
+    // record state changes when the window is the recipient
+    // of a message, not if referenced elsewhere.
+    if(!recordStateChanges) 
 			return;
-//		delete v->second;
-	}
-
-	if (!TraceLoggingProviderEnabled(g_Provider, WINEVENT_LEVEL_INFO, READ_KEYWORD)) {
-		return;
 	}
 
 	// First time we've seen this window. Collect details about it and log an event about it
 
 	WINDOWCONSTANTDATA *w = new WINDOWCONSTANTDATA(hwnd);
 
-	(*pThreadData->windows)[hwnd] = w;
+  if (v != pThreadData->windows->end()) {
+    // Only record changes to window data
+    if (*w == *v->second) {
+      delete w;
+      return;
+    }
+      
+    delete v->second;
+  }
+
+  (*pThreadData->windows)[hwnd] = w;
 
 	TraceLoggingWrite(g_Provider, EVENT_WINDOW,
 		TraceLoggingLevel(TRACE_LEVEL_INFORMATION),
@@ -60,4 +76,15 @@ WINDOWCONSTANTDATA::WINDOWCONSTANTDATA(HWND hwnd) {
 
 	this->hwndParent = GetParent(hwnd);
 	this->hwndOwner = GetWindow(hwnd, GW_OWNER);
+}
+
+bool WINDOWCONSTANTDATA::operator==(const WINDOWCONSTANTDATA& w) const {
+  return
+    this->hwnd == w.hwnd &&
+    this->hwndOwner == w.hwndOwner &&
+    this->hwndParent == w.hwndParent &&
+    this->pid == w.pid &&
+    this->tid == w.tid &&
+    this->className.compare(w.className) == 0 &&
+    this->realClassName.compare(w.realClassName) == 0;
 }

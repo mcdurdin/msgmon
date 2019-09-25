@@ -14,9 +14,9 @@ BOOL Detail_WindowPosChanged(HWND hwnd, DWORD message, WPARAM wParam, LPARAM lPa
     case HWND_TOPMOST:
       break;
     default:
-      LogWindow(wp->hwndInsertAfter);
+      LogWindow(wp->hwndInsertAfter, FALSE);
   }
-  LogWindow(wp->hwnd);
+  LogWindow(wp->hwnd, FALSE);
   *nDetail = sizeof(WINDOWPOS);
   return TRUE;
 }
@@ -27,7 +27,7 @@ BOOL Detail_Create(HWND hwnd, DWORD message, WPARAM wParam, LPARAM lParam, LRESU
 	LPCREATESTRUCTW wp = LPCREATESTRUCTW(lParam);
 
 	memcpy(pbDetail, wp, sizeof(CREATESTRUCTW));
-	if(wp->hwndParent != NULL) LogWindow(wp->hwndParent);
+	if(wp->hwndParent != NULL) LogWindow(wp->hwndParent, FALSE);
 	*nDetail = sizeof(CREATESTRUCTW);
 	return TRUE;
 }

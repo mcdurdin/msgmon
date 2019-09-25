@@ -67,21 +67,26 @@ typedef PROCESSDATA *PPROCESSDATA;
 
 class WINDOWCONSTANTDATA {
 public:
+  // When adding new fields, these must be updated in:
+  //   * constructor
+  //   * operator==
+  //   * LogWindow()
+  //   * MsgMon.System.Data.Window.pas::TMMWindow
 	HWND hwnd;
-	DWORD pid, tid;
+  DWORD pid, tid;
 	HWND hwndParent, hwndOwner;
-	std::wstring className;
-	std::wstring realClassName;
-	WINDOWCONSTANTDATA(HWND hwnd);
+
+  //RECT wndRect;
+  //std::wstring caption;
+
+  std::wstring className;
+  std::wstring realClassName;
+
+  WINDOWCONSTANTDATA(HWND hwnd);
+  bool operator==(const WINDOWCONSTANTDATA& w) const;
 };
 
 typedef WINDOWCONSTANTDATA *PWINDOWCONSTANTDATA;
-
-struct WINDOWEVENTDATA {
-	HWND hwnd;
-	RECT wndRect;
-	//std::wstring caption;
-};
 
 class THREADDATA {
 public:
@@ -126,7 +131,7 @@ void OutputDebugError(PWCHAR functionName, PWCHAR target, DWORD dwErr);
 
 
 void LogMessage(DWORD mode, HWND hwnd, DWORD message, WPARAM wParam, LPARAM lParam, LRESULT lResult);
-void LogWindow(HWND hwnd);
+void LogWindow(HWND hwnd, BOOL recordStateChanges);
 void LogProcess();
 
 PTHREADDATA ThreadData();
