@@ -229,6 +229,7 @@ type
     function GetData(data: TMMMessage): string; override;
   end;
 
+(*
   TMMColumn_hWndFocus = class(TMMColumn_Window)
   protected
     class function GetCaption: string; override;
@@ -300,6 +301,7 @@ type
     class function GetCaption: string; override;
     function GetData(data: TMMMessage): Cardinal; override;
   end;
+*)
 
   TMMColumnClassList = class(TClassList)
   protected
@@ -864,6 +866,7 @@ begin
   Result := IntToHex(hwnd, 8);
 end;
 
+(*
 { TMMColumn_hWndFocus }
 
 class function TMMColumn_hWndFocus.GetCaption: string;
@@ -935,6 +938,7 @@ function TMMColumn_hWndMoveSize.GetData(data: TMMMessage): Cardinal;
 begin
   Result := data.hwndMoveSize;
 end;
+*)
 
 { TMMColumn_hWndClass }
 
@@ -989,7 +993,7 @@ var
 begin
   hwnd := GetData(data);
 
-  if FContext.Windows.TryGetValue(hwnd, ws)
+{  if FContext.Windows.TryGetValue(hwnd, ws)
     then w := ws.FromBase(data.index)
     else w := nil;
 
@@ -997,9 +1001,11 @@ begin
   begin
     Result := w.Render(False);
   end
-  else
+  else}
     Result := IntToStr(hwnd);
 end;
+
+(*
 
 { TMMColumn_hWndMoveSize_Class }
 
@@ -1072,6 +1078,7 @@ function TMMColumn_hWndFocus_Class.GetData(data: TMMMessage): Cardinal;
 begin
   Result := data.hwndFocus;
 end;
+*)
 
 { TMMColumns }
 
@@ -1218,18 +1225,18 @@ initialization
   FColumnClasses.Add(TMMColumn_lParam);
   FColumnClasses.Add(TMMColumn_lResult);
   FColumnClasses.Add(TMMColumn_Detail);
-  FColumnClasses.Add(TMMColumn_hWndFocus);
-  FColumnClasses.Add(TMMColumn_hWndFocus_Class);
-  FColumnClasses.Add(TMMColumn_hWndActive);
-  FColumnClasses.Add(TMMColumn_hWndActive_Class);
-  FColumnClasses.Add(TMMColumn_hWndCapture);
-  FColumnClasses.Add(TMMColumn_hWndCapture_Class);
-  FColumnClasses.Add(TMMColumn_hWndCaret);
-  FColumnClasses.Add(TMMColumn_hWndCaret_Class);
-  FColumnClasses.Add(TMMColumn_hWndMenuOwner);
-  FColumnClasses.Add(TMMColumn_hWndMenuOwner_Class);
-  FColumnClasses.Add(TMMColumn_hWndMoveSize);
-  FColumnClasses.Add(TMMColumn_hWndMoveSize_Class);
+//  FColumnClasses.Add(TMMColumn_hWndFocus);
+//  FColumnClasses.Add(TMMColumn_hWndFocus_Class);
+//  FColumnClasses.Add(TMMColumn_hWndActive);
+//  FColumnClasses.Add(TMMColumn_hWndActive_Class);
+//  FColumnClasses.Add(TMMColumn_hWndCapture);
+//  FColumnClasses.Add(TMMColumn_hWndCapture_Class);
+//  FColumnClasses.Add(TMMColumn_hWndCaret);
+//  FColumnClasses.Add(TMMColumn_hWndCaret_Class);
+//  FColumnClasses.Add(TMMColumn_hWndMenuOwner);
+//  FColumnClasses.Add(TMMColumn_hWndMenuOwner_Class);
+//  FColumnClasses.Add(TMMColumn_hWndMoveSize);
+//  FColumnClasses.Add(TMMColumn_hWndMoveSize_Class);
 
   //
   // Default columns

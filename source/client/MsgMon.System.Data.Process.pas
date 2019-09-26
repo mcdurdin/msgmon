@@ -6,6 +6,7 @@ uses
   System.Generics.Collections,
   Winapi.Windows,
 
+  MsgMon.System.Data.Event,
   MsgMon.System.Data.Thread;
 
 const
@@ -13,18 +14,23 @@ const
   PLATFORM_X64 = 2;
 
 type
-  TMMProcess = class
+  TMMProcess = class(TMMEvent)
     base: Integer;
-    pid: DWORD;
     platform_: DWORD;
     processPath, commandLine: string;
     processName: string;
   private
-    FThreads: TMMThreads;
+//    FThreads: TMMThreads;
   public
-    constructor Create(pid, platform_: DWORD; const processPath, commandLine: string; ABase: Integer);
+    constructor Create(
+      timestamp: Int64;
+      pid,
+      tid: Integer;
+      event_id: Int64;
+
+      platform_: DWORD; const processPath, commandLine: string; ABase: Integer);
     destructor Destroy; override;
-    property Threads: TMMThreads read FThreads;
+//    property Threads: TMMThreads read FThreads;
     function Render(IncludePID: Boolean): string;
   end;
 
@@ -42,13 +48,21 @@ uses
 
 { TMsgMonProcess }
 
-constructor TMMProcess.Create(pid, platform_: DWORD; const processPath, commandLine: string; ABase: Integer);
+constructor TMMProcess.Create(
+  timestamp: Int64;
+  pid,
+  tid: Integer;
+  event_id: Int64;
+
+  platform_: DWORD;
+  const processPath,
+  commandLine: string;
+  ABase: Integer);
 begin
-  inherited Create;
+  inherited Create(timestamp, pid, tid, event_id);
 
-  FThreads := TMMThreads.Create;
+//  FThreads := TMMThreads.Create;
 
-  Self.pid := pid;
   Self.platform_ := platform_;
   Self.processPath := processPath;
   Self.commandLine := commandLine;
@@ -73,7 +87,7 @@ end;
 
 destructor TMMProcess.Destroy;
 begin
-  FreeAndNil(FThreads);
+//  FreeAndNil(FThreads);
   inherited Destroy;
 end;
 

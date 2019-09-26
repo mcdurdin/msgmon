@@ -2,6 +2,7 @@
 
 #include <unordered_map>
 
+#include "../shared/mm.h"
 
 // Forward-declare the g_hMyComponentProvider variable that you will use for tracing in this component
 TRACELOGGING_DECLARE_PROVIDER(g_Provider);
@@ -10,9 +11,6 @@ TRACELOGGING_DECLARE_PROVIDER(g_Provider);
 //static const GUID guid_EtwProviderId =
 //{ 0x82e6cc6, 0x239c, 0x4b96,{ 0x94, 0x75, 0x15, 0x9a, 0xa2, 0x41, 0xb4, 0xab } };
 
-#define EVENT_MESSAGE "Message"
-#define EVENT_WINDOW   "Window"
-#define EVENT_PROCESS  "Process"
 
 #define READ_KEYWORD 0x1
 
@@ -88,12 +86,19 @@ public:
 
 typedef WINDOWCONSTANTDATA *PWINDOWCONSTANTDATA;
 
+struct THREADSTATE {
+  BOOL isForegroundThread;
+  GUITHREADINFO gti;
+  HKL activeHKL;
+};
+
 class THREADDATA {
 public:
 	//REGHANDLE etwRegHandle;
 	BOOL inProc;
 	BOOL processLogged;
-	std::unordered_map<HWND, PWINDOWCONSTANTDATA> *windows;
+  THREADSTATE state;
+  std::unordered_map<HWND, PWINDOWCONSTANTDATA> *windows;
 	THREADDATA() {
 		windows = new std::unordered_map<HWND, PWINDOWCONSTANTDATA>;
 	}
@@ -133,6 +138,7 @@ void OutputDebugError(PWCHAR functionName, PWCHAR target, DWORD dwErr);
 void LogMessage(DWORD mode, HWND hwnd, DWORD message, WPARAM wParam, LPARAM lParam, LRESULT lResult);
 void LogWindow(HWND hwnd, BOOL recordStateChanges);
 void LogProcess();
+void LogThread();
 
 PTHREADDATA ThreadData();
 PPROCESSDATA ProcessData();

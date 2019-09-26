@@ -116,7 +116,7 @@ var
   wp: TPair<DWORD, TMMWindows>;
   w: TMMWindow;
 begin
-  tvWindows.Items.BeginUpdate;
+(*  tvWindows.Items.BeginUpdate;
   try
     tvWindows.Items.Clear;
 
@@ -129,14 +129,14 @@ begin
       begin
         // TODO: Use column renderer for TID?
         tnode := tvWindows.Items.AddChildObject(pnode, IntToStr(tp.Value.TID), tp.Value);
-        for wp in tp.Value.Windows do
+        {for wp in tp.Value.Windows do
         begin
           w := wp.Value[0];
           if w.hwndParent = 0 then
           begin
             AddWindow(tnode, w);
           end;
-        end;
+        end;}
       end;
       //ps.Value
 
@@ -146,7 +146,7 @@ begin
     tvWindows.FullExpand;
   finally
     tvWindows.Items.EndUpdate;
-  end;
+  end;*)
 end;
 
 procedure TMMWindowTreeFrame.SetDatabase(Adb: TMMDatabase);
@@ -211,13 +211,14 @@ var
   ps: TMMProcesses;
 begin
   Result := False;
-
+(*
   if not Assigned(db) or
       not db.Context.Processes.TryGetValue(PID, ps) or
       (ps.Count = 0) then
     Exit;
 
   Result := ShowProcessInfo(ps[0]);
+*)
 end;
 
 function TMMWindowTreeFrame.ShowThreadInfo(TID: Integer): Boolean;
@@ -229,10 +230,10 @@ begin
 
   if not Assigned(db) then
     Exit;
-
+(*
   for pp in db.Context.Processes do
     if pp.Value[0].Threads.TryGetValue(TID, t) then
-      Exit(ShowThreadInfo(t));
+      Exit(ShowThreadInfo(t));*)
 end;
 
 function TMMWindowTreeFrame.ShowWindowInfo(hwnd: THandle): Boolean;
@@ -240,13 +241,13 @@ var
   ws: TMMWindows;
 begin
   Result := False;
-
+(*
   if not Assigned(db) or
       not db.Context.Windows.TryGetValue(hwnd, ws) or
       (ws.Count = 0) then
     Exit;
 
-  Result := ShowWindowInfo(ws[0]);
+  Result := ShowWindowInfo(ws[0]);*)
 end;
 
 function TMMWindowTreeFrame.ShowWindowInfo(wnd: TMMWindow): Boolean;

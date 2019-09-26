@@ -111,7 +111,7 @@ begin
 
   // Load windows
 
-  stmt := TSQLite3Statement.Create(db, 'SELECT * FROM Window');
+  {stmt := TSQLite3Statement.Create(db, 'SELECT * FROM Window');
   try
     Assert(stmt.ColumnCount = 8);
     Assert(stmt.ColumnName(0) = 'row');
@@ -147,9 +147,9 @@ begin
     end;
   finally
     stmt.Free;
-  end;
+  end;}
 
-  stmt := TSQLite3Statement.Create(db, 'SELECT * FROM Process');
+  {stmt := TSQLite3Statement.Create(db, 'SELECT pid FROM Event GROUP BY pid');
   try
     Assert(stmt.ColumnCount = 5);
     Assert(stmt.ColumnName(0) = 'row');
@@ -163,6 +163,7 @@ begin
       for i := 0 to stmt.ColumnCount - 1 do
       begin
         p := TMMProcess.Create(
+          s
           stmt.ColumnInt(1),
           stmt.ColumnInt(2),
           stmt.ColumnText(3),
@@ -179,34 +180,34 @@ begin
     end;
   finally
     stmt.Free;
-  end;
+  end;}
 
   LoadFilter(session.filters, ftFilter);
   LoadFilter(session.highlights, ftHighlight);
   LoadColumns;
 
-  // Load Messages<!>
+  // Load Messages<!>: This must match LoadMessageRow
 
-  stmtMessage := TSQLite3Statement.Create(db, 'SELECT Message.*, FilterKey.filter_row FROM FilterKey INNER JOIN Message on FilterKey.row = Message.row WHERE filter_id = ? AND filter_row = ?');
-  Assert(stmtMessage.ColumnCount = 18);
-  Assert(stmtMessage.ColumnName(0) = 'row');
+  stmtMessage := TSQLite3Statement.Create(db,
+    'SELECT Event.timestamp, Event.pid, Event.tid, Message.*, FilterKey.filter_row '+
+    'FROM FilterKey '+
+    'INNER JOIN Message on FilterKey.row = Message.row '+
+    'INNER JOIN Event on Message.event_id = Event.event_id '+
+    'WHERE filter_id = ? AND filter_row = ?');
+  Assert(stmtMessage.ColumnCount = 13);
+  Assert(stmtMessage.ColumnName(0) = 'timestamp');
   Assert(stmtMessage.ColumnName(1) = 'pid');
   Assert(stmtMessage.ColumnName(2) = 'tid');
-  Assert(stmtMessage.ColumnName(3) = 'hwndFocus');
-  Assert(stmtMessage.ColumnName(4) = 'hwndActive');
-  Assert(stmtMessage.ColumnName(5) = 'hwndCapture');
-  Assert(stmtMessage.ColumnName(6) = 'hwndCaret');
-  Assert(stmtMessage.ColumnName(7) = 'hwndMenuOwner');
-  Assert(stmtMessage.ColumnName(8) = 'hwndMoveSize');
-  Assert(stmtMessage.ColumnName(9) = 'activeHKL');
-  Assert(stmtMessage.ColumnName(10) = 'hwnd');
-  Assert(stmtMessage.ColumnName(11) = 'message');
-  Assert(stmtMessage.ColumnName(12) = 'wParam');
-  Assert(stmtMessage.ColumnName(13) = 'lParam');
-  Assert(stmtMessage.ColumnName(14) = 'lResult');
-  Assert(stmtMessage.ColumnName(15) = 'mode');
-  Assert(stmtMessage.ColumnName(16) = 'detail');
-  Assert(stmtMessage.ColumnName(17) = 'filter_row');
+  Assert(stmtMessage.ColumnName(3) = 'event_id');
+  Assert(stmtMessage.ColumnName(4) = 'row');
+  Assert(stmtMessage.ColumnName(5) = 'hwnd');
+  Assert(stmtMessage.ColumnName(6) = 'message');
+  Assert(stmtMessage.ColumnName(7) = 'wParam');
+  Assert(stmtMessage.ColumnName(8) = 'lParam');
+  Assert(stmtMessage.ColumnName(9) = 'lResult');
+  Assert(stmtMessage.ColumnName(10) = 'mode');
+  Assert(stmtMessage.ColumnName(11) = 'detail');
+  Assert(stmtMessage.ColumnName(12) = 'filter_row');
 
 //  ApplyFilter;
 
@@ -302,36 +303,32 @@ begin
   try
     SaveFilter(session.filters, ftFilter);
     db.Execute('DELETE FROM FilterKey WHERE filter_id = '+Ord(ftFilter).ToString);
-    stmt := TSQLite3Statement.Create(db, 'SELECT Message.* FROM Message');
+    stmt := TSQLite3Statement.Create(db,
+      'SELECT Event.timestamp, Event.pid, Event.tid, Message.* '+
+      'FROM  Message '+
+      'INNER JOIN Event on Message.event_id = Event.event_id ');
     try
       while stmt.Step <> SQLITE_DONE do
       begin
         m := TMMMessage.Create(
-          stmt.ColumnInt(0),          //'row');
-          stmt.ColumnInt(1),          //'pid');
-          stmt.ColumnInt(2),          //'tid');
-          stmt.ColumnInt(3),          //'hwndFocus');
-          stmt.ColumnInt(4),          //'hwndActive');
-          stmt.ColumnInt(5),          //'hwndCapture');
-          stmt.ColumnInt(6),          //'hwndCaret');
-          stmt.ColumnInt(7),          //'hwndMenuOwner');
-          stmt.ColumnInt(8),          //'hwndMoveSize');
-          stmt.ColumnInt(9),          //'activeHKL');
-          stmt.ColumnInt(10),         // 'hwnd');
-          stmt.ColumnInt(11),         // 'message');
-          stmt.ColumnInt64(12),       // 'wParam');
-          stmt.ColumnInt64(13),       // 'lParam');
-          stmt.ColumnInt64(14),       // 'lResult');
-          stmt.ColumnInt(15),         // 'mode');
-          stmt.ColumnText(16)
-//          stmt.ColumnBlob(16),        // 'detail');
-//          stmt.ColumnBytes(16)        // sizeof(detail)
+          stmtMessage.ColumnInt64(0),        //timestamp
+          stmtMessage.ColumnInt(1),          //'pid');
+          stmtMessage.ColumnInt(2),          //'tid');
+          stmtMessage.ColumnInt64(3),        //event_id
+          stmtMessage.ColumnInt(4),          //'row'); // source row, not target row
+          stmtMessage.ColumnInt(5),         // 'hwnd');
+          stmtMessage.ColumnInt(6),         // 'message');
+          stmtMessage.ColumnInt64(7),       // 'wParam');
+          stmtMessage.ColumnInt64(8),       // 'lParam');
+          stmtMessage.ColumnInt64(9),       // 'lResult');
+          stmtMessage.ColumnInt(10),         // 'mode');
+          stmtMessage.ColumnText(11)
         );
         try
     //      stmt.Reset;
 
         //  m := context.FilteredMessages[Item.Index];
-          m.Fill(FContext.Processes, FContext.Windows, FContext.MessageNames);
+          m.Fill; //(FContext.Processes, FContext.Windows, FContext.MessageNames);
 
           if DoesFilterMatchMessage(session.filters, m) then
           begin                                                                                   // TODO rename index to row
@@ -364,24 +361,25 @@ begin
     raise Exception.Create('Invalid');
   end;
 
+  Assert(stmtMessage.ColumnName(0) = 'timestamp');
+  Assert(stmtMessage.ColumnName(1) = 'pid');
+  Assert(stmtMessage.ColumnName(2) = 'tid');
+  Assert(stmtMessage.ColumnName(3) = 'event_id');
+  Assert(stmtMessage.ColumnName(4) = 'row');
+
   m := TMMMessage.Create(
-    stmtMessage.ColumnInt(0),          //'row'); // source row, not target row
+    stmtMessage.ColumnInt64(0),        //timestamp
     stmtMessage.ColumnInt(1),          //'pid');
     stmtMessage.ColumnInt(2),          //'tid');
-    stmtMessage.ColumnInt(3),          //'hwndFocus');
-    stmtMessage.ColumnInt(4),          //'hwndActive');
-    stmtMessage.ColumnInt(5),          //'hwndCapture');
-    stmtMessage.ColumnInt(6),          //'hwndCaret');
-    stmtMessage.ColumnInt(7),          //'hwndMenuOwner');
-    stmtMessage.ColumnInt(8),          //'hwndMoveSize');
-    stmtMessage.ColumnInt(9),          //'activeHKL');
-    stmtMessage.ColumnInt(10),         // 'hwnd');
-    stmtMessage.ColumnInt(11),         // 'message');
-    stmtMessage.ColumnInt64(12),       // 'wParam');
-    stmtMessage.ColumnInt64(13),       // 'lParam');
-    stmtMessage.ColumnInt64(14),       // 'lResult');
-    stmtMessage.ColumnInt(15),         // 'mode');
-    stmtMessage.ColumnText(16)
+    stmtMessage.ColumnInt64(3),        //event_id
+    stmtMessage.ColumnInt(4),          //'row'); // source row, not target row
+    stmtMessage.ColumnInt(5),         // 'hwnd');
+    stmtMessage.ColumnInt(6),         // 'message');
+    stmtMessage.ColumnInt64(7),       // 'wParam');
+    stmtMessage.ColumnInt64(8),       // 'lParam');
+    stmtMessage.ColumnInt64(9),       // 'lResult');
+    stmtMessage.ColumnInt(10),         // 'mode');
+    stmtMessage.ColumnText(11)
 //    stmtMessage.ColumnBlob(16),        // 'detail');
 //    stmtMessage.ColumnBytes(16)
   );
@@ -389,7 +387,7 @@ begin
   stmtMessage.Reset;
 
 //  m := context.FilteredMessages[Item.Index];
-  m.Fill(FContext.Processes, FContext.Windows, FContext.MessageNames);
+  m.Fill; //(FContext.Processes, FContext.Windows, FContext.MessageNames);
   Result := m;
 end;
 

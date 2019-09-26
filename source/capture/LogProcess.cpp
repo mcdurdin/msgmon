@@ -31,7 +31,7 @@ void LogProcess() {
 
   LPWSTR pszCommandLine = GetCommandLine();
 
-  TraceLoggingWrite(g_Provider, EVENT_PROCESS,
+  TraceLoggingWrite(g_Provider, MMEVENTNAME_PROCESS,
 	  TraceLoggingLevel(TRACE_LEVEL_INFORMATION),
 	  TraceLoggingKeyword(READ_KEYWORD),
 	  //TraceLoggingValue(EVENT_PROCESS, "eventType"),

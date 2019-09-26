@@ -1,3 +1,30 @@
+# Work in this branch:
+
+This branch reworks the entire state model for logging. The logging is stateless on both ends. At any point in time, we can display the window, thread, process, global state. As far as possible, we avoid a global state; this may reduce complexity?
+
+All state changes are recorded against a global Event table:
+
+* EventID (incrementing based on the recorder.cpp order events are received)
+* EventTimestamp (at time of event capture, thread-level; already in the trace in EVENT_RECORD.EventHeader)
+* EventTID (already in the trace in EVENT_RECORD.EventHeader)
+* EventPID (already in the trace in EVENT_RECORD.EventHeader)
+* EventType:
+  - Message
+  - Window(State)
+  - Process(State)
+  - Thread(State)
+  - Global(State)? -- this may not be required.
+
+There will be a corresponding record in the appropriate table which gives the detail for the event; Message, Window, Process or Thread.
+
+Viewer design. A dictionary of Processes, Threads and Windows will still be helpful. This, however, will use Load(EventIndex) to get the state at a given Event. When loading the database, we'll need to query the Window, Process and Thread tables to get unique IDs. With this model, reuse of identifiers should be clear in the timeline?
+
+Then, we can drill into the data with various Views:
+  * Message. This is the default and shows a procmon-style message trace.
+  * Timeline. This shows the Process/Thread/Window lifecycle with major events highlighted for each window. Grouped by process/thread; view by owner or parent chains or flat. Filtering will remove windows that don't match requirements.
+
+
+
 # msgmon
 
 Windows user message monitor in the style of procmon.

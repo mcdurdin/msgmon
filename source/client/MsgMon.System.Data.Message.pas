@@ -6,6 +6,7 @@ uses
   System.Generics.Collections,
   Winapi.Windows,
 
+  MsgMon.System.Data.Event,
   MsgMon.System.Data.MessageName,
   MsgMon.System.Data.Process,
   MsgMon.System.Data.Window;
@@ -13,20 +14,10 @@ uses
 type
   TByteArray = TArray<Byte>;
 
-  TMMMessage = class
+  TMMMessage = class(TMMEvent)
   strict private
   public
     index: Integer;
-
-    pid, tid: DWORD;
-    hwndFocus,
-    hwndActive,
-    hwndCapture,
-    hwndCaret,
-    hwndMenuOwner,
-    hwndMoveSize: DWORD;
-
-    activeHKL: DWORD;
 
     hwnd,
     message: DWORD;
@@ -40,17 +31,14 @@ type
     window: TMMWindow;
     messageName: TMMMessageName;
 
-    procedure Fill(processes: TMMProcessDictionary; windows: TMMWindowDictionary; messageNames: TMMMessageNameDictionary);
-    constructor Create(AIndex: Integer;
+    procedure Fill; //(processes: TMMProcessDictionary; windows: TMMWindowDictionary; messageNames: TMMMessageNameDictionary);
+    constructor Create(
+      timestamp: Int64;
       pid,
-      tid,
-      hwndFocus,
-      hwndActive,
-      hwndCapture,
-      hwndCaret,
-      hwndMenuOwner,
-      hwndMoveSize,
-      activeHKL,
+      tid: Integer;
+      event_id: Int64;
+
+      index,
       hwnd,
       message: Integer;
       wParam,
@@ -75,16 +63,13 @@ uses
 
 { TMsgMonMessage }
 
-constructor TMMMessage.Create(AIndex: Integer;
+constructor TMMMessage.Create(
+  timestamp: Int64;
   pid,
-  tid,
-  hwndFocus,
-  hwndActive,
-  hwndCapture,
-  hwndCaret,
-  hwndMenuOwner,
-  hwndMoveSize,
-  activeHKL,
+  tid: Integer;
+  event_id: Int64;
+
+  index: Integer;
   hwnd,
   message: Integer;
   wParam,
@@ -96,26 +81,9 @@ constructor TMMMessage.Create(AIndex: Integer;
 //  detailLength: Integer
 );
 begin
-  inherited Create;
-  index := AIndex;
+  inherited Create(event_id, timestamp, pid, tid);
 
-  Self.pid := pid;
-  Self.tid := tid;
-
-  // This is conceptually state information that doesn't belong per-message
-  // We should move that into state notifications.
-  // thread-level state:
-  //   IsForegroundThread? Set to true when GetWindowThreadProcessId(GetForegroundWindow) = GetCurrentThreadId
-  //   hwndFocus, hwndActive, hwndCapture, hwndCaret, hwndMenuOwner, hwndMoveSize (GetGUIThreadInfo(GetCurrentThreadId)
-  //   activeHKL
-  //   window list.
-  Self.hwndFocus := hwndFocus;
-  Self.hwndActive := hwndActive;
-  Self.hwndCapture := hwndCapture;
-  Self.hwndCaret := hwndCaret;
-  Self.hwndMenuOwner := hwndMenuOwner;
-  Self.hwndMoveSize := hwndMoveSize;
-  Self.activeHKL := activeHKL;
+  Self.index := index;
 
   Self.hwnd := hwnd;
   Self.message := message;
@@ -138,12 +106,12 @@ begin
 //  end;
 end;
 
-procedure TMMMessage.Fill(processes: TMMProcessDictionary; windows: TMMWindowDictionary; messageNames: TMMMessageNameDictionary);
+procedure TMMMessage.Fill; //(processes: TMMProcessDictionary; windows: TMMWindowDictionary; messageNames: TMMMessageNameDictionary);
 var
   ps: TMMProcesses;
   ws: TMMWindows;
 begin
-  if process <> nil then
+{  if process <> nil then
     Exit;
 
   // Lookup data from context
@@ -157,7 +125,7 @@ begin
     else window := nil;
 
   if not messageNames.TryGetValue(message, messageName)
-    then messageName := nil;
+    then messageName := nil;}
 end;
 
 end.

@@ -396,8 +396,8 @@ begin
 
   BeginLogCaptureProcess;
 
-//  if fIsWow64 then
-//    BeginLogCaptureX64Process;
+  if fIsWow64 then
+    BeginLogCaptureX64Process;
 
   BeginLogStoreProcess(shouldAppend);
 end;

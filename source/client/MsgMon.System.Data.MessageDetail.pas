@@ -275,13 +275,13 @@ begin
     mdrTitle: Result := '';
     mdrPID:
       begin
-        if FContext.Processes.TryGetValue(FValuePID, ps) and (ps.Count > 0)
+        {if FContext.Processes.TryGetValue(FValuePID, ps) and (ps.Count > 0)
           then p := ps[0]
           else p := nil;
 
         if Assigned(p) then
           Result := p.Render(True)
-        else
+        else}
           Result := IntToStr(FValuePID);
       end;
     mdrTID:
@@ -290,7 +290,7 @@ begin
       end;
     mdrHwnd:
       begin
-        if FContext.Windows.TryGetValue(FValueHwnd, ws)
+        {if FContext.Windows.TryGetValue(FValueHwnd, ws)
           then w := ws.FromBase(row)
           else w := nil;
 
@@ -298,7 +298,7 @@ begin
         begin
           Result := w.Render(True);
         end
-        else
+        else}
           Result := IntToHex(FValueHwnd, 8);
       end;
   end;

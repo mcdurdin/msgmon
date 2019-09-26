@@ -45,7 +45,7 @@ void LogWindow(HWND hwnd, BOOL recordStateChanges) {
 
   (*pThreadData->windows)[hwnd] = w;
 
-	TraceLoggingWrite(g_Provider, EVENT_WINDOW,
+	TraceLoggingWrite(g_Provider, MMEVENTNAME_WINDOW,
 		TraceLoggingLevel(TRACE_LEVEL_INFORMATION),
 		TraceLoggingKeyword(READ_KEYWORD),
 		//TraceLoggingValue(EVENT_WINDOW, "eventType"),
