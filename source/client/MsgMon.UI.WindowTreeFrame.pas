@@ -102,12 +102,12 @@ procedure TMMWindowTreeFrame.RefreshTree;
     w0: TMMWindow;
   begin
     // TODO: Use column renderer for window
-    wnode := tvWindows.Items.AddChild(p, IntToHex(w.hwnd, 8) + ' ' + w.ClassName);
+{    wnode := tvWindows.Items.AddChild(p, IntToHex(w.hwnd, 8) + ' ' + w.ClassName);
     wnode.Data := w;
     for w0 in w.ChildWindows do
     begin
       AddWindow(wnode, w0);
-    end;
+    end;}
   end;
 var
   pp: TPair<DWORD, TMMProcesses>;

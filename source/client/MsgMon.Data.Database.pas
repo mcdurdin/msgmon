@@ -67,7 +67,7 @@ const
   EVENT_CX = 5;
   MESSAGE_CX = 9;
   WINDOW_CX = 9;
-  THREAD_CX = 10;
+  THREAD_CX = 11;
   PROCESS_CX = 6;
 
 { TMMDatabase }
@@ -107,6 +107,14 @@ begin
   db.Open(FFilename);
 
   db.Execute('CREATE TABLE IF NOT EXISTS FilterKey (filter_id INT, filter_row INT, row INT)');
+  db.Execute('CREATE INDEX IF NOT EXISTS ix_FilterKey_filterid ON FilterKey (filter_id, filter_row)');
+  db.Execute('CREATE TABLE IF NOT EXISTS Filter (filter_id INT, definition TEXT)');
+  db.Execute('CREATE TABLE IF NOT EXISTS Settings (id TEXT, value TEXT)');
+
+  db.Execute('CREATE INDEX IF NOT EXISTS ix_Process_Event ON Process (pid, event_id)');
+  db.Execute('CREATE INDEX IF NOT EXISTS ix_Thread_Event ON Thread (tid, event_id)');
+  db.Execute('CREATE INDEX IF NOT EXISTS ix_Window_Event ON Window (hwnd, event_id)');
+
   db.Execute('CREATE INDEX IF NOT EXISTS ix_FilterKey_filterid ON FilterKey (filter_id, filter_row)');
   db.Execute('CREATE TABLE IF NOT EXISTS Filter (filter_id INT, definition TEXT)');
   db.Execute('CREATE TABLE IF NOT EXISTS Settings (id TEXT, value TEXT)');
@@ -216,7 +224,7 @@ begin
     '  Event e on t.event_id = e.event_id '+
     'where '+
     '  t.event_id < ? and '+
-    '  e.tid = ? '+ // TODO: Add tid to thread table?
+    '  t.tid = ? '+ // TODO: Add tid to thread table?
     'limit 1'
   );
 
@@ -494,14 +502,15 @@ begin
       stmtThreadBase.ColumnInt(THREAD_CX + 3),          //'tid');
       stmtThreadBase.ColumnInt64(THREAD_CX + 0),        //event_id
 
-      stmtThreadBase.ColumnInt(2), // isForegroundThread
-      stmtThreadBase.ColumnInt(3), // hwndFocus
-      stmtThreadBase.ColumnInt(4), // hwndActive
-      stmtThreadBase.ColumnInt(5), // hwndCapture
-      stmtThreadBase.ColumnInt(6), // hwndCaret
-      stmtThreadBase.ColumnInt(7), // hwndMenuOwner
-      stmtThreadBase.ColumnInt(8), // hwndMoveSize
-      stmtThreadBase.ColumnInt(9) // hwndMoveSize
+      stmtThreadBase.ColumnInt(2), // tid
+      stmtThreadBase.ColumnInt(3), // isForegroundThread
+      stmtThreadBase.ColumnInt(4), // hwndFocus
+      stmtThreadBase.ColumnInt(5), // hwndActive
+      stmtThreadBase.ColumnInt(6), // hwndCapture
+      stmtThreadBase.ColumnInt(7), // hwndCaret
+      stmtThreadBase.ColumnInt(8), // hwndMenuOwner
+      stmtThreadBase.ColumnInt(9), // hwndMoveSize
+      stmtThreadBase.ColumnInt(10) // hwndMoveSize
     );
   end;
   stmtThreadBase.Reset;

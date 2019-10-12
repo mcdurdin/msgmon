@@ -21,11 +21,13 @@ void LogThread() {
 
   LogProcess();
 
+  DWORD tid = GetCurrentThreadId();
+
   THREADSTATE ts = { 0 };
   HWND hwnd = GetForegroundWindow();
-  ts.isForegroundThread = hwnd != 0 && GetWindowThreadProcessId(hwnd, NULL) == GetCurrentThreadId();
+  ts.isForegroundThread = hwnd != 0 && GetWindowThreadProcessId(hwnd, NULL) == tid;
   ts.gti.cbSize = sizeof(GUITHREADINFO);
-  if (!GetGUIThreadInfo(GetCurrentThreadId(), &ts.gti)) {
+  if (!GetGUIThreadInfo(tid, &ts.gti)) {
     // TODO: consider logging failure
     memset(&ts.gti, 0, sizeof(GUITHREADINFO));
   }
@@ -41,6 +43,7 @@ void LogThread() {
   TraceLoggingWrite(g_Provider, MMEVENTNAME_THREAD,
     TraceLoggingLevel(TRACE_LEVEL_INFORMATION),
     TraceLoggingKeyword(READ_KEYWORD),
+    TraceLoggingValue((UINT)tid, "tid"),
     TraceLoggingValue((UINT64)ts.isForegroundThread, "isForegroundThread"),
     TraceLoggingValue((UINT64)ts.gti.hwndFocus, "hwndFocus"),
     TraceLoggingValue((UINT64)ts.gti.hwndActive, "hwndActive"),

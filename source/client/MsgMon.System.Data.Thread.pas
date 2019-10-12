@@ -14,6 +14,7 @@ type
   private
     //FWindows: TMMWindowDictionary;
   public
+    tidOwner: Integer;
     isForegroundThread: Boolean;
     hwndFocus,
     hwndActive,
@@ -29,6 +30,7 @@ type
       tid: Integer;
       event_id: Int64;
 
+      tidOwner: Integer;
       isForegroundThread: Integer;
       hwndFocus,
       hwndActive,
@@ -58,6 +60,7 @@ constructor TMMThread.Create(
   tid: Integer;
   event_id: Int64;
 
+  tidOwner: Integer;
   isForegroundThread: Integer;
   hwndFocus,
   hwndActive,
@@ -70,6 +73,7 @@ constructor TMMThread.Create(
 begin
   inherited Create(timestamp, pid, tid, event_id);
 
+  Self.tidOwner := tidOwner;
   Self.isForegroundThread := not(not LONGBOOL(isForegroundThread)); // Is this strictly necessary?
   Self.hwndFocus := hwndFocus;
   Self.hwndActive := hwndActive;
