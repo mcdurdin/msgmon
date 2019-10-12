@@ -24,8 +24,8 @@ type
       event_id: Int64;
 
       hwnd,
-      ownerPid,
-      ownerTid,
+      ownerPid,  // TODO: rename or eliminate
+      ownerTid,                               // TODO: rename or eliminate
       hwndOwner,
       hwndParent: Integer;
       className,

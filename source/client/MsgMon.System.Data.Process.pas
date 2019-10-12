@@ -28,7 +28,7 @@ type
       tid: Integer;
       event_id: Int64;
 
-      pidOwner: Integer;
+      pidOwner: Integer; // TODO: rename or eliminate
       platform_: DWORD;
       const processPath,
       commandLine: string);

@@ -4,56 +4,62 @@ interface
 
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.ComCtrls,
+  Vcl.Controls, Vcl.Forms, Vcl.Dialogs,
+  Vcl.Grids, Vcl.ExtCtrls,
 
   System.Generics.Collections,
 
   MsgMon.Data.Database,
   MsgMon.UI.DetailRenderToGrid,
+  MsgMon.System.ContextViewTypes,
+  MsgMon.System.Data.Event,
+  MsgMon.System.Data.Message,
   MsgMon.System.Data.Process,
   MsgMon.System.Data.Thread,
-  MsgMon.System.Data.Window, Vcl.Grids, Vcl.ExtCtrls;
+  MsgMon.System.Data.Window;
 
 type
-  TTreeView = class(Vcl.ComCtrls.TTreeView)
-  protected
-    procedure CreateWnd; override;
-  end;
-
   TMMWindowTreeFrame = class(TForm)
-    tvWindows: TTreeView;
     Splitter1: TSplitter;
     gridDetails: TStringGrid;
-    procedure tvWindowsChange(Sender: TObject; Node: TTreeNode);
+    grid: TStringGrid;
     procedure FormResize(Sender: TObject);
     procedure gridDetailsDblClick(Sender: TObject);
     procedure gridDetailsDrawCell(Sender: TObject; ACol, ARow: Integer;
       Rect: TRect; State: TGridDrawState);
-    procedure tvWindowsAdvancedCustomDrawItem(Sender: TCustomTreeView;
-      Node: TTreeNode; State: TCustomDrawState; Stage: TCustomDrawStage;
-      var PaintImages, DefaultDraw: Boolean);
-    procedure tvWindowsDblClick(Sender: TObject);
+//    procedure tvWindowsDblClick(Sender: TObject);
   private
     db: TMMDatabase;
+    ws: TMMWindowDictionary;
+    ps: TMMProcessDictionary;
+    ts: TMMThreadDictionary;
+    FViewType: TMMContextViewType;
     FHighlights: TSearchInfoArray;
     procedure RefreshTree;
-    procedure ShowItemDetails(node: TTreeNode);
-    procedure ShowProcessDetails(p: TMMProcess);
-    procedure ShowThreadDetails(t: TMMThread);
-    procedure ShowWindowDetails(w: TMMWindow);
-    function ShowInfo(d: Pointer): Boolean;
     procedure SetHighlights(const Value: TSearchInfoArray);
+//    function ShowInfo(d: Pointer): Boolean;
+    procedure ShowProcessDetails(p: TMMProcess);
+//    function ShowProcessInfo(PID: Integer): Boolean;
+    procedure ShowThreadDetails(t: TMMThread);
+//    function ShowThreadInfo(TID: Integer): Boolean;
+    procedure ShowWindowDetails(w: TMMWindow);
+//    function ShowWindowInfo(hwnd: THandle): Boolean;
+    procedure ShowWindowParentTreeContext(m: TMMMessage);
+    procedure ShowItemDetails(item: TObject);
   public
     { Public declarations }
     procedure SetDatabase(Adb: TMMDatabase);
     procedure CloseDatabase;
 
+    procedure ShowCurrentContext(m: TMMMessage);
+    {
     function ShowWindowInfo(wnd: TMMWindow): Boolean; overload;
     function ShowWindowInfo(hwnd: THandle): Boolean; overload;
     function ShowProcessInfo(PID: Integer): Boolean; overload;
     function ShowProcessInfo(process: TMMProcess): Boolean; overload;
     function ShowThreadInfo(TID: Integer): Boolean; overload;
     function ShowThreadInfo(thread: TMMThread): Boolean; overload;
+    }
     property Highlights: TSearchInfoArray read FHighlights write SetHighlights;
   end;
 
@@ -79,14 +85,14 @@ procedure TMMWindowTreeFrame.gridDetailsDblClick(Sender: TObject);
 var
   v: Integer;
 begin
-  case TDetailGridController.GetClickContext(gridDetails, v) of
-    mdrHwnd: ShowWindowInfo(v);
-    mdrPID: ShowProcessInfo(v);
-    mdrTID: ShowThreadInfo(v);
-    else Exit;
-  end;
+//  case TDetailGridController.GetClickContext(gridDetails, v) of
+//    mdrHwnd: ShowWindowInfo(v);
+//    mdrPID: ShowProcessInfo(v);
+//    mdrTID: ShowThreadInfo(v);
+//    else Exit;
+//  end;
 
-  tvWindows.SetFocus;
+//  tvWindows.SetFocus;
 end;
 
 procedure TMMWindowTreeFrame.gridDetailsDrawCell(Sender: TObject; ACol,
@@ -96,57 +102,8 @@ begin
 end;
 
 procedure TMMWindowTreeFrame.RefreshTree;
-  procedure AddWindow(p: TTreeNode; w: TMMWindow);
-  var
-    wnode: TTreeNode;
-    w0: TMMWindow;
-  begin
-    // TODO: Use column renderer for window
-{    wnode := tvWindows.Items.AddChild(p, IntToHex(w.hwnd, 8) + ' ' + w.ClassName);
-    wnode.Data := w;
-    for w0 in w.ChildWindows do
-    begin
-      AddWindow(wnode, w0);
-    end;}
-  end;
-var
-  pp: TPair<DWORD, TMMProcesses>;
-  tp: TPair<DWORD, TMMThread>;
-  pnode, tnode: TTreeNode;
-  wp: TPair<DWORD, TMMWindows>;
-  w: TMMWindow;
 begin
-(*  tvWindows.Items.BeginUpdate;
-  try
-    tvWindows.Items.Clear;
 
-    // For each process, get the windows
-    for pp in db.Context.Processes do
-    begin
-      // TODO: Use column renderer for PID?
-      pnode := tvWindows.Items.AddObject(nil, IntToStr(pp.Value[0].PID) + ' ' + pp.Value[0].processName, pp.Value[0]);
-      for tp in pp.Value[0].Threads do
-      begin
-        // TODO: Use column renderer for TID?
-        tnode := tvWindows.Items.AddChildObject(pnode, IntToStr(tp.Value.TID), tp.Value);
-        {for wp in tp.Value.Windows do
-        begin
-          w := wp.Value[0];
-          if w.hwndParent = 0 then
-          begin
-            AddWindow(tnode, w);
-          end;
-        end;}
-      end;
-      //ps.Value
-
-//      tvn := TTreeNode.Create
-    end;
-
-    tvWindows.FullExpand;
-  finally
-    tvWindows.Items.EndUpdate;
-  end;*)
 end;
 
 procedure TMMWindowTreeFrame.SetDatabase(Adb: TMMDatabase);
@@ -159,14 +116,14 @@ procedure TMMWindowTreeFrame.SetHighlights(const Value: TSearchInfoArray);
 begin
   FHighlights := Value;
   gridDetails.Invalidate;
-  tvWindows.Invalidate;
+  grid.Invalidate;
 end;
 
-procedure TMMWindowTreeFrame.ShowItemDetails(node: TTreeNode);
+procedure TMMWindowTreeFrame.ShowItemDetails(item: TObject);
 var
   o: TObject;
 begin
-  o := TObject(node.Data);
+  o := item; //TObject(node.Data);
   if o = nil then
   begin
     gridDetails.RowCount := 1;
@@ -206,66 +163,109 @@ begin
   TDetailGridController.Render(d, gridDetails);
 end;
 
-function TMMWindowTreeFrame.ShowProcessInfo(PID: Integer): Boolean;
-var
-  ps: TMMProcesses;
-begin
-  Result := False;
-(*
-  if not Assigned(db) or
-      not db.Context.Processes.TryGetValue(PID, ps) or
-      (ps.Count = 0) then
-    Exit;
+//function TMMWindowTreeFrame.ShowWindowInfo(wnd: TMMWindow): Boolean;
+//begin
+//  Result := ShowInfo(wnd);
+//end;
 
-  Result := ShowProcessInfo(ps[0]);
-*)
+//function TMMWindowTreeFrame.ShowProcessInfo(process: TMMProcess): Boolean;
+//begin
+//  Result := ShowInfo(process);
+//end;
+
+//function TMMWindowTreeFrame.ShowThreadInfo(thread: TMMThread): Boolean;
+//begin
+//  Result := ShowInfo(thread);
+//end;
+
+procedure TMMWindowTreeFrame.ShowCurrentContext(m: TMMMessage);
+begin
+  if m = nil then
+  begin
+    grid.RowCount := 1;
+    // TODO: clear
+    Exit;
+  end;
+  //
+  case FViewType of
+    cvtWindowParentTree: ShowWindowParentTreeContext(m);
+//    cvtWindowOwnerTree: ShowWindowOwnerTreeContext(m);
+//    cvtWindowsByThread: ShowWindowsByThreadContext(m);
+  end;
 end;
 
-function TMMWindowTreeFrame.ShowThreadInfo(TID: Integer): Boolean;
+procedure TMMWindowTreeFrame.ShowWindowParentTreeContext(m: TMMMessage);
 var
   t: TMMThread;
-  pp: TPair<DWORD, TMMProcesses>;
+  w: TMMWindow;
+  p: TMMProcess;
+  r: Integer;
+  ot, ow: TMMDataObject;
+  c: Integer;
 begin
-  Result := False;
+  // Load the set of all windows, processes and threads.
+  // TODO: Consider optimisations -- partial reload based on event_id?
+  FreeAndNil(ws);
+  FreeAndNil(ps);
+  FreeAndNil(ts);
+  ws := db.LoadWindows(m.event_id);
+  ps := db.LoadProcesses(m.event_id);
+  ts := db.LoadThreads(m.event_id);
 
-  if not Assigned(db) then
-    Exit;
-(*
-  for pp in db.Context.Processes do
-    if pp.Value[0].Threads.TryGetValue(TID, t) then
-      Exit(ShowThreadInfo(t));*)
+  grid.RowCount := ts.Count + ws.Count + ps.Count + 1;
+
+  // Form a nice tree.
+  for t in ts.Values do
+  begin
+    if ps.TryGetValue(t.pid, p) then
+    begin
+      t.Owner := p;
+      p.Children.Add(t);
+    end;
+  end;
+
+  for w in ws.Values do
+  begin
+    if ts.TryGetValue(w.tid, t) then
+    begin
+      w.Owner := t;
+      t.Children.Add(w);
+    end;
+  end;
+
+  r := 1;
+  for p in ps.Values do
+  begin
+    c := 0;
+    for ot in p.Children do
+      Inc(c, ot.Children.Count);
+
+    if c > 0 then
+    begin
+      grid.Cells[0, r] := ExtractFileName(p.processName);
+      Inc(r);
+      for ot in p.Children do
+      begin
+        t := ot as TMMThread;
+        if t.Children.Count > 0 then
+        begin
+          grid.Cells[0, r] := '   ' + IntToStr(t.tid);
+          Inc(r);
+          for ow in t.Children do
+          begin
+            w := ow as TMMWindow;
+            grid.Cells[0, r] := '      ' + IntToHex(w.hwnd, 8) + ' ' + w.ClassName; //TODO: Use column renderers
+            Inc(r);
+          end;
+        end;
+      end;
+    end;
+  end;
+
+  grid.RowCount := r;
 end;
 
-function TMMWindowTreeFrame.ShowWindowInfo(hwnd: THandle): Boolean;
-var
-  ws: TMMWindows;
-begin
-  Result := False;
-(*
-  if not Assigned(db) or
-      not db.Context.Windows.TryGetValue(hwnd, ws) or
-      (ws.Count = 0) then
-    Exit;
-
-  Result := ShowWindowInfo(ws[0]);*)
-end;
-
-function TMMWindowTreeFrame.ShowWindowInfo(wnd: TMMWindow): Boolean;
-begin
-  Result := ShowInfo(wnd);
-end;
-
-function TMMWindowTreeFrame.ShowProcessInfo(process: TMMProcess): Boolean;
-begin
-  Result := ShowInfo(process);
-end;
-
-function TMMWindowTreeFrame.ShowThreadInfo(thread: TMMThread): Boolean;
-begin
-  Result := ShowInfo(thread);
-end;
-
-function TMMWindowTreeFrame.ShowInfo(d: Pointer): Boolean;
+{function TMMWindowTreeFrame.ShowInfo(d: Pointer): Boolean;
 var
   i: Integer;
 begin
@@ -276,42 +276,9 @@ begin
       tvWindows.Select(tvWindows.Items[i]);
       Exit(True);
     end;
-end;
+end;}
 
-procedure TMMWindowTreeFrame.tvWindowsAdvancedCustomDrawItem(
-  Sender: TCustomTreeView; Node: TTreeNode; State: TCustomDrawState;
-  Stage: TCustomDrawStage; var PaintImages, DefaultDraw: Boolean);
-var
-  ARect: TRect;
-begin
-  if Stage = cdPostPaint then
-  begin
-    ARect := Node.DisplayRect(True);
-    if cdsSelected in State then
-    begin
-      Sender.Canvas.Brush.Color := clHighlight;
-      Sender.Canvas.Font.Color := clHighlightText;
-    end
-    else
-    begin
-      Sender.Canvas.Brush.Color := clWindow;
-      Sender.Canvas.Font.Color := clWindowText;
-    end;
-
-    TDetailGridController.DrawCellText(Sender.Canvas, ARect, Node.Text, FHighlights, True);
-    PaintImages := False;
-    DefaultDraw := False;
-  end
-  else
-    DefaultDraw := True;
-end;
-
-procedure TMMWindowTreeFrame.tvWindowsChange(Sender: TObject; Node: TTreeNode);
-begin
-  ShowItemDetails(Node);
-end;
-
-procedure TMMWindowTreeFrame.tvWindowsDblClick(Sender: TObject);
+{procedure TMMWindowTreeFrame.tvWindowsDblClick(Sender: TObject);
 var
   node: TTreeNode;
   pt: TPoint;
@@ -322,15 +289,6 @@ begin
   begin
     // TODO: dblclick to find this window
   end;
-end;
-
-{ TTreeView }
-
-procedure TTreeView.CreateWnd;
-begin
-  inherited;
-  // TODO: Enables custom theme drawing, is this necessary?
-  SetWindowTheme(Handle, nil, nil);
-end;
+end;}
 
 end.

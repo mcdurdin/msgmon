@@ -524,12 +524,13 @@ function TMMMainForm.UpdateWindowTree: Boolean;
 var
   v: Integer;
 begin
-  case TDetailGridController.GetClickContext(gridMessageDetails, v) of
-    mdrHwnd: FWindowTreeFrame.ShowWindowInfo(v);
-    mdrPID: FWindowTreeFrame.ShowProcessInfo(v);
-    mdrTID: FWindowTreeFrame.ShowThreadInfo(v);
-    else Exit(False);
-  end;
+  FWindowTreeFrame.ShowCurrentContext(currentMessage);
+//  case TDetailGridController.GetClickContext(gridMessageDetails, v) of
+//    mdrHwnd: FWindowTreeFrame.ShowWindowInfo(v);
+//    mdrPID: FWindowTreeFrame.ShowProcessInfo(v);
+//    mdrTID: FWindowTreeFrame.ShowThreadInfo(v);
+//    else Exit(False);
+//  end;
   Result := TRue;
 end;
 

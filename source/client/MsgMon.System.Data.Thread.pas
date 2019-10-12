@@ -11,10 +11,8 @@ uses
 
 type
   TMMThread = class(TMMEvent)
-  private
-    //FWindows: TMMWindowDictionary;
   public
-    tidOwner: Integer;
+    tidOwner: Integer;  // TODO: rename or eliminate
     isForegroundThread: Boolean;
     hwndFocus,
     hwndActive,
@@ -43,7 +41,10 @@ type
   end;
 
 type
-  TMMThreads = class(TDictionary<Cardinal, TMMThread>)
+  TMMThreads = class(TObjectList<TMMThread>)
+  end;
+
+  TMMThreadDictionary = class(TDictionary<Cardinal, TMMThread>)
   end;
 
 implementation

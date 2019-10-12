@@ -27,21 +27,6 @@ object MMWindowTreeFrame: TMMWindowTreeFrame
     ExplicitTop = 0
     ExplicitWidth = 338
   end
-  object tvWindows: TTreeView
-    Left = 0
-    Top = 0
-    Width = 651
-    Height = 215
-    Align = alClient
-    HideSelection = False
-    Indent = 19
-    ReadOnly = True
-    RightClickSelect = True
-    TabOrder = 0
-    OnAdvancedCustomDrawItem = tvWindowsAdvancedCustomDrawItem
-    OnChange = tvWindowsChange
-    OnDblClick = tvWindowsDblClick
-  end
   object gridDetails: TStringGrid
     Left = 0
     Top = 218
@@ -52,8 +37,20 @@ object MMWindowTreeFrame: TMMWindowTreeFrame
     DefaultRowHeight = 16
     FixedRows = 0
     Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRowSelect]
-    TabOrder = 1
+    TabOrder = 0
     OnDblClick = gridDetailsDblClick
     OnDrawCell = gridDetailsDrawCell
+  end
+  object grid: TStringGrid
+    Left = 0
+    Top = 0
+    Width = 651
+    Height = 215
+    Align = alClient
+    ColCount = 1
+    DefaultColWidth = 300
+    DefaultRowHeight = 16
+    FixedCols = 0
+    TabOrder = 1
   end
 end

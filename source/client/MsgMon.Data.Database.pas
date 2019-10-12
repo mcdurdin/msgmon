@@ -43,6 +43,9 @@ type
     procedure LoadColumns;
     procedure SaveColumns;
     function DoLoadMessageRow(stmt: TSQLite3Statement): TMMMessage;
+    function LoadWindowRow(stmt: TSQLite3Statement): TMMWindow;
+    function LoadThreadRow(stmt: TSQLite3Statement): TMMThread;
+    function LoadProcessRow(stmt: TSQLite3Statement): TMMProcess;
   public
     constructor Create(const AFilename, ALastFilterDefinition, ALastHighlightDefinition, ALastColumnsDefinition, ALastSearchDefinition: string);
     destructor Destroy; override;
@@ -52,6 +55,11 @@ type
     function DoesFilterMatchMessage(filters: TMMFilters; m: TMMMessage): Boolean;
 
     function LoadMessageRow(index: Integer): TMMMessage;
+
+    function LoadWindows(event_id: Int64): TMMWindowDictionary;
+    function LoadProcesses(event_id: Int64): TMMProcessDictionary;
+    function LoadThreads(event_id: Int64): TMMThreadDictionary;
+
     function FindText(text: string; Row: Integer; FindDown: Boolean): Integer;
 
     property TotalRowCount: Integer read FTotalRowCount;
@@ -96,10 +104,7 @@ procedure TMMDatabase.Load;
 var
   w: TMMWindow;
   p: TMMProcess;
-//  ws: TMMWindows;
-//  ps: TMMProcesses;
   stmt: TSQLite3Statement;
-//  i: Integer;
 begin
   Assert(FileExists(FFilename));
 
@@ -128,79 +133,6 @@ begin
   end;
 
   FContext.Clear;
-
-  // Load windows
-
-  {stmt := TSQLite3Statement.Create(db, 'SELECT * FROM Window');
-  try
-    Assert(stmt.ColumnCount = 8);
-    Assert(stmt.ColumnName(0) = 'row');
-    Assert(stmt.ColumnName(1) = 'hwnd');
-    Assert(stmt.ColumnName(2) = 'pid');
-    Assert(stmt.ColumnName(3) = 'tid');
-    Assert(stmt.ColumnName(4) = 'hwndOwner');
-    Assert(stmt.ColumnName(5) = 'hwndParent');
-    Assert(stmt.ColumnName(6) = 'className');
-    Assert(stmt.ColumnName(7) = 'realClassName');
-
-    while stmt.Step <> SQLITE_DONE do
-    begin
-      for i := 0 to stmt.ColumnCount - 1 do
-      begin
-        w := TMMWindow.Create(
-          stmt.ColumnInt(1),
-          stmt.ColumnInt(2),
-          stmt.ColumnInt(3),
-          stmt.ColumnInt(4),
-          stmt.ColumnInt(5),
-          stmt.ColumnText(6),
-          stmt.ColumnText(7)
-          , 0 // TODO: add base offset to database
-        );
-        if not FContext.Windows.TryGetValue(stmt.ColumnInt(1), ws) then
-        begin
-          ws := TMMWindows.Create;
-          FContext.Windows.Add(stmt.ColumnInt(1), ws);
-        end;
-        ws.Add(w);
-      end;
-    end;
-  finally
-    stmt.Free;
-  end;}
-
-  {stmt := TSQLite3Statement.Create(db, 'SELECT pid FROM Event GROUP BY pid');
-  try
-    Assert(stmt.ColumnCount = 5);
-    Assert(stmt.ColumnName(0) = 'row');
-    Assert(stmt.ColumnName(1) = 'pid');
-    Assert(stmt.ColumnName(2) = 'platform');
-    Assert(stmt.ColumnName(3) = 'process');
-    Assert(stmt.ColumnName(4) = 'commandLine');
-
-    while stmt.Step <> SQLITE_DONE do
-    begin
-      for i := 0 to stmt.ColumnCount - 1 do
-      begin
-        p := TMMProcess.Create(
-          s
-          stmt.ColumnInt(1),
-          stmt.ColumnInt(2),
-          stmt.ColumnText(3),
-          stmt.ColumnText(4)
-          , 0 // TODO: add base offset to database
-        );
-        if not FContext.Processes.TryGetValue(stmt.ColumnInt(1), ps) then
-        begin
-          ps := TMMProcesses.Create;
-          FContext.Processes.Add(stmt.ColumnInt(1), ps);
-        end;
-        ps.Add(p);
-      end;
-    end;
-  finally
-    stmt.Free;
-  end;}
 
   stmtWindowBase := TSQLite3Statement.Create(db,
     'select '+
@@ -474,66 +406,75 @@ begin
   stmtWindowBase.BindInt(1, Result.event_id);
   stmtWindowBase.BindInt(2, Result.hwnd);
   if stmtWindowBase.Step = SQLITE_ROW then
-  begin
-    w := TMMWindow.Create(
-      stmtWindowBase.ColumnInt64(WINDOW_CX + 1),        //timestamp
-      stmtWindowBase.ColumnInt(WINDOW_CX + 2),          //'pid');
-      stmtWindowBase.ColumnInt(WINDOW_CX + 3),          //'tid');
-      stmtWindowBase.ColumnInt64(WINDOW_CX + 0),        //event_id
-
-      stmtWindowBase.ColumnInt(2), // hwnd
-      stmtWindowBase.ColumnInt(3), // ownerPid
-      stmtWindowBase.ColumnInt(4), // ownerTid
-      stmtWindowBase.ColumnInt(5), // hwndOwner
-      stmtWindowBase.ColumnInt(6), // hwndParent
-      stmtWindowBase.ColumnText(7), // className
-      stmtWindowBase.ColumnText(8)  // realClassName
-    );
-  end;
+    w := LoadWindowRow(stmtWindowBase);
   stmtWindowBase.Reset;
 
   stmtThreadBase.BindInt(1, Result.event_id);
   stmtThreadBase.BindInt(2, Result.tid);
   if stmtThreadBase.Step = SQLITE_ROW then
-  begin
-    t := TMMThread.Create(
-      stmtThreadBase.ColumnInt64(THREAD_CX + 1),        //timestamp
-      stmtThreadBase.ColumnInt(THREAD_CX + 2),          //'pid');
-      stmtThreadBase.ColumnInt(THREAD_CX + 3),          //'tid');
-      stmtThreadBase.ColumnInt64(THREAD_CX + 0),        //event_id
-
-      stmtThreadBase.ColumnInt(2), // tid
-      stmtThreadBase.ColumnInt(3), // isForegroundThread
-      stmtThreadBase.ColumnInt(4), // hwndFocus
-      stmtThreadBase.ColumnInt(5), // hwndActive
-      stmtThreadBase.ColumnInt(6), // hwndCapture
-      stmtThreadBase.ColumnInt(7), // hwndCaret
-      stmtThreadBase.ColumnInt(8), // hwndMenuOwner
-      stmtThreadBase.ColumnInt(9), // hwndMoveSize
-      stmtThreadBase.ColumnInt(10) // hwndMoveSize
-    );
-  end;
+    t := LoadThreadRow(stmtThreadBase);
   stmtThreadBase.Reset;
 
   stmtProcessBase.BindInt(1, Result.event_id);
   stmtProcessBase.BindInt(2, Result.pid);
   if stmtProcessBase.Step = SQLITE_ROW then
-  begin
-    p := TMMProcess.Create(
-      stmtProcessBase.ColumnInt64(PROCESS_CX + 1),        //timestamp
-      stmtProcessBase.ColumnInt(PROCESS_CX + 2),          //'pid');
-      stmtProcessBase.ColumnInt(PROCESS_CX + 3),          //'tid');
-      stmtProcessBase.ColumnInt64(PROCESS_CX + 0),        //event_id
-
-      stmtProcessBase.ColumnInt(2), // ownerPid
-      stmtProcessBase.ColumnInt(3), // platform_
-      stmtProcessBase.ColumnText(4), // processPath
-      stmtProcessBase.ColumnText(5)  // commandLine
-    );
-  end;
+    p := LoadProcessRow(stmtProcessBase);
   stmtProcessBase.Reset;
 
   Result.Fill(p, t, w);
+end;
+
+function TMMDatabase.LoadWindowRow(stmt: TSQLite3Statement): TMMWindow;
+begin
+  Result := TMMWindow.Create(
+    stmt.ColumnInt64(WINDOW_CX + 1),        //timestamp
+    stmt.ColumnInt(WINDOW_CX + 2),          //'pid');
+    stmt.ColumnInt(WINDOW_CX + 3),          //'tid');
+    stmt.ColumnInt64(WINDOW_CX + 0),        //event_id
+
+    stmt.ColumnInt(2), // hwnd
+    stmt.ColumnInt(3), // ownerPid
+    stmt.ColumnInt(4), // ownerTid
+    stmt.ColumnInt(5), // hwndOwner
+    stmt.ColumnInt(6), // hwndParent
+    stmt.ColumnText(7), // className
+    stmt.ColumnText(8)  // realClassName
+  );
+end;
+
+function TMMDatabase.LoadThreadRow(stmt: TSQLite3Statement): TMMThread;
+begin
+  Result := TMMThread.Create(
+    stmt.ColumnInt64(THREAD_CX + 1),        //timestamp
+    stmt.ColumnInt(THREAD_CX + 2),          //'pid');
+    stmt.ColumnInt(THREAD_CX + 3),          //'tid');
+    stmt.ColumnInt64(THREAD_CX + 0),        //event_id
+
+    stmt.ColumnInt(2), // tid
+    stmt.ColumnInt(3), // isForegroundThread
+    stmt.ColumnInt(4), // hwndFocus
+    stmt.ColumnInt(5), // hwndActive
+    stmt.ColumnInt(6), // hwndCapture
+    stmt.ColumnInt(7), // hwndCaret
+    stmt.ColumnInt(8), // hwndMenuOwner
+    stmt.ColumnInt(9), // hwndMoveSize
+    stmt.ColumnInt(10) // hwndMoveSize
+  );
+end;
+
+function TMMDatabase.LoadProcessRow(stmt: TSQLite3Statement): TMMProcess;
+begin
+  Result := TMMProcess.Create(
+    stmt.ColumnInt64(PROCESS_CX + 1),        //timestamp
+    stmt.ColumnInt(PROCESS_CX + 2),          //'pid');
+    stmt.ColumnInt(PROCESS_CX + 3),          //'tid');
+    stmt.ColumnInt64(PROCESS_CX + 0),        //event_id
+
+    stmt.ColumnInt(2), // ownerPid
+    stmt.ColumnInt(3), // platform_
+    stmt.ColumnText(4), // processPath
+    stmt.ColumnText(5)  // commandLine
+  );
 end;
 
 function TMMDatabase.LoadMessageRow(index: Integer): TMMMessage;
@@ -549,6 +490,119 @@ begin
   Result := DoLoadMessageRow(stmtMessage);
 
   stmtMessage.Reset;
+end;
+
+function TMMDatabase.LoadProcesses(event_id: Int64): TMMProcessDictionary;
+var
+  stmt: TSQLite3Statement;
+  p: TMMProcess;
+begin
+  Result := TMMProcessDictionary.Create;
+
+  // https://stackoverflow.com/questions/7745609/sql-select-only-rows-with-max-value-on-a-column
+  stmt := TSQLite3Statement.Create(db,
+    'select '+
+    '  p.*, e.* '+
+    'from '+
+    '  process p inner join '+
+    '  ('+
+    '    select '+
+    '      p0.pid, max(p0.event_id) max_event_id '+
+    '    from '+
+    '      process p0 '+
+    '    where '+
+    '      p0.event_id < ? '+
+    '    group by '+
+    '      p0.pid '+
+    '  ) p1 on p.event_id = p1.max_event_id inner join '+
+    '  event e on p.event_id = e.event_id'
+  );
+  try
+    Assert(stmt.ColumnCount = PROCESS_CX + EVENT_CX);
+    stmt.BindInt64(1, event_id);
+    while stmt.Step = SQLITE_ROW do
+    begin
+      p := LoadProcessRow(stmt);
+      Result.Add(p.pid, p);
+    end;
+  finally
+    stmt.Free;
+  end;
+end;
+
+function TMMDatabase.LoadThreads(event_id: Int64): TMMThreadDictionary;
+var
+  stmt: TSQLite3Statement;
+  t: TMMThread;
+begin
+  Result := TMMThreadDictionary.Create;
+
+  // https://stackoverflow.com/questions/7745609/sql-select-only-rows-with-max-value-on-a-column
+  stmt := TSQLite3Statement.Create(db,
+    'select '+
+    '  t.*, e.* '+
+    'from '+
+    '  thread t inner join '+
+    '  ('+
+    '    select '+
+    '      t0.tid, max(t0.event_id) max_event_id '+
+    '    from '+
+    '      thread t0 '+
+    '    where '+
+    '      t0.event_id < ? '+
+    '    group by '+
+    '      t0.tid '+
+    '  ) t1 on t.event_id = t1.max_event_id inner join '+
+    '  event e on t.event_id = e.event_id'
+  );
+  try
+    Assert(stmt.ColumnCount = THREAD_CX + EVENT_CX);
+    stmt.BindInt64(1, event_id);
+    while stmt.Step = SQLITE_ROW do
+    begin
+      t := LoadThreadRow(stmt);
+      Result.Add(t.tid, t);
+    end;
+  finally
+    stmt.Free;
+  end;
+end;
+
+function TMMDatabase.LoadWindows(event_id: Int64): TMMWindowDictionary;
+var
+  stmt: TSQLite3Statement;
+  w: TMMWindow;
+begin
+  Result := TMMWindowDictionary.Create;
+
+  stmt := TSQLite3Statement.Create(db,
+    'select '+
+    '  w.*, e.* '+
+    'from '+
+    '  window w inner join '+
+    '  ('+
+    '    select '+
+    '      w0.hwnd, max(w0.event_id) max_event_id '+
+    '    from '+
+    '      window w0 '+
+    '    where '+
+    '      w0.event_id < ? '+
+    '    group by '+
+    '      w0.hwnd '+
+    '  ) w1 on w.event_id = w1.max_event_id inner join '+
+    '  event e on w.event_id = e.event_id'
+  );
+  try
+    Assert(stmt.ColumnCount = WINDOW_CX + EVENT_CX);
+    stmt.BindInt64(1, event_id);
+    while stmt.Step = SQLITE_ROW do
+    begin
+      w := LoadWindowRow(stmt);
+      Result.Add(w.hwnd, w);
+    end;
+  finally
+    stmt.Free;
+  end;
 end;
 
 procedure TMMDatabase.SaveFilter(filters: TMMFilters; filter_id: TMMFilterType);
