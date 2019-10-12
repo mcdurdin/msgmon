@@ -24,9 +24,10 @@ type
     gridDetails: TStringGrid;
     grid: TStringGrid;
     procedure FormResize(Sender: TObject);
-    procedure gridDetailsDblClick(Sender: TObject);
     procedure gridDetailsDrawCell(Sender: TObject; ACol, ARow: Integer;
       Rect: TRect; State: TGridDrawState);
+    procedure gridDrawCell(Sender: TObject; ACol, ARow: Integer; Rect: TRect;
+      State: TGridDrawState);
 //    procedure tvWindowsDblClick(Sender: TObject);
   private
     db: TMMDatabase;
@@ -81,24 +82,16 @@ begin
   TDetailGridController.Resize(gridDetails);
 end;
 
-procedure TMMWindowTreeFrame.gridDetailsDblClick(Sender: TObject);
-var
-  v: Integer;
-begin
-//  case TDetailGridController.GetClickContext(gridDetails, v) of
-//    mdrHwnd: ShowWindowInfo(v);
-//    mdrPID: ShowProcessInfo(v);
-//    mdrTID: ShowThreadInfo(v);
-//    else Exit;
-//  end;
-
-//  tvWindows.SetFocus;
-end;
-
 procedure TMMWindowTreeFrame.gridDetailsDrawCell(Sender: TObject; ACol,
   ARow: Integer; Rect: TRect; State: TGridDrawState);
 begin
   TDetailGridController.DrawCellText(gridDetails.Canvas, Rect, gridDetails.Cells[ACol, ARow], FHighlights, ACol > 0);
+end;
+
+procedure TMMWindowTreeFrame.gridDrawCell(Sender: TObject; ACol, ARow: Integer;
+  Rect: TRect; State: TGridDrawState);
+begin
+  TDetailGridController.DrawCellText(gridDetails.Canvas, Rect, gridDetails.Cells[ACol, ARow], FHighlights, ARow > 0);
 end;
 
 procedure TMMWindowTreeFrame.RefreshTree;
@@ -183,7 +176,7 @@ begin
   if m = nil then
   begin
     grid.RowCount := 1;
-    // TODO: clear
+    // TODO: clear fields
     Exit;
   end;
   //
@@ -211,6 +204,8 @@ begin
   ws := db.LoadWindows(m.event_id);
   ps := db.LoadProcesses(m.event_id);
   ts := db.LoadThreads(m.event_id);
+
+  // TODO: Refactor the data manipulation into a good place
 
   grid.RowCount := ts.Count + ws.Count + ps.Count + 1;
 

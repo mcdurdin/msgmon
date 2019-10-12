@@ -38,7 +38,6 @@ object MMWindowTreeFrame: TMMWindowTreeFrame
     FixedRows = 0
     Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRowSelect]
     TabOrder = 0
-    OnDblClick = gridDetailsDblClick
     OnDrawCell = gridDetailsDrawCell
   end
   object grid: TStringGrid
@@ -52,5 +51,6 @@ object MMWindowTreeFrame: TMMWindowTreeFrame
     DefaultRowHeight = 16
     FixedCols = 0
     TabOrder = 1
+    OnDrawCell = gridDrawCell
   end
 end

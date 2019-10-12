@@ -28,7 +28,8 @@ uses
   Vcl.Themes,
   Vcl.Styles,
   MsgMon.System.Data.Search in 'MsgMon.System.Data.Search.pas',
-  MsgMon.System.Data.Event in 'MsgMon.System.Data.Event.pas';
+  MsgMon.System.Data.Event in 'MsgMon.System.Data.Event.pas',
+  MsgMon.System.ContextViewTypes in 'MsgMon.System.ContextViewTypes.pas';
 
 {$R *.res}
 

@@ -102,8 +102,6 @@ end;
 
 procedure TMMDatabase.Load;
 var
-  w: TMMWindow;
-  p: TMMProcess;
   stmt: TSQLite3Statement;
 begin
   Assert(FileExists(FFilename));
@@ -224,8 +222,6 @@ begin
   Assert(stmtMessage.ColumnName(12) = 'filter_row');}
 
 //  ApplyFilter;
-
-  FContext.PrepareTrees;
 end;
 
 procedure TMMDatabase.InitializeFilter(filters: TMMFilters);
