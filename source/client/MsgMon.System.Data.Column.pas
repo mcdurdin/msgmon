@@ -86,6 +86,7 @@ type
   TMMColumn_Window = class(TMMColumn)
   protected
     class function DefaultWidth: Integer; override;
+    class function BaseRender(hwnd: Cardinal): string;
     function DoRender(data: TMMMessage): string; override;
     function DoCompare(d1, d2: TMMMessage): Integer; override;
     function GetData(data: TMMMessage): Cardinal; virtual; abstract;
@@ -98,7 +99,7 @@ type
     class function DefaultWidth: Integer; override;
     function DoRender(data: TMMMessage): string; override;
     function DoCompare(d1, d2: TMMMessage): Integer; override;
-    function GetData(data: TMMMessage): Cardinal; virtual; abstract;
+    function GetData(data: TMMMessage): string; virtual; abstract;
     function DoFilter(data: TMMMessage; relation: TMMFilterRelation; const value: string): Boolean; override;
   public
   end;
@@ -173,7 +174,7 @@ type
   TMMColumn_hWnd_Class = class(TMMColumn_WindowClass)
   protected
     class function GetCaption: string; override;
-    function GetData(data: TMMMessage): Cardinal; override;
+    function GetData(data: TMMMessage): string; override;
   end;
 
   TMMColumn_Mode = class(TMMColumn_String)
@@ -821,6 +822,11 @@ end;
 
 { TMMColumn_Window }
 
+class function TMMColumn_Window.BaseRender(hwnd: Cardinal): string;
+begin
+  Result := IntToHex(hwnd, 8);
+end;
+
 class function TMMColumn_Window.DefaultWidth: Integer;
 begin
   Result := 80;
@@ -863,7 +869,7 @@ var
   hwnd: Cardinal;
 begin
   hwnd := GetData(data);
-  Result := IntToHex(hwnd, 8);
+  Result := BaseRender(hwnd);
 end;
 
 (*
@@ -947,9 +953,17 @@ begin
   Result := 'hwnd class';
 end;
 
-function TMMColumn_hWnd_Class.GetData(data: TMMMessage): Cardinal;
+function TMMColumn_hWnd_Class.GetData(data: TMMMessage): string;
 begin
-  Result := data.hwnd;
+  if data.window = nil then
+    Result := TMMColumn_hWnd.BaseRender(data.hwnd)
+  else
+  begin
+    if data.window.RealClassName <> data.window.ClassName then
+      Result := data.window.ClassName + ' ('+data.window.RealClassName+')'
+    else
+      Result := data.window.ClassName;
+  end;
 end;
 
 { TMMColumn_WindowClass }
@@ -986,23 +1000,8 @@ begin
 end;
 
 function TMMColumn_WindowClass.DoRender(data: TMMMessage): string;
-var
-  hwnd: Cardinal;
-  ws: TMMWindows;
-  w: TMMWindow;
 begin
-  hwnd := GetData(data);
-
-{  if FContext.Windows.TryGetValue(hwnd, ws)
-    then w := ws.FromBase(data.index)
-    else w := nil;
-
-  if Assigned(w) then
-  begin
-    Result := w.Render(False);
-  end
-  else}
-    Result := IntToStr(hwnd);
+  Result := GetData(data);
 end;
 
 (*

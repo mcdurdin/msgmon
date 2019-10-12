@@ -4,31 +4,39 @@ interface
 
 uses
   System.Generics.Collections,
-  Winapi.Windows;
+  Winapi.Windows,
+
+  MsgMon.System.Data.Event;
 
 type
   TMMWindows = class;
 
-  TMMWindow = class
-    base: Integer;  // First reference in messages index
-    hwnd: DWORD;
-    pid, tid: DWORD;
-    hwndOwner, hwndParent: DWORD;
+  TMMWindow = class(TMMEvent)
+    hwnd: Integer;
+    ownerPid, ownerTid: Integer;
+    hwndOwner, hwndParent: Integer;
     ClassName, RealClassName: string;
-  private
-    FChildWindows: TMMWindows;
   public
-    constructor Create(hwnd, pid, tid, hwndOwner, hwndParent: Integer; className, realClassName: string; ABase: Integer);
-    destructor Destroy; override;
+    constructor Create(
+      timestamp: Int64;
+      pid,
+      tid: Integer;
+      event_id: Int64;
+
+      hwnd,
+      ownerPid,
+      ownerTid,
+      hwndOwner,
+      hwndParent: Integer;
+      className,
+      realClassName: string);
     function Render(IncludeHandle: Boolean): string;
-    property ChildWindows: TMMWindows read FChildWindows;
   end;
 
   TMMWindows = class(TObjectList<TMMWindow>)
-    function FromBase(ABase: Integer): TMMWindow;
   end;
 
-  TMMWindowDictionary = class(TObjectDictionary<DWORD,TMMWindows>)
+  TMMWindowDictionary = class(TObjectDictionary<DWORD,TMMWindow>)
   end;
 
 implementation
@@ -38,42 +46,33 @@ uses
 
 { TMsgMonWindow }
 
-constructor TMMWindow.Create(hwnd, pid, tid, hwndOwner, hwndParent: Integer; className, realClassName: string; ABase: Integer);
-begin
-  inherited Create;
+constructor TMMWindow.Create(
+  timestamp: Int64;
+  pid,
+  tid: Integer;
+  event_id: Int64;
 
-  FChildWindows := TMMWindows.Create(False); // This object does not own the child window objects
+  hwnd,
+  ownerPid,
+  ownerTid,
+  hwndOwner,
+  hwndParent:
+  Integer;
+  className,
+  realClassName: string);
+begin
+  inherited Create(timestamp, pid, tid, event_id);
 
   Self.hwnd := hwnd;
-  Self.pid := pid;
-  Self.tid := tid;
+  Self.ownerPid := ownerPid;
+  Self.ownerTid := ownerTid;
   Self.hwndOwner := hwndOwner;
   Self.hwndParent := hwndParent;
   Self.ClassName := className;
   Self.RealClassName := realClassName;
-
-  Self.base := ABase;
 end;
 
 { TMsgMonWindows }
-
-function TMMWindows.FromBase(ABase: Integer): TMMWindow;
-var
-  i: Integer;
-begin
-  for i := Count-1 downto 0 do
-    if Items[i].base <= ABase then
-      Exit(Items[i]);
-  if Count = 0 then
-    Exit(nil);
-  Result := Items[0];
-end;
-
-destructor TMMWindow.Destroy;
-begin
-  FreeAndNil(FChildWindows);
-  inherited Destroy;
-end;
 
 function TMMWindow.Render(IncludeHandle: Boolean): string;
 begin

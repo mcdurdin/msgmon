@@ -9,6 +9,7 @@ uses
   MsgMon.System.Data.Event,
   MsgMon.System.Data.MessageName,
   MsgMon.System.Data.Process,
+  MsgMon.System.Data.Thread,
   MsgMon.System.Data.Window;
 
 type
@@ -28,10 +29,11 @@ type
     stack: string;
 
     process: TMMProcess;
+    thread: TMMThread;
     window: TMMWindow;
     messageName: TMMMessageName;
 
-    procedure Fill; //(processes: TMMProcessDictionary; windows: TMMWindowDictionary; messageNames: TMMMessageNameDictionary);
+    procedure Fill(process: TMMProcess; thread: TMMThread; window: TMMWindow);
     constructor Create(
       timestamp: Int64;
       pid,
@@ -81,7 +83,7 @@ constructor TMMMessage.Create(
 //  detailLength: Integer
 );
 begin
-  inherited Create(event_id, timestamp, pid, tid);
+  inherited Create(timestamp, pid, tid, event_id);
 
   Self.index := index;
 
@@ -106,11 +108,14 @@ begin
 //  end;
 end;
 
-procedure TMMMessage.Fill; //(processes: TMMProcessDictionary; windows: TMMWindowDictionary; messageNames: TMMMessageNameDictionary);
-var
+procedure TMMMessage.Fill(process: TMMProcess; thread: TMMThread; window: TMMWindow);
+{var
   ps: TMMProcesses;
-  ws: TMMWindows;
+  ws: TMMWindows;}
 begin
+  Self.process := process;
+  Self.thread := thread;
+  Self.window := window;
 {  if process <> nil then
     Exit;
 

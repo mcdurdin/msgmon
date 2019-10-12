@@ -125,6 +125,7 @@ BOOL Capture(wchar_t *eventName, wchar_t *logfile, BOOL overwrite) {
   DWORD mode;
   HANDLE hstdin = NULL;
   HANDLE hEvent = NULL;
+  HANDLE hWaitObject = NULL;
 
   if (eventName) {
 	  hEvent = OpenEvent(SYNCHRONIZE, FALSE, eventName);
@@ -142,7 +143,7 @@ BOOL Capture(wchar_t *eventName, wchar_t *logfile, BOOL overwrite) {
     MMShowInfo(L"Press any key to end trace.");
   }
   
-  HANDLE hWaitObject = hEvent ? hEvent : hstdin;
+  hWaitObject = hEvent ? hEvent : hstdin;
 
 #ifndef _WIN64
   // Start the trace, only on x86 host (x64 host will piggy back)

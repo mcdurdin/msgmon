@@ -258,7 +258,7 @@ BOOL CreateTable(PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO info, i
   // TODO: free memory
 
   sprintf_s(buf, bufSize, "CREATE TABLE IF NOT EXISTS \"%ws\" (event_id INTEGER, row INTEGER", tableName);
-  sprintf_s(stmtbuf, bufSize, "INSERT INTO \"%ws\" VALUES (?", tableName);
+  sprintf_s(stmtbuf, bufSize, "INSERT INTO \"%ws\" VALUES (?, ?", tableName);
 
   for (ULONG i = 0; i < pInfo->TopLevelPropertyCount; i++) {
     PWSTR propertyName;

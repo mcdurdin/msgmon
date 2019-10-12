@@ -48,6 +48,6 @@ void LogThread() {
     TraceLoggingValue((UINT64)ts.gti.hwndCaret, "hwndCaret"),
     TraceLoggingValue((UINT64)ts.gti.hwndMenuOwner, "hwndMenuOwner"),
     TraceLoggingValue((UINT64)ts.gti.hwndMoveSize, "hwndMoveSize"),
-    TraceLoggingValue((DWORD)ts.activeHKL, "activeHKL")
+    TraceLoggingValue((DWORD)(UINT64)ts.activeHKL, "activeHKL")
   );
 }

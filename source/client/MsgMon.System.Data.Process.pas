@@ -15,8 +15,8 @@ const
 
 type
   TMMProcess = class(TMMEvent)
-    base: Integer;
     platform_: DWORD;
+    pidOwner: DWORD;
     processPath, commandLine: string;
     processName: string;
   private
@@ -28,17 +28,19 @@ type
       tid: Integer;
       event_id: Int64;
 
-      platform_: DWORD; const processPath, commandLine: string; ABase: Integer);
+      pidOwner: Integer;
+      platform_: DWORD;
+      const processPath,
+      commandLine: string);
     destructor Destroy; override;
 //    property Threads: TMMThreads read FThreads;
     function Render(IncludePID: Boolean): string;
   end;
 
   TMMProcesses = class(TObjectList<TMMProcess>)
-    function FromBase(ABase: Integer): TMMProcess;
   end;
 
-  TMMProcessDictionary = class(TObjectDictionary<DWORD,TMMProcesses>)
+  TMMProcessDictionary = class(TObjectDictionary<DWORD,TMMProcess>)
   end;
 
 implementation
@@ -54,35 +56,21 @@ constructor TMMProcess.Create(
   tid: Integer;
   event_id: Int64;
 
+  pidOwner: Integer;
   platform_: DWORD;
   const processPath,
-  commandLine: string;
-  ABase: Integer);
+  commandLine: string);
 begin
   inherited Create(timestamp, pid, tid, event_id);
 
 //  FThreads := TMMThreads.Create;
 
+  Self.pidOwner := pidOwner;
   Self.platform_ := platform_;
   Self.processPath := processPath;
   Self.commandLine := commandLine;
-  base := ABase;
 
   processName := ExtractFileName(processPath);
-end;
-
-{ TMsgMonProcesses }
-
-function TMMProcesses.FromBase(ABase: Integer): TMMProcess;
-var
-  i: Integer;
-begin
-  for i := Count-1 downto 0 do
-    if Items[i].base <= ABase then
-      Exit(Items[i]);
-  if Count = 0 then
-    Exit(nil);
-  Result := Items[0];
 end;
 
 destructor TMMProcess.Destroy;

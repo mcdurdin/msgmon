@@ -29,7 +29,7 @@ type
       tid: Integer;
       event_id: Int64;
 
-      isForegroundThread: Boolean;
+      isForegroundThread: Integer;
       hwndFocus,
       hwndActive,
       hwndCapture,
@@ -58,7 +58,7 @@ constructor TMMThread.Create(
   tid: Integer;
   event_id: Int64;
 
-  isForegroundThread: BOolean;
+  isForegroundThread: Integer;
   hwndFocus,
   hwndActive,
   hwndCapture,
@@ -70,7 +70,7 @@ constructor TMMThread.Create(
 begin
   inherited Create(timestamp, pid, tid, event_id);
 
-  Self.isForegroundThread := isForegroundThread;
+  Self.isForegroundThread := not(not LONGBOOL(isForegroundThread)); // Is this strictly necessary?
   Self.hwndFocus := hwndFocus;
   Self.hwndActive := hwndActive;
   Self.hwndCapture := hwndCapture;
