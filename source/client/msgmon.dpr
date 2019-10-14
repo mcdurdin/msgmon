@@ -29,7 +29,9 @@ uses
   Vcl.Styles,
   MsgMon.System.Data.Search in 'MsgMon.System.Data.Search.pas',
   MsgMon.System.Data.Event in 'MsgMon.System.Data.Event.pas',
-  MsgMon.System.ContextViewTypes in 'MsgMon.System.ContextViewTypes.pas';
+  MsgMon.System.ContextViewTypes in 'MsgMon.System.ContextViewTypes.pas',
+  MsgMon.UI.ProgressForm in 'MsgMon.UI.ProgressForm.pas' {MMProgressForm},
+  MsgMon.System.ProgressManager in 'MsgMon.System.ProgressManager.pas';
 
 {$R *.res}
 

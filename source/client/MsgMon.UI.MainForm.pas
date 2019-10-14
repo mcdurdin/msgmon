@@ -165,7 +165,8 @@ type
     PopupContextText: string;
     PopupContextCol: Integer;
     LastIndex: Integer;
-    currentMessage, selectedMessage: TMMMessage;
+    loadedMessage,                  // The message loaded by LoadMessageRow, for rendering, searching, etc; does not load context
+    selectedMessage: TMMMessage;    // The currently selected which drives process/thread/window context for the whole UI
     FTraceProcess: TRunConsoleApp;
     FLogStoreProcess: TRunConsoleApp;
     FTraceProcessx64: TRunConsoleApp;
@@ -220,11 +221,13 @@ uses
   Vcl.Clipbrd,
   Winapi.ActiveX,
 
-  MsgMon.UI.FilterForm,
   MsgMon.UI.DisplayColumnForm,
+  MsgMon.UI.FilterForm,
+  MsgMon.UI.ProgressForm,
   MsgMon.System.Data.MessageDetail,
   MsgMon.System.Data.Search,
   MsgMon.System.ExecProcess,
+  MsgMon.System.ProgressManager,
   MsgMon.System.Util;
 
 const
@@ -624,7 +627,7 @@ var
   index: Integer;
   t: string;
 begin
-  if not Assigned(db) then
+  if not Assigned(db) or not db.Ready then
     Exit;
 
   if (ARow < 0) or (ARow >= db.FilteredRowCount) then
@@ -638,11 +641,11 @@ begin
   begin
     index := ARow - 1;
     if not LoadMessageRow(index) then Exit;
-    t := db.session.displayColumns[ACol].Render(currentMessage);
+    t := db.session.displayColumns[ACol].Render(loadedMessage);
   end;
 
   db.InitializeFilter(db.Session.highlights); // TODO: Refactor this to when changes are made to the filter; silly to do this for every paint
-  if (ARow > 0) and (db.Session.highlights.Count > 0) and db.DoesFilterMatchMessage(db.Session.highlights, currentMessage) then
+  if (ARow > 0) and (db.Session.highlights.Count > 0) and db.DoesFilterMatchMessage(db.Session.highlights, loadedMessage) then
   begin
     gridMessages.Canvas.Brush.Color := RGB($FF, $C0, $c0);
   end;
@@ -848,11 +851,8 @@ begin
   if not Assigned(m) then
     Exit(False);
 
-    // TODO: this gets our current messag econtext off by some because render is not the
-    // same as selection. We want context.* and currentMessage to be the same. Then the
-    // render loads only immediate details relevant to rendered message.
-  FreeAndNil(currentMessage);
-  currentMessage := m;
+  FreeAndNil(loadedMessage);
+  loadedMessage := m;
   LastIndex := index;
   Result := True;
 end;
@@ -913,23 +913,37 @@ end;
 
 procedure TMMMainForm.FindRecordByIndex(value: Integer);
 var
-  i: Integer;
   m: TMMMessage;
 begin
   // TODO: Ouch: scanning ... but good enough for now
-  for i := 0 to db.FilteredRowCount - 1 do
-  begin
-    m := db.LoadMessageRow(i, False);
-    try
-      if m.index >= value then
+  TMMProgressForm.Execute(Self,
+    procedure (Sender: IProgressUI)
+    var
+      i: Integer;
+    begin
+      Sender.Title := 'Finding previous record';
+      Sender.Message := 'Finding previous record';
+      Sender.CanCancel := True;
+      Sender.Max := db.FilteredRowCount;
+      for i := 0 to db.FilteredRowCount - 1 do
       begin
-        gridMessages.Row := i + 1;
-        Exit;
+        Sender.Position := i;
+        Sender.Yield;
+        if Sender.Cancelled then
+          Exit;
+
+        m := db.LoadMessageRow(i, False);
+        try
+          if m.index >= value then
+          begin
+            gridMessages.Row := i + 1;
+            Exit;
+          end;
+        finally
+          m.Free;
+        end;
       end;
-    finally
-      m.Free;
-    end;
-  end;
+    end);
 end;
 
 procedure TMMMainForm.ApplyFilter;
@@ -944,7 +958,12 @@ begin
     then FIndex := selectedMessage.index
     else FIndex := -1;
 
-  db.ApplyFilter;
+  TMMProgressForm.Execute(Self,
+    procedure(Sender: IProgressUI)
+    begin
+      db.ApplyFilter(Sender);
+    end
+  );
 
   // Refresh status
   UpdateStatusBar;
@@ -1179,11 +1198,11 @@ begin
   for row := gridMessages.Selection.Top to gridMessages.Selection.Bottom do
   begin
     if not LoadMessageRow(row-1) then Exit;
-    t := db.session.displayColumns[0].Render(currentMessage);
+    t := db.session.displayColumns[0].Render(loadedMessage);
     s := s + t;
     for col := 1 to gridMessages.ColCount - 1 do
     begin
-      t := db.session.displayColumns[col].Render(currentMessage);
+      t := db.session.displayColumns[col].Render(loadedMessage);
       s := s + #9 + t;
     end;
     s := s + #13#10;
@@ -1220,7 +1239,7 @@ begin
     Exit;
 
   PopupContextCol := ACol;
-  PopupContextText := db.session.displayColumns[ACol].Render(currentMessage);
+  PopupContextText := db.session.displayColumns[ACol].Render(loadedMessage);
 
   mnuPopupFilterInclude.Caption := '&Include '''+PopupContextText+'''';
   mnuPopupFilterInclude.Enabled := True;

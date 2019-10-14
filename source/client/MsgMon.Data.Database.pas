@@ -10,6 +10,7 @@ uses
   SQLite3Utils,
   SQLite3Wrap,
 
+  MsgMon.System.ProgressManager,
   MsgMon.System.Data.Column,
   MsgMon.System.Data.Context,
   MsgMon.System.Data.Filter,
@@ -26,6 +27,7 @@ type
   TMMDatabase = class
   private
     FFilename: string;
+    FReady: Boolean;
     db: TSQLite3Database;
 
     FContext: TMMDatabaseContext;
@@ -50,7 +52,7 @@ type
     constructor Create(const AFilename, ALastFilterDefinition, ALastHighlightDefinition, ALastColumnsDefinition, ALastSearchDefinition: string);
     destructor Destroy; override;
 
-    procedure ApplyFilter;
+    procedure ApplyFilter(Sender: IProgressUI);
     procedure InitializeFilter(filters: TMMFilters);
     function DoesFilterMatchMessage(filters: TMMFilters; m: TMMMessage): Boolean;
 
@@ -67,6 +69,7 @@ type
     property Session: TMMSession read FSession;
     property Context: TMMDatabaseContext read FContext;
     property Filename: string read FFilename;
+    property Ready: Boolean read FReady;
   end;
 
 implementation
@@ -90,6 +93,7 @@ begin
   session.LoadDefault(ALastFilterDefinition, ALastHighlightDefinition, ALastColumnsDefinition, ALastSearchDefinition);
 
   Load;
+  FReady := True;
 end;
 
 destructor TMMDatabase.Destroy;
@@ -298,16 +302,18 @@ begin
   Exit(-1);
 end;
 
-procedure TMMDatabase.ApplyFilter;
+procedure TMMDatabase.ApplyFilter(Sender: IProgressUI);
 var
   m: TMMMessage;
   row: Integer;
   stmt: TSQLite3Statement;
+  i: Integer;
 begin
   row := 0;
 
-  InitializeFilter(session.filters);
+  FReady := False;
 
+  InitializeFilter(session.filters);
   //
 
   db.BeginTransaction;
@@ -339,6 +345,15 @@ begin
 //        PROCESS_CX + EVENT_CX +
 //        THREAD_CX + EVENT_CX);
 
+      if Assigned(Sender) then
+      begin
+        Sender.Title := 'Applying filter';
+        Sender.Message := 'Scanning '+IntToStr(FTotalRowCount)+' messages';
+        Sender.Max := FTotalRowCount;
+        Sender.CanCancel := True;
+      end;
+      i := 0;
+
       while stmt.Step <> SQLITE_DONE do
       begin
         m := DoLoadMessageRow(stmt, False);
@@ -351,12 +366,22 @@ begin
         finally
           m.Free;
         end;
+        Inc(i);
+        if Assigned(Sender) then
+        begin
+          Sender.Position := i;
+          Sender.Yield;
+          if Sender.Cancelled then
+            // Note, this will mess up the filter!
+            Exit;
+        end;
       end;
     finally
       stmt.Free;
     end;
   finally
     db.Commit;
+    FReady := True;
   end;
 
   FFilteredRowCount := row;
@@ -646,7 +671,7 @@ begin
     begin
       if not filters.LoadFromJSON(stmt.ColumnText(1)) then
         filters.LoadDefault;
-      ApplyFilter;
+      ApplyFilter(nil);
     end;
   finally
     stmt.Free;
