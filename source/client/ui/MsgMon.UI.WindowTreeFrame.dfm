@@ -14,6 +14,7 @@ object MMWindowTreeFrame: TMMWindowTreeFrame
   Font.Name = 'Tahoma'
   Font.Style = []
   OldCreateOrder = False
+  OnCreate = FormCreate
   OnResize = FormResize
   PixelsPerInch = 96
   TextHeight = 13
@@ -27,21 +28,6 @@ object MMWindowTreeFrame: TMMWindowTreeFrame
     ExplicitTop = 0
     ExplicitWidth = 338
   end
-  object tvWindows: TTreeView
-    Left = 0
-    Top = 0
-    Width = 651
-    Height = 215
-    Align = alClient
-    HideSelection = False
-    Indent = 19
-    ReadOnly = True
-    RightClickSelect = True
-    TabOrder = 0
-    OnAdvancedCustomDrawItem = tvWindowsAdvancedCustomDrawItem
-    OnChange = tvWindowsChange
-    OnDblClick = tvWindowsDblClick
-  end
   object gridDetails: TStringGrid
     Left = 0
     Top = 218
@@ -52,8 +38,22 @@ object MMWindowTreeFrame: TMMWindowTreeFrame
     DefaultRowHeight = 16
     FixedRows = 0
     Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRowSelect]
-    TabOrder = 1
-    OnDblClick = gridDetailsDblClick
+    TabOrder = 0
     OnDrawCell = gridDetailsDrawCell
+  end
+  object grid: TStringGrid
+    Left = 0
+    Top = 0
+    Width = 651
+    Height = 215
+    Align = alClient
+    ColCount = 2
+    DefaultColWidth = 300
+    DefaultRowHeight = 16
+    FixedCols = 0
+    Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRowSelect]
+    TabOrder = 1
+    OnClick = gridClick
+    OnDrawCell = gridDrawCell
   end
 end

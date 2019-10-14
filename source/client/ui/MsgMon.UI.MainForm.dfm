@@ -12,6 +12,7 @@ object MMMainForm: TMMMainForm
   Font.Style = []
   Menu = menu
   OldCreateOrder = False
+  WindowState = wsMaximized
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   OnResize = FormResize
@@ -316,11 +317,6 @@ object MMMainForm: TMMMainForm
         Caption = '&Copy'
         Enabled = False
         ShortCut = 16451
-      end
-      object mnuEditFind: TMenuItem
-        Caption = '&Find...'
-        Enabled = False
-        ShortCut = 16454
       end
       object mnuEditFindHighlight: TMenuItem
         Caption = 'Find &Highlight'

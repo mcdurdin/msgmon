@@ -52,7 +52,6 @@ type
     N2: TMenuItem;
     mnuEdit: TMenuItem;
     mnuEditCopy: TMenuItem;
-    mnuEditFind: TMenuItem;
     mnuEditFindHighlight: TMenuItem;
     mnuEditFindBookmark: TMenuItem;
     N3: TMenuItem;
@@ -165,7 +164,8 @@ type
     PopupContextText: string;
     PopupContextCol: Integer;
     LastIndex: Integer;
-    currentMessage: TMMMessage;
+    loadedMessage,                  // The message loaded by LoadMessageRow, for rendering, searching, etc; does not load context
+    selectedMessage: TMMMessage;    // The currently selected which drives process/thread/window context for the whole UI
     FTraceProcess: TRunConsoleApp;
     FLogStoreProcess: TRunConsoleApp;
     FTraceProcessx64: TRunConsoleApp;
@@ -186,7 +186,7 @@ type
     procedure PrepareView;
     procedure ApplyFilter;
     procedure WMUser(var Message: TMessage); message WM_USER;
-    procedure UpdateMessageDetail(data: TMMMessage);
+    procedure UpdateMessageDetail;
     function CreateFilterFromPopup: TMMFilter;
     function LoadMessageRow(index: Integer): Boolean;
     procedure BeginLogCaptureProcess;
@@ -220,11 +220,13 @@ uses
   Vcl.Clipbrd,
   Winapi.ActiveX,
 
-  MsgMon.UI.FilterForm,
   MsgMon.UI.DisplayColumnForm,
+  MsgMon.UI.FilterForm,
+  MsgMon.UI.ProgressForm,
   MsgMon.System.Data.MessageDetail,
   MsgMon.System.Data.Search,
   MsgMon.System.ExecProcess,
+  MsgMon.System.ProgressManager,
   MsgMon.System.Util;
 
 const
@@ -396,8 +398,8 @@ begin
 
   BeginLogCaptureProcess;
 
-//  if fIsWow64 then
-//    BeginLogCaptureX64Process;
+  if fIsWow64 then
+    BeginLogCaptureX64Process;
 
   BeginLogStoreProcess(shouldAppend);
 end;
@@ -516,6 +518,7 @@ end;
 
 procedure TMMMainForm.gridMessageDetailsClick(Sender: TObject);
 begin
+    //if mnuAutomaticallyShowDetails.Checked then
   tmrUpdateWindowTree.Enabled := False;
   tmrUpdateWindowTree.Enabled := True;
 end;
@@ -524,13 +527,14 @@ function TMMMainForm.UpdateWindowTree: Boolean;
 var
   v: Integer;
 begin
+  FWindowTreeFrame.ShowCurrentContext(selectedMessage);
   case TDetailGridController.GetClickContext(gridMessageDetails, v) of
     mdrHwnd: FWindowTreeFrame.ShowWindowInfo(v);
     mdrPID: FWindowTreeFrame.ShowProcessInfo(v);
     mdrTID: FWindowTreeFrame.ShowThreadInfo(v);
     else Exit(False);
   end;
-  Result := TRue;
+  Result := True;
 end;
 
 procedure TMMMainForm.gridMessageDetailsDblClick(Sender: TObject);
@@ -548,16 +552,24 @@ end;
 procedure TMMMainForm.gridMessagesClick(Sender: TObject);
 var
   index: Integer;
+  m: TMMMessage;
 begin
   if gridMessages.Row = 0 then
     Exit;
 
-  index := gridMessages.Row - 1;
-
-  if not LoadMessageRow(index) then
+  if not Assigned(db) then
     Exit;
 
-  UpdateMessageDetail(currentMessage);
+  index := gridMessages.Row - 1;
+
+  m := db.LoadMessageRow(index, True);
+  if not Assigned(m) then
+    Exit;
+
+  FreeAndNil(selectedMessage);
+  selectedMessage := m;
+
+  UpdateMessageDetail;
 end;
 
 procedure TMMMainForm.gridMessagesColumnMoved(Sender: TObject; FromIndex,
@@ -588,7 +600,7 @@ begin
   if ACol < 0 then
     Exit;
 
-  t := db.session.displayColumns[ACol].Render(currentMessage);
+  t := db.session.displayColumns[ACol].Render(selectedMessage);
 
   SetActiveHighlight(t, False);
 end;
@@ -614,7 +626,7 @@ var
   index: Integer;
   t: string;
 begin
-  if not Assigned(db) then
+  if not Assigned(db) or not db.Ready then
     Exit;
 
   if (ARow < 0) or (ARow >= db.FilteredRowCount) then
@@ -628,11 +640,11 @@ begin
   begin
     index := ARow - 1;
     if not LoadMessageRow(index) then Exit;
-    t := db.session.displayColumns[ACol].Render(currentMessage);
+    t := db.session.displayColumns[ACol].Render(loadedMessage);
   end;
 
   db.InitializeFilter(db.Session.highlights); // TODO: Refactor this to when changes are made to the filter; silly to do this for every paint
-  if (ARow > 0) and (db.Session.highlights.Count > 0) and db.DoesFilterMatchMessage(db.Session.highlights, currentMessage) then
+  if (ARow > 0) and (db.Session.highlights.Count > 0) and db.DoesFilterMatchMessage(db.Session.highlights, loadedMessage) then
   begin
     gridMessages.Canvas.Brush.Color := RGB($FF, $C0, $c0);
   end;
@@ -786,12 +798,16 @@ begin
       Exit;
   end;
 
-  row := db.FindText(FSearchInfos[FActiveSearch].Search.Text, row, FindDown);
-  if row >= 0 then
-  begin
-    gridMessages.Row := row + 1;
-    gridMessagesClick(gridMessages);
-  end;
+  TMMProgressForm.Execute(Self,
+    procedure(Sender: IProgressUI)
+    begin
+      row := db.FindText(Sender, FSearchInfos[FActiveSearch].Search.Text, row, FindDown);
+      if row >= 0 then
+      begin
+        gridMessages.Row := row + 1;
+        gridMessagesClick(gridMessages);
+      end;
+    end);
 end;
 
 procedure TMMMainForm.mnuMessageSelectColumnsClick(Sender: TObject);
@@ -834,12 +850,12 @@ begin
   if index = LastIndex then
     Exit(True);
 
-  m := db.LoadMessageRow(index);
+  m := db.LoadMessageRow(index, False);
   if not Assigned(m) then
     Exit(False);
 
-  FreeAndNil(currentMessage);
-  currentMessage := m;
+  FreeAndNil(loadedMessage);
+  loadedMessage := m;
   LastIndex := index;
   Result := True;
 end;
@@ -892,49 +908,45 @@ begin
   end;
 end;
 
-procedure TMMMainForm.UpdateMessageDetail(data: TMMMessage);
-var
-  d: TMessageDetails;
+procedure TMMMainForm.UpdateMessageDetail;
 begin
-  gridMessageDetails.RowCount := 1;
-  memoCallStack.Text := '';
-
-  if not Assigned(db) then
-    Exit;
-
-  if panDetail.Visible and Assigned(data) then
-  begin
-    d := TDetailRenderer.RenderMessage(db.Context, data, True);
-    TDetailGridController.Render(d, gridMessageDetails);
-    memoCallStack.Text := data.stack;
-
-    //if mnuAutomaticallyShowDetails.Checked then
-    begin
-      tmrUpdateWindowTree.Enabled := False;
-      tmrUpdateWindowTree.Enabled := True;
-    end;
-  end;
+  tmrUpdateWindowTree.Enabled := False;
+  tmrUpdateWindowTree.Enabled := True;
 end;
 
 procedure TMMMainForm.FindRecordByIndex(value: Integer);
 var
-  i: Integer;
   m: TMMMessage;
 begin
   // TODO: Ouch: scanning ... but good enough for now
-  for i := 0 to db.FilteredRowCount - 1 do
-  begin
-    m := db.LoadMessageRow(i);
-    try
-      if m.index >= value then
+  TMMProgressForm.Execute(Self,
+    procedure (Sender: IProgressUI)
+    var
+      i: Integer;
+    begin
+      Sender.Title := 'Finding previous record';
+      Sender.Message := 'Finding previous record';
+      Sender.CanCancel := True;
+      Sender.Max := db.FilteredRowCount;
+      for i := 0 to db.FilteredRowCount - 1 do
       begin
-        gridMessages.Row := i + 1;
-        Exit;
+        Sender.Position := i;
+        Sender.Yield;
+        if Sender.Cancelled then
+          Exit;
+
+        m := db.LoadMessageRow(i, False);
+        try
+          if m.index >= value then
+          begin
+            gridMessages.Row := i + 1;
+            Exit;
+          end;
+        finally
+          m.Free;
+        end;
       end;
-    finally
-      m.Free;
-    end;
-  end;
+    end);
 end;
 
 procedure TMMMainForm.ApplyFilter;
@@ -945,11 +957,16 @@ begin
     Exit;
 
   // Remember selected item by index
-  if (gridMessages.Row > 0) and (db.FilteredRowCount > 0) and LoadMessageRow(gridMessages.Row-1)
-      then FIndex := currentMessage.index
-      else FIndex := -1;
+  if Assigned(selectedMessage)
+    then FIndex := selectedMessage.index
+    else FIndex := -1;
 
-  db.ApplyFilter;
+  TMMProgressForm.Execute(Self,
+    procedure(Sender: IProgressUI)
+    begin
+      db.ApplyFilter(Sender);
+    end
+  );
 
   // Refresh status
   UpdateStatusBar;
@@ -1078,9 +1095,24 @@ begin
 end;
 
 procedure TMMMainForm.tmrUpdateWindowTreeTimer(Sender: TObject);
+var
+  d: TMessageDetails;
 begin
   UpdateWindowTree;
   tmrUpdateWindowTree.Enabled := False;
+
+  gridMessageDetails.RowCount := 1;
+  memoCallStack.Text := '';
+
+  if not Assigned(db) then
+    Exit;
+
+  if panDetail.Visible and Assigned(selectedMessage) then
+  begin
+    d := TDetailRenderer.RenderMessage(selectedMessage, True);
+    TDetailGridController.Render(d, gridMessageDetails);
+    memoCallStack.Text := selectedMessage.stack;
+  end;
 end;
 
 procedure TMMMainForm.CloseDatabase;
@@ -1169,11 +1201,11 @@ begin
   for row := gridMessages.Selection.Top to gridMessages.Selection.Bottom do
   begin
     if not LoadMessageRow(row-1) then Exit;
-    t := db.session.displayColumns[0].Render(currentMessage);
+    t := db.session.displayColumns[0].Render(loadedMessage);
     s := s + t;
     for col := 1 to gridMessages.ColCount - 1 do
     begin
-      t := db.session.displayColumns[col].Render(currentMessage);
+      t := db.session.displayColumns[col].Render(loadedMessage);
       s := s + #9 + t;
     end;
     s := s + #13#10;
@@ -1210,7 +1242,7 @@ begin
     Exit;
 
   PopupContextCol := ACol;
-  PopupContextText := db.session.displayColumns[ACol].Render(currentMessage);
+  PopupContextText := db.session.displayColumns[ACol].Render(loadedMessage);
 
   mnuPopupFilterInclude.Caption := '&Include '''+PopupContextText+'''';
   mnuPopupFilterInclude.Enabled := True;

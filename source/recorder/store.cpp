@@ -12,8 +12,12 @@ BOOL FreeStatements();
 BOOL CloseDatabase();
 
 BOOL CreateTable(PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO info, int *rowCounter);
-BOOL InsertRecord(int index, PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO info);
-void WINAPI EventRecordCallback(PEVENT_RECORD event);
+BOOL InsertRecord(LONGLONG event_id, int index, PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO info);
+
+BOOL CreateEventTable(LONGLONG *first_event_id);
+BOOL InsertEventRecord(LONGLONG event_id, LONGLONG timestamp, ULONG pid, ULONG tid, MMEVENTTYPE type);
+
+  void WINAPI EventRecordCallback(PEVENT_RECORD event);
 
 sqlite3 *db = NULL;
 
@@ -21,7 +25,7 @@ LONGLONG recordNum = 0;
 TRACEHANDLE hTrace = INVALID_PROCESSTRACE_HANDLE;
 PTRACE_EVENT_INFO pInfo = NULL;
 DWORD pInfoBufferSize = 0;
-int msgIndex = 0, windowIndex = 0, processIndex = 0;
+int msgIndex = 0, windowIndex = 0, processIndex = 0, threadIndex = 0;
 
 // Maintain a map of created tables and prepared statements
 std::unordered_map<std::wstring, sqlite3_stmt*> tables;
@@ -79,6 +83,11 @@ BOOL LoadTrace(PTSTR szPath) {
 
   trace.EventRecordCallback = EventRecordCallback;
 
+  if (!CreateEventTable(&recordNum)) {
+    MMLogError(L"CreateEventTable failed");
+    return FALSE;
+  }
+
   hTrace = OpenTrace(&trace);
   if (hTrace == INVALID_PROCESSTRACE_HANDLE) {
     MMLogError(L"OpenTrace failed with error %d", GetLastError());
@@ -95,8 +104,8 @@ void WINAPI EventRecordCallback(PEVENT_RECORD event) {
   }
 
   if (++recordNum % 10000 == 0) {
-    // This may not be necessary for offline trace but will be for
-    // realtime trace, in the future
+    // This stops our buffers growing too large, and in theory
+    // in the future allows us to watch the trace in "real time"
     if (!CommitTransaction()) return;
     if (!BeginTransaction()) return;
     MMShowInfo(L"... %d records", recordNum);
@@ -119,13 +128,20 @@ void WINAPI EventRecordCallback(PEVENT_RECORD event) {
     return;
   }
 
+  // TODO: this is calling out for refactoring ... ...
   PWSTR pTask = (PWSTR)((PBYTE)(pInfo)+pInfo->TaskNameOffset);
   if (wcscmp(pTask, L"Message") == 0) {
     if (!CreateTable(pTask, event, pInfo, &msgIndex)) {
       MMLogError(L"Failed to create Message table");
       return;
     }
-    if (!InsertRecord(msgIndex++, pTask, event, pInfo)) {
+
+    if (!InsertEventRecord(recordNum, event->EventHeader.TimeStamp.QuadPart, event->EventHeader.ProcessId, event->EventHeader.ThreadId, MMEVENT_MESSAGE)) {
+      MMLogError(L"Failed to insert Event record for Message");
+      return;
+    }
+
+    if (!InsertRecord(recordNum, msgIndex++, pTask, event, pInfo)) {
       MMLogError(L"Failed to insert Message record");
       return;
     }
@@ -135,7 +151,13 @@ void WINAPI EventRecordCallback(PEVENT_RECORD event) {
       MMLogError(L"Failed to create Window table");
       return;
     }
-    if (!InsertRecord(windowIndex++, pTask, event, pInfo)) {
+
+    if (!InsertEventRecord(recordNum, event->EventHeader.TimeStamp.QuadPart, event->EventHeader.ProcessId, event->EventHeader.ThreadId, MMEVENT_WINDOW)) {
+      MMLogError(L"Failed to insert Event record for Window");
+      return;
+    }
+
+    if (!InsertRecord(recordNum, windowIndex++, pTask, event, pInfo)) {
       MMLogError(L"Failed to insert Window record");
       return;
     }
@@ -145,8 +167,30 @@ void WINAPI EventRecordCallback(PEVENT_RECORD event) {
       MMLogError(L"Failed to create Process table");
       return;
     }
-    if (!InsertRecord(processIndex++, pTask, event, pInfo)) {
+
+    if (!InsertEventRecord(recordNum, event->EventHeader.TimeStamp.QuadPart, event->EventHeader.ProcessId, event->EventHeader.ThreadId, MMEVENT_PROCESS)) {
+      MMLogError(L"Failed to insert Event record for Process");
+      return;
+    }
+
+    if (!InsertRecord(recordNum, processIndex++, pTask, event, pInfo)) {
       MMLogError(L"Failed to insert Process record");
+      return;
+    }
+  }
+  else if (wcscmp(pTask, L"Thread") == 0) {
+    if (!CreateTable(pTask, event, pInfo, &threadIndex)) {
+      MMLogError(L"Failed to create Thread table");
+      return;
+    }
+
+    if (!InsertEventRecord(recordNum, event->EventHeader.TimeStamp.QuadPart, event->EventHeader.ProcessId, event->EventHeader.ThreadId, MMEVENT_THREAD)) {
+      MMLogError(L"Failed to insert Event record for Thread");
+      return;
+    }
+
+    if (!InsertRecord(recordNum, threadIndex++, pTask, event, pInfo)) {
+      MMLogError(L"Failed to insert Thread record");
       return;
     }
   }
@@ -213,8 +257,8 @@ BOOL CreateTable(PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO info, i
   char *buf = new char[bufSize], *stmtbuf = new char[bufSize], *p = buf;
   // TODO: free memory
 
-  sprintf_s(buf, bufSize, "CREATE TABLE IF NOT EXISTS \"%ws\" (row INTEGER", tableName);
-  sprintf_s(stmtbuf, bufSize, "INSERT INTO \"%ws\" VALUES (?", tableName);
+  sprintf_s(buf, bufSize, "CREATE TABLE IF NOT EXISTS \"%ws\" (event_id INTEGER, row INTEGER", tableName);
+  sprintf_s(stmtbuf, bufSize, "INSERT INTO \"%ws\" VALUES (?, ?", tableName);
 
   for (ULONG i = 0; i < pInfo->TopLevelPropertyCount; i++) {
     PWSTR propertyName;
@@ -283,7 +327,70 @@ BOOL CreateTable(PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO info, i
   return TRUE;
 }
 
-BOOL InsertRecord(int index, PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO info) {
+BOOL CreateEventTable(LONGLONG *first_event_id) {
+  auto stmt = tables.find(MMEVENTNAME_EVENT_L);
+  if (stmt != tables.end()) {
+    return TRUE;
+  }
+
+  char buf[256], stmtbuf[256], *p = buf;
+
+  sprintf_s(buf,  "CREATE TABLE IF NOT EXISTS \"%ws\" (event_id INTEGER, timestamp INTEGER, pid INTEGER, tid INTEGER, type INTEGER)", MMEVENTNAME_EVENT_L);
+  sprintf_s(stmtbuf, "INSERT INTO \"%ws\" VALUES (?, ?, ?, ?, ?)", MMEVENTNAME_EVENT_L);
+
+  // create the table (we'll do this outside a transaction so it's available instantly to the consumer)
+  if (!Check(sqlite3_exec(db, "COMMIT TRANSACTION;", NULL, NULL, NULL))) return FALSE;
+  if (!Check(sqlite3_exec(db, buf, NULL, NULL, NULL))) return FALSE;
+
+  sprintf_s(buf, "CREATE UNIQUE INDEX IF NOT EXISTS ix_%ws_event_id ON \"%ws\" (event_id)", MMEVENTNAME_EVENT_L, MMEVENTNAME_EVENT_L);
+  if (!Check(sqlite3_exec(db, buf, NULL, NULL, NULL))) return FALSE;
+
+  if (!Check(sqlite3_exec(db, "BEGIN TRANSACTION;", NULL, NULL, NULL))) return FALSE;
+
+  char rowstmtbuf[256];
+  sprintf_s(rowstmtbuf, "SELECT COALESCE(MAX(event_id)+1,0) FROM \"%ws\"", MMEVENTNAME_EVENT_L);
+  sqlite3_stmt *stmt_get_row;
+  if (!Check(sqlite3_prepare_v2(db, rowstmtbuf, -1, &stmt_get_row, NULL))) return FALSE;
+
+  if (sqlite3_step(stmt_get_row) == SQLITE_ROW) {
+    *first_event_id = sqlite3_column_int64(stmt_get_row, 0);
+  }
+  else {
+    *first_event_id = 0;
+  }
+
+  sqlite3_stmt *new_stmt;
+  if (!Check(sqlite3_prepare_v2(db, stmtbuf, -1, &new_stmt, NULL))) return FALSE;
+  tables[MMEVENTNAME_EVENT_L] = new_stmt;
+  return TRUE;
+}
+
+BOOL InsertEventRecord(LONGLONG event_id, LONGLONG timestamp, ULONG pid, ULONG tid, MMEVENTTYPE type) {
+  auto stmt = tables.find(MMEVENTNAME_EVENT_L);
+  if (stmt == tables.end()) {
+    return FALSE;
+  }
+
+  // TODO: Add stack data
+
+  sqlite3_bind_int64(stmt->second, 1, event_id);
+  sqlite3_bind_int64(stmt->second, 2, timestamp);
+  sqlite3_bind_int(stmt->second, 3, pid);
+  sqlite3_bind_int(stmt->second, 4, tid);
+  sqlite3_bind_int(stmt->second, 5, type);
+
+  int sstatus = sqlite3_step(stmt->second);
+  if (sstatus != SQLITE_DONE) {
+    MMLogError(L"Table %s [%d] failed to insert with code %d", MMEVENTNAME_EVENT_L, event_id, sstatus);
+    return FALSE;
+  }
+  if (!Check(sqlite3_reset(stmt->second))) {
+    return FALSE;
+  }
+  return TRUE;
+}
+
+BOOL InsertRecord(LONGLONG event_id, int index, PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO info) {
   auto stmt = tables.find(tableName);
   if (stmt == tables.end()) {
     return FALSE;
@@ -291,9 +398,10 @@ BOOL InsertRecord(int index, PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_
 
   // TODO: Add stack data
   
-  sqlite3_bind_int(stmt->second, 1, index);
+  sqlite3_bind_int64(stmt->second, 1, event_id);
+  sqlite3_bind_int(stmt->second, 2, index);
 
-  for (ULONG i = 0, col = 2; i < pInfo->TopLevelPropertyCount; i++) {
+  for (ULONG i = 0, col = 3; i < pInfo->TopLevelPropertyCount; i++) {
     PWSTR propertyName;
     if (!GetEventProperties(tableName, event, info, i, propertyName)) return FALSE;
 

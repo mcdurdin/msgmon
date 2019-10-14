@@ -3,7 +3,7 @@
 #include <stdarg.h>
 #include "./mmlog.h"
 
-void MMLog(int level, const char *file, int line, wchar_t *message, ...)
+void MMLog(int level, const char *file, int line, const wchar_t *message, ...)
 {
   wchar_t fmtbuf[256], outbuf[300];
 

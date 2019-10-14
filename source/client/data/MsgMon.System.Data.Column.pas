@@ -23,7 +23,6 @@ type
   TMMColumn = class
   private
     FWidth: Integer;
-    FContext: TMMDataContext;
     FvInclude: Boolean;
     FvIncludeDefault: Boolean;
   protected
@@ -35,7 +34,7 @@ type
     function DoCompare(d1, d2: TMMMessage): Integer; virtual; abstract;
     function DoFilter(data: TMMMessage; relation: TMMFilterRelation; const value: string): Boolean; virtual; abstract;
   public
-    constructor Create(context: TMMDataContext); virtual;
+    constructor Create; virtual;
     function Clone: TMMColumn;
     function Load(o: TJSONObject): Boolean;
     procedure Save(o: TJSONObject);
@@ -98,7 +97,7 @@ type
     class function DefaultWidth: Integer; override;
     function DoRender(data: TMMMessage): string; override;
     function DoCompare(d1, d2: TMMMessage): Integer; override;
-    function GetData(data: TMMMessage): Cardinal; virtual; abstract;
+    function GetData(data: TMMMessage): string; virtual; abstract;
     function DoFilter(data: TMMMessage; relation: TMMFilterRelation; const value: string): Boolean; override;
   public
   end;
@@ -111,6 +110,8 @@ type
     class function GetCaption: string; override;
     function GetData(data: TMMMessage): Integer; override;
   end;
+
+  // Process columns
 
   TMMColumn_ProcessArchitecture = class(TMMColumn_String)
   protected
@@ -164,6 +165,8 @@ type
     function GetData(data: TMMMessage): Integer; override;
   end;
 
+  // Window and thread columns
+
   TMMColumn_hWnd = class(TMMColumn_Window)
   protected
     class function GetCaption: string; override;
@@ -173,7 +176,7 @@ type
   TMMColumn_hWnd_Class = class(TMMColumn_WindowClass)
   protected
     class function GetCaption: string; override;
-    function GetData(data: TMMMessage): Cardinal; override;
+    function GetData(data: TMMMessage): string; override;
   end;
 
   TMMColumn_Mode = class(TMMColumn_String)
@@ -229,6 +232,7 @@ type
     function GetData(data: TMMMessage): string; override;
   end;
 
+(*
   TMMColumn_hWndFocus = class(TMMColumn_Window)
   protected
     class function GetCaption: string; override;
@@ -300,6 +304,7 @@ type
     class function GetCaption: string; override;
     function GetData(data: TMMMessage): Cardinal; override;
   end;
+*)
 
   TMMColumnClassList = class(TClassList)
   protected
@@ -312,9 +317,9 @@ type
 
   TMMColumns = class(TObjectList<TMMColumn>)
   private
-    FContext: TMMDataContext;
+    FContext: TMMGlobalContext;
   public
-    constructor Create(context: TMMDataContext);
+    constructor Create(context: TMMGlobalContext);
     function LoadFromJSON(const definition: string): Boolean;
     procedure SaveToJSON(var definition: string);
     procedure LoadDefault;
@@ -342,7 +347,7 @@ end;
 
 function TMMColumn.Clone: TMMColumn;
 begin
-  Result := FColumnClasses.Find(Self.ClassName).Create(Self.FContext);
+  Result := FColumnClasses.Find(Self.ClassName).Create;
 end;
 
 function TMMColumn.Compare(d1, d2: TMMMessage): Integer;
@@ -350,10 +355,9 @@ begin
   Result := DoCompare(d1, d2);
 end;
 
-constructor TMMColumn.Create(context: TMMDataContext);
+constructor TMMColumn.Create;
 begin
   inherited Create;
-  FContext := context;
   FWidth := DefaultWidth;
 end;
 
@@ -677,7 +681,7 @@ var
   i: Integer;
   d: TMessageDetails;
 begin
-  d := TDetailRenderer.RenderMessage(FContext, data, False);
+  d := TDetailRenderer.RenderMessage(data, False);
   if High(d) < 0 then
     Exit('');
 
@@ -841,7 +845,7 @@ begin
   dataValueInt := Integer(GetData(data));
   dataValue := DoRender(data); // TODO we could be nuanced here
 
-  if not TryStrToInt(value, filterValueInt) then
+  if not TryStrToInt('$'+value, filterValueInt) then
     Exit;
 
   case relation of
@@ -861,79 +865,7 @@ var
   hwnd: Cardinal;
 begin
   hwnd := GetData(data);
-  Result := IntToHex(hwnd, 8);
-end;
-
-{ TMMColumn_hWndFocus }
-
-class function TMMColumn_hWndFocus.GetCaption: string;
-begin
-  Result := 'hwndFocus';
-end;
-
-function TMMColumn_hWndFocus.GetData(data: TMMMessage): Cardinal;
-begin
-  Result := data.hwndFocus;
-end;
-
-{ TMMColumn_hWndActive }
-
-class function TMMColumn_hWndActive.GetCaption: string;
-begin
-  Result := 'hwndActive';
-end;
-
-function TMMColumn_hWndActive.GetData(data: TMMMessage): Cardinal;
-begin
-  Result := data.hwndActive;
-end;
-
-{ TMMColumn_hWndCapture }
-
-class function TMMColumn_hWndCapture.GetCaption: string;
-begin
-  Result := 'hwndCapture';
-end;
-
-function TMMColumn_hWndCapture.GetData(data: TMMMessage): Cardinal;
-begin
-  Result := data.hwndCapture;
-end;
-
-{ TMMColumn_hWndCaret }
-
-class function TMMColumn_hWndCaret.GetCaption: string;
-begin
-  Result := 'hwndCaret';
-end;
-
-function TMMColumn_hWndCaret.GetData(data: TMMMessage): Cardinal;
-begin
-  Result := data.hwndCaret;
-end;
-
-{ TMMColumn_hWndMenuOwner }
-
-class function TMMColumn_hWndMenuOwner.GetCaption: string;
-begin
-  Result := 'hwndMenuOwner';
-end;
-
-function TMMColumn_hWndMenuOwner.GetData(data: TMMMessage): Cardinal;
-begin
-  Result := data.hwndMenuOwner;
-end;
-
-{ TMMColumn_hWndMoveSize }
-
-class function TMMColumn_hWndMoveSize.GetCaption: string;
-begin
-  Result := 'hwndMoveSize';
-end;
-
-function TMMColumn_hWndMoveSize.GetData(data: TMMMessage): Cardinal;
-begin
-  Result := data.hwndMoveSize;
+  Result := TMMWindow.BaseRender(hwnd);
 end;
 
 { TMMColumn_hWndClass }
@@ -943,9 +875,11 @@ begin
   Result := 'hwnd class';
 end;
 
-function TMMColumn_hWnd_Class.GetData(data: TMMMessage): Cardinal;
+function TMMColumn_hWnd_Class.GetData(data: TMMMessage): string;
 begin
-  Result := data.hwnd;
+  if data.window = nil
+    then Result := TMMWindow.BaseRender(data.hwnd)
+    else Result := TMMWindow.BaseRender(False, data.hwnd, data.window.ClassName, data.window.RealClassName);
 end;
 
 { TMMColumn_WindowClass }
@@ -982,24 +916,11 @@ begin
 end;
 
 function TMMColumn_WindowClass.DoRender(data: TMMMessage): string;
-var
-  hwnd: Cardinal;
-  ws: TMMWindows;
-  w: TMMWindow;
 begin
-  hwnd := GetData(data);
-
-  if FContext.Windows.TryGetValue(hwnd, ws)
-    then w := ws.FromBase(data.index)
-    else w := nil;
-
-  if Assigned(w) then
-  begin
-    Result := w.Render(False);
-  end
-  else
-    Result := IntToStr(hwnd);
+  Result := GetData(data);
 end;
+
+(*
 
 { TMMColumn_hWndMoveSize_Class }
 
@@ -1072,10 +993,11 @@ function TMMColumn_hWndFocus_Class.GetData(data: TMMMessage): Cardinal;
 begin
   Result := data.hwndFocus;
 end;
+*)
 
 { TMMColumns }
 
-constructor TMMColumns.Create(context: TMMDataContext);
+constructor TMMColumns.Create(context: TMMGlobalContext);
 begin
   inherited Create;
   FContext := context;
@@ -1093,27 +1015,19 @@ end;
 procedure TMMColumns.LoadAll;
 var
   i: Integer;
-  c: TMMColumnClass;
 begin
   Clear;
   for i := 0 to FColumnClasses.Count - 1 do
-  begin
-    c := FColumnClasses[i];
-    Add(c.Create(FContext));
-  end;
+    Add(FColumnClasses[i].Create);
 end;
 
 procedure TMMColumns.LoadDefault;
 var
   i: Integer;
-  c: TMMColumnClass;
 begin
   Clear;
   for i := 0 to FDefaultColumnClasses.Count - 1 do
-  begin
-    c := FDefaultColumnClasses[i];
-    Add(c.Create(FContext));
-  end;
+    Add(FDefaultColumnClasses[i].Create);
 end;
 
 function TMMColumns.LoadFromJSON(const definition: string): Boolean;
@@ -1150,7 +1064,7 @@ begin
     cc := FColumnClasses.Find(jType.Value);
     if not Assigned(cc) then
       Exit(False);
-    c := cc.Create(FContext);
+    c := cc.Create;
     c.Width := (jWidth as TJSONNumber).AsInt;
     Add(c);
   end;
@@ -1218,18 +1132,18 @@ initialization
   FColumnClasses.Add(TMMColumn_lParam);
   FColumnClasses.Add(TMMColumn_lResult);
   FColumnClasses.Add(TMMColumn_Detail);
-  FColumnClasses.Add(TMMColumn_hWndFocus);
-  FColumnClasses.Add(TMMColumn_hWndFocus_Class);
-  FColumnClasses.Add(TMMColumn_hWndActive);
-  FColumnClasses.Add(TMMColumn_hWndActive_Class);
-  FColumnClasses.Add(TMMColumn_hWndCapture);
-  FColumnClasses.Add(TMMColumn_hWndCapture_Class);
-  FColumnClasses.Add(TMMColumn_hWndCaret);
-  FColumnClasses.Add(TMMColumn_hWndCaret_Class);
-  FColumnClasses.Add(TMMColumn_hWndMenuOwner);
-  FColumnClasses.Add(TMMColumn_hWndMenuOwner_Class);
-  FColumnClasses.Add(TMMColumn_hWndMoveSize);
-  FColumnClasses.Add(TMMColumn_hWndMoveSize_Class);
+//  FColumnClasses.Add(TMMColumn_hWndFocus);
+//  FColumnClasses.Add(TMMColumn_hWndFocus_Class);
+//  FColumnClasses.Add(TMMColumn_hWndActive);
+//  FColumnClasses.Add(TMMColumn_hWndActive_Class);
+//  FColumnClasses.Add(TMMColumn_hWndCapture);
+//  FColumnClasses.Add(TMMColumn_hWndCapture_Class);
+//  FColumnClasses.Add(TMMColumn_hWndCaret);
+//  FColumnClasses.Add(TMMColumn_hWndCaret_Class);
+//  FColumnClasses.Add(TMMColumn_hWndMenuOwner);
+//  FColumnClasses.Add(TMMColumn_hWndMenuOwner_Class);
+//  FColumnClasses.Add(TMMColumn_hWndMoveSize);
+//  FColumnClasses.Add(TMMColumn_hWndMoveSize_Class);
 
   //
   // Default columns

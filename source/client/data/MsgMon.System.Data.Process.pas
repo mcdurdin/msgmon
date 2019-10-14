@@ -6,6 +6,7 @@ uses
   System.Generics.Collections,
   Winapi.Windows,
 
+  MsgMon.System.Data.Event,
   MsgMon.System.Data.Thread;
 
 const
@@ -13,26 +14,33 @@ const
   PLATFORM_X64 = 2;
 
 type
-  TMMProcess = class
-    base: Integer;
-    pid: DWORD;
+  TMMProcess = class(TMMEvent)
     platform_: DWORD;
+    pidOwner: DWORD;
     processPath, commandLine: string;
     processName: string;
   private
-    FThreads: TMMThreads;
+//    FThreads: TMMThreads;
   public
-    constructor Create(pid, platform_: DWORD; const processPath, commandLine: string; ABase: Integer);
+    constructor Create(
+      timestamp: Int64;
+      pid,
+      tid: Integer;
+      event_id: Int64;
+
+      pidOwner: Integer; // TODO: rename or eliminate
+      platform_: DWORD;
+      const processPath,
+      commandLine: string);
     destructor Destroy; override;
-    property Threads: TMMThreads read FThreads;
+//    property Threads: TMMThreads read FThreads;
     function Render(IncludePID: Boolean): string;
   end;
 
   TMMProcesses = class(TObjectList<TMMProcess>)
-    function FromBase(ABase: Integer): TMMProcess;
   end;
 
-  TMMProcessDictionary = class(TObjectDictionary<DWORD,TMMProcesses>)
+  TMMProcessDictionary = class(TObjectDictionary<DWORD,TMMProcess>)
   end;
 
 implementation
@@ -42,38 +50,32 @@ uses
 
 { TMsgMonProcess }
 
-constructor TMMProcess.Create(pid, platform_: DWORD; const processPath, commandLine: string; ABase: Integer);
+constructor TMMProcess.Create(
+  timestamp: Int64;
+  pid,
+  tid: Integer;
+  event_id: Int64;
+
+  pidOwner: Integer;
+  platform_: DWORD;
+  const processPath,
+  commandLine: string);
 begin
-  inherited Create;
+  inherited Create(timestamp, pid, tid, event_id);
 
-  FThreads := TMMThreads.Create;
+//  FThreads := TMMThreads.Create;
 
-  Self.pid := pid;
+  Self.pidOwner := pidOwner;
   Self.platform_ := platform_;
   Self.processPath := processPath;
   Self.commandLine := commandLine;
-  base := ABase;
 
   processName := ExtractFileName(processPath);
 end;
 
-{ TMsgMonProcesses }
-
-function TMMProcesses.FromBase(ABase: Integer): TMMProcess;
-var
-  i: Integer;
-begin
-  for i := Count-1 downto 0 do
-    if Items[i].base <= ABase then
-      Exit(Items[i]);
-  if Count = 0 then
-    Exit(nil);
-  Result := Items[0];
-end;
-
 destructor TMMProcess.Destroy;
 begin
-  FreeAndNil(FThreads);
+//  FreeAndNil(FThreads);
   inherited Destroy;
 end;
 
