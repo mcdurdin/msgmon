@@ -30,7 +30,7 @@ type
     FReady: Boolean;
     db: TSQLite3Database;
 
-    FContext: TMMDatabaseContext;
+    FContext: TMMGlobalContext;
     FSession: TMMSession;
 
     FTotalRowCount: Integer;
@@ -67,7 +67,7 @@ type
     property TotalRowCount: Integer read FTotalRowCount;
     property FilteredRowCount: Integer read FFilteredRowCount;
     property Session: TMMSession read FSession;
-    property Context: TMMDatabaseContext read FContext;
+    property Context: TMMGlobalContext read FContext;
     property Filename: string read FFilename;
     property Ready: Boolean read FReady;
   end;
@@ -88,7 +88,7 @@ constructor TMMDatabase.Create(const AFilename, ALastFilterDefinition, ALastHigh
 begin
   inherited Create;
   FFilename := AFilename;
-  FContext := TMMDatabaseContext.Create;
+  FContext := TMMGlobalContext.Create;
   FSession := TMMSession.Create(FContext);
   session.LoadDefault(ALastFilterDefinition, ALastHighlightDefinition, ALastColumnsDefinition, ALastSearchDefinition);
 

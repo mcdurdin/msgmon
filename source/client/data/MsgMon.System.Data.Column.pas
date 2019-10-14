@@ -23,7 +23,6 @@ type
   TMMColumn = class
   private
     FWidth: Integer;
-    FContext: TMMDatabaseContext;
     FvInclude: Boolean;
     FvIncludeDefault: Boolean;
   protected
@@ -35,7 +34,7 @@ type
     function DoCompare(d1, d2: TMMMessage): Integer; virtual; abstract;
     function DoFilter(data: TMMMessage; relation: TMMFilterRelation; const value: string): Boolean; virtual; abstract;
   public
-    constructor Create(context: TMMDatabaseContext); virtual;
+    constructor Create; virtual;
     function Clone: TMMColumn;
     function Load(o: TJSONObject): Boolean;
     procedure Save(o: TJSONObject);
@@ -319,9 +318,9 @@ type
 
   TMMColumns = class(TObjectList<TMMColumn>)
   private
-    FContext: TMMDatabaseContext;
+    FContext: TMMGlobalContext;
   public
-    constructor Create(context: TMMDatabaseContext);
+    constructor Create(context: TMMGlobalContext);
     function LoadFromJSON(const definition: string): Boolean;
     procedure SaveToJSON(var definition: string);
     procedure LoadDefault;
@@ -349,7 +348,7 @@ end;
 
 function TMMColumn.Clone: TMMColumn;
 begin
-  Result := FColumnClasses.Find(Self.ClassName).Create(Self.FContext);
+  Result := FColumnClasses.Find(Self.ClassName).Create;
 end;
 
 function TMMColumn.Compare(d1, d2: TMMMessage): Integer;
@@ -357,10 +356,9 @@ begin
   Result := DoCompare(d1, d2);
 end;
 
-constructor TMMColumn.Create(context: TMMDatabaseContext);
+constructor TMMColumn.Create;
 begin
   inherited Create;
-  FContext := context;
   FWidth := DefaultWidth;
 end;
 
@@ -684,7 +682,7 @@ var
   i: Integer;
   d: TMessageDetails;
 begin
-  d := TDetailRenderer.RenderMessage(FContext, data, False);
+  d := TDetailRenderer.RenderMessage(data, False);
   if High(d) < 0 then
     Exit('');
 
@@ -1085,7 +1083,7 @@ end;
 
 { TMMColumns }
 
-constructor TMMColumns.Create(context: TMMDatabaseContext);
+constructor TMMColumns.Create(context: TMMGlobalContext);
 begin
   inherited Create;
   FContext := context;
@@ -1103,27 +1101,19 @@ end;
 procedure TMMColumns.LoadAll;
 var
   i: Integer;
-  c: TMMColumnClass;
 begin
   Clear;
   for i := 0 to FColumnClasses.Count - 1 do
-  begin
-    c := FColumnClasses[i];
-    Add(c.Create(FContext));
-  end;
+    Add(FColumnClasses[i].Create);
 end;
 
 procedure TMMColumns.LoadDefault;
 var
   i: Integer;
-  c: TMMColumnClass;
 begin
   Clear;
   for i := 0 to FDefaultColumnClasses.Count - 1 do
-  begin
-    c := FDefaultColumnClasses[i];
-    Add(c.Create(FContext));
-  end;
+    Add(FDefaultColumnClasses[i].Create);
 end;
 
 function TMMColumns.LoadFromJSON(const definition: string): Boolean;
@@ -1160,7 +1150,7 @@ begin
     cc := FColumnClasses.Find(jType.Value);
     if not Assigned(cc) then
       Exit(False);
-    c := cc.Create(FContext);
+    c := cc.Create;
     c.Width := (jWidth as TJSONNumber).AsInt;
     Add(c);
   end;

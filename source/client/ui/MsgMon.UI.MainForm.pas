@@ -1109,7 +1109,7 @@ begin
 
   if panDetail.Visible and Assigned(selectedMessage) then
   begin
-    d := TDetailRenderer.RenderMessage(db.Context, selectedMessage, True);
+    d := TDetailRenderer.RenderMessage(selectedMessage, True);
     TDetailGridController.Render(d, gridMessageDetails);
     memoCallStack.Text := selectedMessage.stack;
   end;

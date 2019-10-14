@@ -100,7 +100,6 @@ Windows user message monitor in the style of procmon.
 6. Bugs and issues
   - Some messages have only partial data. Why?
   - Add lock table for writing traces
-  - Handle reused PID, TID, HWND situations
   - Cleanup unsigned vs signed chaos for TID,PID,HWND etc
 
 7. Bundling and deployment
@@ -108,14 +107,13 @@ Windows user message monitor in the style of procmon.
 
 8. What data is redundant in each message? (PID, TID)
 
-9. Allow for command-line based trace recording, so we can avoid having the GUI app for remote use.
+9. Make it easy to do command-line based trace recording, so we can avoid having the GUI app for remote use.
 
 ***
 1. Search is case sensitive
 3. May need more than 4 search params?
 5. Window treeview should also use filters for process name, pid, thread.
 6. Window treeview should show icons for apps and windows, and a B&W thread icon.
-7. This all means that Window treeview should be implemented as a custom draw control rather than a TTreeView which has sucky perf.
 
 * Include/Exclude on window handle fails (int vs hex discrepancy?)
 
@@ -131,10 +129,12 @@ Windows user message monitor in the style of procmon.
 
 # Data Model
 
- context
+ globalContext
+  - messageNames
+
+ messageContext
    - processes
    - windows
-   - messageNames
    - messages
    - filteredMessages
 

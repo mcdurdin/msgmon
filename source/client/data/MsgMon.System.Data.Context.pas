@@ -12,7 +12,7 @@ uses
   MsgMon.System.Data.MessageName;
 
 type
-  TMMDatabaseContext = class
+  TMMGlobalContext = class
   private
     FMessageNames: TMMMessageNameDictionary;
   public
@@ -30,19 +30,19 @@ uses
 
 { TMsgMonContext }
 
-procedure TMMDatabaseContext.Clear;
+procedure TMMGlobalContext.Clear;
 begin
   FMessageNames.Clear;
   FMessageNames.FillDefault;
 end;
 
-constructor TMMDatabaseContext.Create;
+constructor TMMGlobalContext.Create;
 begin
   inherited Create;
   FMessageNames := TMMMessageNameDictionary.Create;
 end;
 
-destructor TMMDatabaseContext.Destroy;
+destructor TMMGlobalContext.Destroy;
 begin
   FMessageNames.Free;
   inherited Destroy;

@@ -154,7 +154,7 @@ procedure TMMWindowTreeFrame.ShowProcessDetails(p: TMMProcess);
 var
   d: TMessageDetails;
 begin
-  d := TDetailRenderer.RenderProcess(db.Context, FMessage.Context, p);
+  d := TDetailRenderer.RenderProcess(FMessage.Context, p);
   TDetailGridController.Render(d, gridDetails);
 end;
 
@@ -189,7 +189,7 @@ procedure TMMWindowTreeFrame.ShowThreadDetails(t: TMMThread);
 var
   d: TMessageDetails;
 begin
-  d := TDetailRenderer.RenderThread(db.Context, FMessage.Context, t);
+  d := TDetailRenderer.RenderThread(FMessage.Context, t);
   TDetailGridController.Render(d, gridDetails);
 end;
 
@@ -197,7 +197,7 @@ procedure TMMWindowTreeFrame.ShowWindowDetails(w: TMMWindow);
 var
   d: TMessageDetails;
 begin
-  d := TDetailRenderer.RenderWindow(db.Context, FMessage.Context, w);
+  d := TDetailRenderer.RenderWindow(FMessage.Context, w);
   TDetailGridController.Render(d, gridDetails);
 end;
 
