@@ -14,6 +14,7 @@ object MMWindowTreeFrame: TMMWindowTreeFrame
   Font.Name = 'Tahoma'
   Font.Style = []
   OldCreateOrder = False
+  OnCreate = FormCreate
   OnResize = FormResize
   PixelsPerInch = 96
   TextHeight = 13
@@ -46,11 +47,13 @@ object MMWindowTreeFrame: TMMWindowTreeFrame
     Width = 651
     Height = 215
     Align = alClient
-    ColCount = 1
+    ColCount = 2
     DefaultColWidth = 300
     DefaultRowHeight = 16
     FixedCols = 0
+    Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRowSelect]
     TabOrder = 1
+    OnClick = gridClick
     OnDrawCell = gridDrawCell
   end
 end

@@ -165,7 +165,7 @@ type
     PopupContextText: string;
     PopupContextCol: Integer;
     LastIndex: Integer;
-    currentMessage: TMMMessage;
+    currentMessage, selectedMessage: TMMMessage;
     FTraceProcess: TRunConsoleApp;
     FLogStoreProcess: TRunConsoleApp;
     FTraceProcessx64: TRunConsoleApp;
@@ -186,7 +186,7 @@ type
     procedure PrepareView;
     procedure ApplyFilter;
     procedure WMUser(var Message: TMessage); message WM_USER;
-    procedure UpdateMessageDetail(data: TMMMessage);
+    procedure UpdateMessageDetail;
     function CreateFilterFromPopup: TMMFilter;
     function LoadMessageRow(index: Integer): Boolean;
     procedure BeginLogCaptureProcess;
@@ -516,6 +516,7 @@ end;
 
 procedure TMMMainForm.gridMessageDetailsClick(Sender: TObject);
 begin
+    //if mnuAutomaticallyShowDetails.Checked then
   tmrUpdateWindowTree.Enabled := False;
   tmrUpdateWindowTree.Enabled := True;
 end;
@@ -524,14 +525,14 @@ function TMMMainForm.UpdateWindowTree: Boolean;
 var
   v: Integer;
 begin
-  FWindowTreeFrame.ShowCurrentContext(currentMessage);
-//  case TDetailGridController.GetClickContext(gridMessageDetails, v) of
-//    mdrHwnd: FWindowTreeFrame.ShowWindowInfo(v);
-//    mdrPID: FWindowTreeFrame.ShowProcessInfo(v);
-//    mdrTID: FWindowTreeFrame.ShowThreadInfo(v);
-//    else Exit(False);
-//  end;
-  Result := TRue;
+  FWindowTreeFrame.ShowCurrentContext(selectedMessage);
+  case TDetailGridController.GetClickContext(gridMessageDetails, v) of
+    mdrHwnd: FWindowTreeFrame.ShowWindowInfo(v);
+    mdrPID: FWindowTreeFrame.ShowProcessInfo(v);
+    mdrTID: FWindowTreeFrame.ShowThreadInfo(v);
+    else Exit(False);
+  end;
+  Result := True;
 end;
 
 procedure TMMMainForm.gridMessageDetailsDblClick(Sender: TObject);
@@ -549,16 +550,24 @@ end;
 procedure TMMMainForm.gridMessagesClick(Sender: TObject);
 var
   index: Integer;
+  m: TMMMessage;
 begin
   if gridMessages.Row = 0 then
     Exit;
 
-  index := gridMessages.Row - 1;
-
-  if not LoadMessageRow(index) then
+  if not Assigned(db) then
     Exit;
 
-  UpdateMessageDetail(currentMessage);
+  index := gridMessages.Row - 1;
+
+  m := db.LoadMessageRow(index, True);
+  if not Assigned(m) then
+    Exit;
+
+  FreeAndNil(selectedMessage);
+  selectedMessage := m;
+
+  UpdateMessageDetail;
 end;
 
 procedure TMMMainForm.gridMessagesColumnMoved(Sender: TObject; FromIndex,
@@ -589,7 +598,7 @@ begin
   if ACol < 0 then
     Exit;
 
-  t := db.session.displayColumns[ACol].Render(currentMessage);
+  t := db.session.displayColumns[ACol].Render(selectedMessage);
 
   SetActiveHighlight(t, False);
 end;
@@ -835,10 +844,13 @@ begin
   if index = LastIndex then
     Exit(True);
 
-  m := db.LoadMessageRow(index);
+  m := db.LoadMessageRow(index, False);
   if not Assigned(m) then
     Exit(False);
 
+    // TODO: this gets our current messag econtext off by some because render is not the
+    // same as selection. We want context.* and currentMessage to be the same. Then the
+    // render loads only immediate details relevant to rendered message.
   FreeAndNil(currentMessage);
   currentMessage := m;
   LastIndex := index;
@@ -893,28 +905,10 @@ begin
   end;
 end;
 
-procedure TMMMainForm.UpdateMessageDetail(data: TMMMessage);
-var
-  d: TMessageDetails;
+procedure TMMMainForm.UpdateMessageDetail;
 begin
-  gridMessageDetails.RowCount := 1;
-  memoCallStack.Text := '';
-
-  if not Assigned(db) then
-    Exit;
-
-  if panDetail.Visible and Assigned(data) then
-  begin
-    d := TDetailRenderer.RenderMessage(db.Context, data, True);
-    TDetailGridController.Render(d, gridMessageDetails);
-    memoCallStack.Text := data.stack;
-
-    //if mnuAutomaticallyShowDetails.Checked then
-    begin
-      tmrUpdateWindowTree.Enabled := False;
-      tmrUpdateWindowTree.Enabled := True;
-    end;
-  end;
+  tmrUpdateWindowTree.Enabled := False;
+  tmrUpdateWindowTree.Enabled := True;
 end;
 
 procedure TMMMainForm.FindRecordByIndex(value: Integer);
@@ -925,7 +919,7 @@ begin
   // TODO: Ouch: scanning ... but good enough for now
   for i := 0 to db.FilteredRowCount - 1 do
   begin
-    m := db.LoadMessageRow(i);
+    m := db.LoadMessageRow(i, False);
     try
       if m.index >= value then
       begin
@@ -946,9 +940,9 @@ begin
     Exit;
 
   // Remember selected item by index
-  if (gridMessages.Row > 0) and (db.FilteredRowCount > 0) and LoadMessageRow(gridMessages.Row-1)
-      then FIndex := currentMessage.index
-      else FIndex := -1;
+  if Assigned(selectedMessage)
+    then FIndex := selectedMessage.index
+    else FIndex := -1;
 
   db.ApplyFilter;
 
@@ -1079,9 +1073,24 @@ begin
 end;
 
 procedure TMMMainForm.tmrUpdateWindowTreeTimer(Sender: TObject);
+var
+  d: TMessageDetails;
 begin
   UpdateWindowTree;
   tmrUpdateWindowTree.Enabled := False;
+
+  gridMessageDetails.RowCount := 1;
+  memoCallStack.Text := '';
+
+  if not Assigned(db) then
+    Exit;
+
+  if panDetail.Visible and Assigned(selectedMessage) then
+  begin
+    d := TDetailRenderer.RenderMessage(db.Context, selectedMessage, True);
+    TDetailGridController.Render(d, gridMessageDetails);
+    memoCallStack.Text := selectedMessage.stack;
+  end;
 end;
 
 procedure TMMMainForm.CloseDatabase;

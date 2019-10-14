@@ -86,6 +86,10 @@ object MMMainForm: TMMMainForm
       TabOrder = 0
       object tabMessageDetail: TTabSheet
         Caption = 'Message Details'
+        ExplicitLeft = 0
+        ExplicitTop = 0
+        ExplicitWidth = 0
+        ExplicitHeight = 0
         object gridMessageDetails: TStringGrid
           Left = 0
           Top = 0
@@ -106,6 +110,10 @@ object MMMainForm: TMMMainForm
       object TabSheet2: TTabSheet
         Caption = 'Call Stack'
         ImageIndex = 1
+        ExplicitLeft = 0
+        ExplicitTop = 0
+        ExplicitWidth = 0
+        ExplicitHeight = 0
         DesignSize = (
           693
           126)
@@ -121,6 +129,10 @@ object MMMainForm: TMMMainForm
       object TabSheet1: TTabSheet
         Caption = 'Log'
         ImageIndex = 2
+        ExplicitLeft = 0
+        ExplicitTop = 0
+        ExplicitWidth = 0
+        ExplicitHeight = 0
         object memoLog: TMemo
           Left = 0
           Top = 0

@@ -27,14 +27,15 @@ type
     FValueBoolean: Boolean;
     FValueString: string;
     FValueInteger: Integer;
-    FContext: TMMDataContext;
+    FDatabaseContext: TMMDatabaseContext;
+    FMessageContext: TMMMessageContext;
     FRow: Integer;
     procedure DoSet(valueType: TMessageDetailRowType; n: string);
   private
     FValuePID: Cardinal;
     FValueTID: Cardinal;
     FValueLink: Integer;
-    procedure SetContextInfo(context: TMMDataContext; row: Integer);
+    procedure SetContextInfo(databaseContext: TMMDatabaseContext; messageContext: TMMMessageContext; row: Integer);
     procedure SetHwnd(n: string; v: HWND);
     procedure SetBool(n: string; v: Boolean);
     procedure SetInt(n: string; v: Integer);
@@ -45,7 +46,7 @@ type
   public
     function RenderToString(IncludeTitle: Boolean): string;
     property Name: string read FName;
-    property Context: TMMDataContext read FContext write FContext;
+    property DatabaseContext: TMMDatabaseContext read FDatabaseContext write FDatabaseContext;
     property Row: Integer read FRow;
     property ValueType: TMessageDetailRowType read FValueType;
     property ValueLink: Integer read FValueLink;
@@ -61,21 +62,21 @@ type
 
   TMessageDetailRenderer = class
   private
-    class function WMWindowPosChanging(context: TMMDataContext; data: TMMMessage): TMessageDetails;
-    class function WMKey(context: TMMDataContext; data: TMMMessage): TMessageDetails;
-    class function WMCreate(context: TMMDataContext; data: TMMMessage): TMessageDetails;
-    class function RenderDefaults(context: TMMDataContext; data: TMMMessage): TMessageDetails;
+    class function WMWindowPosChanging(context: TMMDatabaseContext; data: TMMMessage): TMessageDetails;
+    class function WMKey(context: TMMDatabaseContext; data: TMMMessage): TMessageDetails;
+    class function WMCreate(context: TMMDatabaseContext; data: TMMMessage): TMessageDetails;
+    class function RenderDefaults(context: TMMDatabaseContext; data: TMMMessage): TMessageDetails;
   public
   end;
 
   TDetailRenderer = class
   private
-    class procedure SetContextInfo(var details: TMessageDetails; context: TMMDataContext; row: Integer);
+    class procedure SetContextInfo(var details: TMessageDetails; databaseContext: TMMDatabaseContext; messageContext: TMMMessageContext; row: Integer);
   public
-    class function RenderProcess(context: TMMDataContext; process: TMMProcess): TMessageDetails;
-    class function RenderThread(context: TMMDataContext; thread: TMMThread): TMessageDetails;
-    class function RenderWindow(context: TMMDataContext; window: TMMWindow): TMessageDetails;
-    class function RenderMessage(context: TMMDataContext; data: TMMMessage; IncludeDefaults: Boolean): TMessageDetails;
+    class function RenderProcess(databaseContext: TMMDatabaseContext; messageContext: TMMMessageContext; process: TMMProcess): TMessageDetails;
+    class function RenderThread(databaseContext: TMMDatabaseContext; messageContext: TMMMessageContext; thread: TMMThread): TMessageDetails;
+    class function RenderWindow(databaseContext: TMMDatabaseContext; messageContext: TMMMessageContext; window: TMMWindow): TMessageDetails;
+    class function RenderMessage(databaseContext: TMMDatabaseContext; data: TMMMessage; IncludeDefaults: Boolean): TMessageDetails;
   end;
 
 const
@@ -88,24 +89,24 @@ uses
 
 { TMessageDetailRenderer }
 
-class function TDetailRenderer.RenderMessage(context: TMMDataContext; data: TMMMessage; IncludeDefaults: Boolean): TMessageDetails;
+class function TDetailRenderer.RenderMessage(databaseContext: TMMDatabaseContext; data: TMMMessage; IncludeDefaults: Boolean): TMessageDetails;
 var
   Defaults: TMessageDetails;
 begin
   if IncludeDefaults then
-    Defaults := TMessageDetailRenderer.RenderDefaults(context, data);
+    Defaults := TMessageDetailRenderer.RenderDefaults(databaseContext, data);
 
   case data.message of
     WM_KEYDOWN,
     WM_KEYUP,
     WM_SYSKEYDOWN,
     WM_SYSKEYUP:
-      Result := TMessageDetailRenderer.WMKey(context, data);
+      Result := TMessageDetailRenderer.WMKey(databaseContext, data);
     WM_WINDOWPOSCHANGED,
     WM_WINDOWPOSCHANGING:
-      Result := TMessageDetailRenderer.WMWindowPosChanging(context, data);
+      Result := TMessageDetailRenderer.WMWindowPosChanging(databaseContext, data);
     WM_CREATE:
-      Result := TMessageDetailRenderer.WMCreate(context, data);
+      Result := TMessageDetailRenderer.WMCreate(databaseContext, data);
   else
     SetLength(Result, 0);
   end;
@@ -113,7 +114,7 @@ begin
   if IncludeDefaults then
     Result := Defaults + Result;
 
-  SetContextInfo(Result, context, data.index);
+  SetContextInfo(Result, databaseContext, data.Context, data.index);
 end;
 
 type
@@ -134,7 +135,7 @@ begin
         else Result := f[i].n;
 end;
 
-class function TMessageDetailRenderer.WMCreate(context: TMMDataContext;
+class function TMessageDetailRenderer.WMCreate(context: TMMDatabaseContext;
   data: TMMMessage): TMessageDetails;
 var
   wp: PCreateStructW;
@@ -203,7 +204,7 @@ begin
   Result[11].SetString('dwExStyle', FlagsToString(wp.dwExStyle, dwExStyle));
 end;
 
-class function TMessageDetailRenderer.WMKey(context: TMMDataContext;
+class function TMessageDetailRenderer.WMKey(context: TMMDatabaseContext;
   data: TMMMessage): TMessageDetails;
 begin
   SetLength(Result, 10);
@@ -219,16 +220,20 @@ begin
   Result[9].SetBool('transition', (data.lParam and $80000000) = $80000000);
 end;
 
-class function TMessageDetailRenderer.RenderDefaults(context: TMMDataContext; data: TMMMessage): TMessageDetails;
+class function TMessageDetailRenderer.RenderDefaults(context: TMMDatabaseContext; data: TMMMessage): TMessageDetails;
 begin
   // TODO: Add wparam, lparam, message time, etc
-  SetLength(Result, 2);
+  SetLength(Result, 3);
   Result[0].SetHwnd('hwnd', data.hwnd);
   Result[1].SetInt('message', data.message);
+  if data.messageName <> nil then
+    Result[2].SetString('message', data.messageName.name)
+  else
+    SetLength(Result, 2);
 end;
 
 class function TMessageDetailRenderer.WMWindowPosChanging(
-  context: TMMDataContext; data: TMMMessage): TMessageDetails;
+  context: TMMDatabaseContext; data: TMMMessage): TMessageDetails;
 const flags: array[0..10] of TFlag = (
   (v: SWP_NOSIZE; n: 'SWP_NOSIZE'),
   (v: SWP_NOMOVE; n: 'SWP_NOMOVE'),
@@ -262,10 +267,9 @@ end;
 
 function TMessageDetailRow.RenderToString(IncludeTitle: Boolean): string;
 var
-  ws: TMMWindows;
   w: TMMWindow;
-  ps: TMMProcesses;
   p: TMMProcess;
+  t: TMMThread;
 begin
   // TODO: Merge this with column rendering
   case ValueType of
@@ -275,31 +279,21 @@ begin
     mdrTitle: Result := '';
     mdrPID:
       begin
-        {if FContext.Processes.TryGetValue(FValuePID, ps) and (ps.Count > 0)
-          then p := ps[0]
-          else p := nil;
-
-        if Assigned(p) then
-          Result := p.Render(True)
-        else}
-          Result := IntToStr(FValuePID);
+        if FMessageContext.Processes.TryGetValue(FValuePID, p)
+          then Result := p.Render(True)
+          else Result := IntToStr(FValuePID); // TODO: Use default renderer
       end;
     mdrTID:
       begin
-        Result := IntToStr(FValueTID);
+        if FMessageContext.Threads.TryGetValue(FValueTID, t)
+          then Result := t.Render(True)
+          else Result := IntToStr(FValueTID); // TODO: Use default renderer
       end;
     mdrHwnd:
       begin
-        {if FContext.Windows.TryGetValue(FValueHwnd, ws)
-          then w := ws.FromBase(row)
-          else w := nil;
-
-        if Assigned(w) then
-        begin
-          Result := w.Render(True);
-        end
-        else}
-          Result := IntToHex(FValueHwnd, 8);
+        if FMessageContext.Windows.TryGetValue(FValueHwnd, w)
+          then Result := w.Render(True)
+          else Result := IntToHex(FValueHwnd, 8); // TODO: Use default rendeder
       end;
   end;
   if IncludeTitle then
@@ -356,15 +350,18 @@ begin
   Self.FValueBoolean := v;
 end;
 
-procedure TMessageDetailRow.SetContextInfo(context: TMMDataContext; row: Integer);
+procedure TMessageDetailRow.SetContextInfo(databaseContext: TMMDatabaseContext; messageContext: TMMMessageContext; row: Integer);
 begin
-  Self.FContext := context;
+  Self.FDatabaseContext := databaseContext;
+  Self.FMessageContext := messageContext;
   Self.FRow := row;
 end;
 
 { TDetailRenderer }
 
-class function TDetailRenderer.RenderProcess(context: TMMDataContext;
+class function TDetailRenderer.RenderProcess(
+  databaseContext: TMMDatabaseContext;
+  messageContext: TMMMessageContext;
   process: TMMProcess): TMessageDetails;
 var
   p: string;
@@ -378,18 +375,33 @@ begin
     else p := 'Unknown';
   end;
   Result[2].SetString('Architecture', p);
-  SetContextInfo(Result, context, 0);
+  SetContextInfo(Result, databaseContext, messageContext, 0);
 end;
 
-class function TDetailRenderer.RenderThread(context: TMMDataContext;
+class function TDetailRenderer.RenderThread(
+  databaseContext: TMMDatabaseContext;
+  messageContext: TMMMessageContext;
   thread: TMMThread): TMessageDetails;
 begin
-  SetLength(Result, 1);
-  Result[0].SetPID('PID', thread.PID);
-  SetContextInfo(Result, context, 0);
+  SetLength(Result, 11);
+  Result[0].SetTID('TID', thread.tid);
+  Result[1].SetPID('PID', thread.pid);
+  Result[2].SetString('Description', thread.threadDescription);
+  Result[3].SetBool('Foreground?', thread.isForegroundThread);
+  Result[4].SetHwnd('hwndFocus', thread.hwndFocus);
+  Result[5].SetHwnd('hwndActive', thread.hwndActive);
+  Result[6].SetHwnd('hwndCapture', thread.hwndCapture);
+  Result[7].SetHwnd('hwndCaret', thread.hwndCaret);
+  Result[8].SetHwnd('hwndMenuOwner', thread.hwndMenuOwner);
+  Result[9].SetHwnd('hwndMoveSize', thread.hwndMoveSize);
+  Result[10].SetInt('activeHKL', thread.activeHKL);
+
+  SetContextInfo(Result, databaseContext, messageContext, 0);
 end;
 
-class function TDetailRenderer.RenderWindow(context: TMMDataContext;
+class function TDetailRenderer.RenderWindow(
+  databaseContext: TMMDatabaseContext;
+  messageContext: TMMMessageContext;
   window: TMMWindow): TMessageDetails;
 begin
   SetLength(Result, 6);
@@ -399,16 +411,16 @@ begin
   Result[3].SetHwnd('hwndParent', window.hwndParent);
   Result[4].SetString('Class', window.ClassName);
   Result[5].SetString('Real Class', window.RealClassName);
-  SetContextInfo(Result, context, 0);
+  SetContextInfo(Result, databaseContext, messageContext, 0);
 end;
 
 class procedure TDetailRenderer.SetContextInfo(var details: TMessageDetails;
-  context: TMMDataContext; row: Integer);
+  databaseContext: TMMDatabaseContext; messageContext: TMMMessageContext; row: Integer);
 var
   i: Integer;
 begin
   for i := 0 to High(details) do
-    details[i].SetContextInfo(context, row);
+    details[i].SetContextInfo(databaseContext, messageContext, row);
 end;
 
 end.

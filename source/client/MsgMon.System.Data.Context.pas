@@ -6,13 +6,13 @@ uses
   System.Generics.Collections,
 
   MsgMon.System.Data.Message,
-  MsgMon.System.Data.MessageName,
   MsgMon.System.Data.Process,
   MsgMon.System.Data.Thread,
-  MsgMon.System.Data.Window;
+  MsgMon.System.Data.Window,
+  MsgMon.System.Data.MessageName;
 
 type
-  TMMDataContext = class
+  TMMDatabaseContext = class
   private
     FMessageNames: TMMMessageNameDictionary;
   public
@@ -24,24 +24,29 @@ type
 
 implementation
 
+uses
+  MsgMon.Data.Database,
+  System.SysUtils;
+
 { TMsgMonContext }
 
-procedure TMMDataContext.Clear;
+procedure TMMDatabaseContext.Clear;
 begin
   FMessageNames.Clear;
   FMessageNames.FillDefault;
 end;
 
-constructor TMMDataContext.Create;
+constructor TMMDatabaseContext.Create;
 begin
   inherited Create;
   FMessageNames := TMMMessageNameDictionary.Create;
 end;
 
-destructor TMMDataContext.Destroy;
+destructor TMMDatabaseContext.Destroy;
 begin
   FMessageNames.Free;
   inherited Destroy;
 end;
+
 
 end.

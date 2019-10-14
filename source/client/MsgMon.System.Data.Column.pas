@@ -23,7 +23,7 @@ type
   TMMColumn = class
   private
     FWidth: Integer;
-    FContext: TMMDataContext;
+    FContext: TMMDatabaseContext;
     FvInclude: Boolean;
     FvIncludeDefault: Boolean;
   protected
@@ -35,7 +35,7 @@ type
     function DoCompare(d1, d2: TMMMessage): Integer; virtual; abstract;
     function DoFilter(data: TMMMessage; relation: TMMFilterRelation; const value: string): Boolean; virtual; abstract;
   public
-    constructor Create(context: TMMDataContext); virtual;
+    constructor Create(context: TMMDatabaseContext); virtual;
     function Clone: TMMColumn;
     function Load(o: TJSONObject): Boolean;
     procedure Save(o: TJSONObject);
@@ -113,6 +113,8 @@ type
     function GetData(data: TMMMessage): Integer; override;
   end;
 
+  // Process columns
+
   TMMColumn_ProcessArchitecture = class(TMMColumn_String)
   protected
     class function DefaultWidth: Integer; override;
@@ -164,6 +166,8 @@ type
     class function GetCaption: string; override;
     function GetData(data: TMMMessage): Integer; override;
   end;
+
+  // Window and thread columns
 
   TMMColumn_hWnd = class(TMMColumn_Window)
   protected
@@ -315,9 +319,9 @@ type
 
   TMMColumns = class(TObjectList<TMMColumn>)
   private
-    FContext: TMMDataContext;
+    FContext: TMMDatabaseContext;
   public
-    constructor Create(context: TMMDataContext);
+    constructor Create(context: TMMDatabaseContext);
     function LoadFromJSON(const definition: string): Boolean;
     procedure SaveToJSON(var definition: string);
     procedure LoadDefault;
@@ -353,7 +357,7 @@ begin
   Result := DoCompare(d1, d2);
 end;
 
-constructor TMMColumn.Create(context: TMMDataContext);
+constructor TMMColumn.Create(context: TMMDatabaseContext);
 begin
   inherited Create;
   FContext := context;
@@ -1081,7 +1085,7 @@ end;
 
 { TMMColumns }
 
-constructor TMMColumns.Create(context: TMMDataContext);
+constructor TMMColumns.Create(context: TMMDatabaseContext);
 begin
   inherited Create;
   FContext := context;

@@ -28,7 +28,7 @@ type
     FFilename: string;
     db: TSQLite3Database;
 
-    FContext: TMMDataContext;
+    FContext: TMMDatabaseContext;
     FSession: TMMSession;
 
     FTotalRowCount: Integer;
@@ -42,7 +42,7 @@ type
     procedure LoadFilter(filters: TMMFilters; filter_id: TMMFilterType);
     procedure LoadColumns;
     procedure SaveColumns;
-    function DoLoadMessageRow(stmt: TSQLite3Statement): TMMMessage;
+    function DoLoadMessageRow(stmt: TSQLite3Statement; loadContext: Boolean): TMMMessage;
     function LoadWindowRow(stmt: TSQLite3Statement): TMMWindow;
     function LoadThreadRow(stmt: TSQLite3Statement): TMMThread;
     function LoadProcessRow(stmt: TSQLite3Statement): TMMProcess;
@@ -54,7 +54,7 @@ type
     procedure InitializeFilter(filters: TMMFilters);
     function DoesFilterMatchMessage(filters: TMMFilters; m: TMMMessage): Boolean;
 
-    function LoadMessageRow(index: Integer): TMMMessage;
+    function LoadMessageRow(index: Integer; loadContext: Boolean): TMMMessage;
 
     function LoadWindows(event_id: Int64): TMMWindowDictionary;
     function LoadProcesses(event_id: Int64): TMMProcessDictionary;
@@ -65,17 +65,18 @@ type
     property TotalRowCount: Integer read FTotalRowCount;
     property FilteredRowCount: Integer read FFilteredRowCount;
     property Session: TMMSession read FSession;
-    property Context: TMMDataContext read FContext;
+    property Context: TMMDatabaseContext read FContext;
     property Filename: string read FFilename;
   end;
 
 implementation
 
 const
+  // TODO: Refactor these into const arrays of fields
   EVENT_CX = 5;
   MESSAGE_CX = 9;
   WINDOW_CX = 9;
-  THREAD_CX = 11;
+  THREAD_CX = 12;
   PROCESS_CX = 6;
 
 { TMMDatabase }
@@ -84,7 +85,7 @@ constructor TMMDatabase.Create(const AFilename, ALastFilterDefinition, ALastHigh
 begin
   inherited Create;
   FFilename := AFilename;
-  FContext := TMMDataContext.Create;
+  FContext := TMMDatabaseContext.Create;
   FSession := TMMSession.Create(FContext);
   session.LoadDefault(ALastFilterDefinition, ALastHighlightDefinition, ALastColumnsDefinition, ALastSearchDefinition);
 
@@ -279,7 +280,7 @@ begin
   // TODO: for now, we do a naive scan. We may later do this via SQL.
   while (Row >= 0) and (Row < FFilteredRowCount) do
   begin
-    m := LoadMessageRow(Row);
+    m := LoadMessageRow(Row, False);
     try
       for col in FSession.displayColumns do
       begin
@@ -288,9 +289,6 @@ begin
           Exit(Row);
       end;
     finally
-      m.thread.Free;
-      m.process.Free;
-      m.window.Free;
       m.Free;
     end;
     if FindDown
@@ -343,7 +341,7 @@ begin
 
       while stmt.Step <> SQLITE_DONE do
       begin
-        m := DoLoadMessageRow(stmt);
+        m := DoLoadMessageRow(stmt, False);
         try
           if DoesFilterMatchMessage(session.filters, m) then
           begin                                                                                   // TODO rename index to row
@@ -351,9 +349,6 @@ begin
             Inc(row);
           end;
         finally
-          m.thread.Free;
-          m.process.Free;
-          m.window.Free;
           m.Free;
         end;
       end;
@@ -367,11 +362,14 @@ begin
   FFilteredRowCount := row;
 end;
 
-function TMMDatabase.DoLoadMessageRow(stmt: TSQLite3Statement): TMMMessage;
+function TMMDatabase.DoLoadMessageRow(stmt: TSQLite3Statement; loadContext: Boolean): TMMMessage;
 var
   w: TMMWindow;
   p: TMMProcess;
   t: TMMThread;
+  windows: TMMWindowDictionary;
+  threads: TMMThreadDictionary;
+  processes: TMMProcessDictionary;
 begin
   w := nil;
   p := nil;
@@ -417,7 +415,19 @@ begin
     p := LoadProcessRow(stmtProcessBase);
   stmtProcessBase.Reset;
 
-  Result.Fill(p, t, w);
+  if loadContext then
+  begin
+    processes := LoadProcesses(Result.event_id);
+    threads := LoadThreads(Result.event_id);
+    windows := LoadWindows(Result.event_id);
+  end
+  else
+  begin
+    processes := TMMProcessDictionary.Create;
+    threads := TMMThreadDictionary.Create;
+    windows := TMMWindowDictionary.Create;
+  end;
+  Result.Fill(Context.MessageNames, p, t, w, processes, threads, windows);
 end;
 
 function TMMDatabase.LoadWindowRow(stmt: TSQLite3Statement): TMMWindow;
@@ -447,14 +457,15 @@ begin
     stmt.ColumnInt64(THREAD_CX + 0),        //event_id
 
     stmt.ColumnInt(2), // tid
-    stmt.ColumnInt(3), // isForegroundThread
-    stmt.ColumnInt(4), // hwndFocus
-    stmt.ColumnInt(5), // hwndActive
-    stmt.ColumnInt(6), // hwndCapture
-    stmt.ColumnInt(7), // hwndCaret
-    stmt.ColumnInt(8), // hwndMenuOwner
-    stmt.ColumnInt(9), // hwndMoveSize
-    stmt.ColumnInt(10) // hwndMoveSize
+    stmt.ColumnText(3), // threadDescription
+    stmt.ColumnInt(4), // isForegroundThread
+    stmt.ColumnInt(5), // hwndFocus
+    stmt.ColumnInt(6), // hwndActive
+    stmt.ColumnInt(7), // hwndCapture
+    stmt.ColumnInt(8), // hwndCaret
+    stmt.ColumnInt(9), // hwndMenuOwner
+    stmt.ColumnInt(10), // hwndMoveSize
+    stmt.ColumnInt(11) // hwndMoveSize
   );
 end;
 
@@ -473,7 +484,7 @@ begin
   );
 end;
 
-function TMMDatabase.LoadMessageRow(index: Integer): TMMMessage;
+function TMMDatabase.LoadMessageRow(index: Integer; loadContext: Boolean): TMMMessage;
 begin
   stmtMessage.BindInt(1, Ord(ftFilter)); // filter_id
   stmtMessage.BindInt(2, index); // filter_row
@@ -483,7 +494,7 @@ begin
     raise Exception.Create('Invalid');
   end;
 
-  Result := DoLoadMessageRow(stmtMessage);
+  Result := DoLoadMessageRow(stmtMessage, loadContext);
 
   stmtMessage.Reset;
 end;

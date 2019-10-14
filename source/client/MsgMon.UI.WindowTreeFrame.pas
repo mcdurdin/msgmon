@@ -28,39 +28,35 @@ type
       Rect: TRect; State: TGridDrawState);
     procedure gridDrawCell(Sender: TObject; ACol, ARow: Integer; Rect: TRect;
       State: TGridDrawState);
+    procedure gridClick(Sender: TObject);
+    procedure FormCreate(Sender: TObject);
 //    procedure tvWindowsDblClick(Sender: TObject);
   private
     db: TMMDatabase;
-    ws: TMMWindowDictionary;
-    ps: TMMProcessDictionary;
-    ts: TMMThreadDictionary;
     FViewType: TMMContextViewType;
     FHighlights: TSearchInfoArray;
-    procedure RefreshTree;
+    FMessage: TMMMessage;
     procedure SetHighlights(const Value: TSearchInfoArray);
-//    function ShowInfo(d: Pointer): Boolean;
     procedure ShowProcessDetails(p: TMMProcess);
-//    function ShowProcessInfo(PID: Integer): Boolean;
     procedure ShowThreadDetails(t: TMMThread);
-//    function ShowThreadInfo(TID: Integer): Boolean;
     procedure ShowWindowDetails(w: TMMWindow);
-//    function ShowWindowInfo(hwnd: THandle): Boolean;
-    procedure ShowWindowParentTreeContext(m: TMMMessage);
-    procedure ShowItemDetails(item: TObject);
+    procedure ShowWindowParentTreeContext;
+    procedure ShowItemDetails(o: TObject);
+    function SelectItem(o: TObject): Boolean;
   public
     { Public declarations }
     procedure SetDatabase(Adb: TMMDatabase);
     procedure CloseDatabase;
 
     procedure ShowCurrentContext(m: TMMMessage);
-    {
-    function ShowWindowInfo(wnd: TMMWindow): Boolean; overload;
+
+//    function ShowWindowInfo(wnd: TMMWindow): Boolean; overload;
     function ShowWindowInfo(hwnd: THandle): Boolean; overload;
+//    function ShowProcessInfo(process: TMMProcess): Boolean; overload;
     function ShowProcessInfo(PID: Integer): Boolean; overload;
-    function ShowProcessInfo(process: TMMProcess): Boolean; overload;
+//    function ShowThreadInfo(thread: TMMThread): Boolean; overload;
     function ShowThreadInfo(TID: Integer): Boolean; overload;
-    function ShowThreadInfo(thread: TMMThread): Boolean; overload;
-    }
+
     property Highlights: TSearchInfoArray read FHighlights write SetHighlights;
   end;
 
@@ -77,9 +73,24 @@ begin
   db := nil;
 end;
 
+procedure TMMWindowTreeFrame.FormCreate(Sender: TObject);
+begin
+  grid.Cells[0, 0] := 'Object';
+  grid.Cells[1, 0] := 'ID/Handle';
+  FormResize(Sender);
+end;
+
 procedure TMMWindowTreeFrame.FormResize(Sender: TObject);
 begin
   TDetailGridController.Resize(gridDetails);
+  grid.ColWidths[0] := 5;
+  grid.ColWidths[0] := grid.ClientWidth - 100;
+  grid.ColWidths[1] := 100;
+end;
+
+procedure TMMWindowTreeFrame.gridClick(Sender: TObject);
+begin
+  ShowItemDetails(grid.Objects[0, grid.Row]);
 end;
 
 procedure TMMWindowTreeFrame.gridDetailsDrawCell(Sender: TObject; ACol,
@@ -94,15 +105,23 @@ begin
   TDetailGridController.DrawCellText(gridDetails.Canvas, Rect, gridDetails.Cells[ACol, ARow], FHighlights, ARow > 0);
 end;
 
-procedure TMMWindowTreeFrame.RefreshTree;
+function TMMWindowTreeFrame.SelectItem(o: TObject): Boolean;
+var
+  i: Integer;
 begin
-
+  for i := 1 to grid.RowCount - 1 do
+    if grid.Objects[0, i] = o then
+    begin
+      grid.Row := i;
+      ShowItemDetails(grid.Objects[0, grid.Row]);
+      Exit(True);
+    end;
+  Result := False;
 end;
 
 procedure TMMWindowTreeFrame.SetDatabase(Adb: TMMDatabase);
 begin
   db := Adb;
-  RefreshTree;
 end;
 
 procedure TMMWindowTreeFrame.SetHighlights(const Value: TSearchInfoArray);
@@ -112,11 +131,8 @@ begin
   grid.Invalidate;
 end;
 
-procedure TMMWindowTreeFrame.ShowItemDetails(item: TObject);
-var
-  o: TObject;
+procedure TMMWindowTreeFrame.ShowItemDetails(o: TObject);
 begin
-  o := item; //TObject(node.Data);
   if o = nil then
   begin
     gridDetails.RowCount := 1;
@@ -129,22 +145,51 @@ begin
   else if o is TMMThread then
     ShowThreadDetails(o as TMMThread)
   else if o is TMMWindow then
-    ShowWindowDetails(o as TMMWindow);
+    ShowWindowDetails(o as TMMWindow)
+  else
+    Assert(False, 'Expected TMMProcess, TMMThread or TMMWindow');
 end;
 
 procedure TMMWindowTreeFrame.ShowProcessDetails(p: TMMProcess);
 var
   d: TMessageDetails;
 begin
-  d := TDetailRenderer.RenderProcess(db.Context, p);
+  d := TDetailRenderer.RenderProcess(db.Context, FMessage.Context, p);
   TDetailGridController.Render(d, gridDetails);
+end;
+
+function TMMWindowTreeFrame.ShowProcessInfo(PID: Integer): Boolean;
+var
+  p: TMMProcess;
+begin
+  if FMessage.Context.Processes.TryGetValue(PID, p)
+    then Result := SelectItem(p)
+    else Result := False;
+end;
+
+function TMMWindowTreeFrame.ShowThreadInfo(TID: Integer): Boolean;
+var
+  t: TMMThread;
+begin
+  if FMessage.Context.Threads.TryGetValue(TID, t)
+    then Result := SelectItem(t)
+    else Result := False;
+end;
+
+function TMMWindowTreeFrame.ShowWindowInfo(hwnd: THandle): Boolean;
+var
+  w: TMMWindow;
+begin
+  if FMessage.Context.Windows.TryGetValue(hwnd, w)
+    then Result := SelectItem(w)
+    else Result := False;
 end;
 
 procedure TMMWindowTreeFrame.ShowThreadDetails(t: TMMThread);
 var
   d: TMessageDetails;
 begin
-  d := TDetailRenderer.RenderThread(db.Context, t);
+  d := TDetailRenderer.RenderThread(db.Context, FMessage.Context, t);
   TDetailGridController.Render(d, gridDetails);
 end;
 
@@ -152,42 +197,28 @@ procedure TMMWindowTreeFrame.ShowWindowDetails(w: TMMWindow);
 var
   d: TMessageDetails;
 begin
-  d := TDetailRenderer.RenderWindow(db.Context, w);
+  d := TDetailRenderer.RenderWindow(db.Context, FMessage.Context, w);
   TDetailGridController.Render(d, gridDetails);
 end;
 
-//function TMMWindowTreeFrame.ShowWindowInfo(wnd: TMMWindow): Boolean;
-//begin
-//  Result := ShowInfo(wnd);
-//end;
-
-//function TMMWindowTreeFrame.ShowProcessInfo(process: TMMProcess): Boolean;
-//begin
-//  Result := ShowInfo(process);
-//end;
-
-//function TMMWindowTreeFrame.ShowThreadInfo(thread: TMMThread): Boolean;
-//begin
-//  Result := ShowInfo(thread);
-//end;
-
 procedure TMMWindowTreeFrame.ShowCurrentContext(m: TMMMessage);
 begin
-  if m = nil then
-  begin
-    grid.RowCount := 1;
+  FMessage := m;
+//  if m = nil then
+//  begin
+//    grid.RowCount := 1;
     // TODO: clear fields
-    Exit;
-  end;
+//    Exit;
+//  end;
   //
   case FViewType of
-    cvtWindowParentTree: ShowWindowParentTreeContext(m);
+    cvtWindowParentTree: ShowWindowParentTreeContext;
 //    cvtWindowOwnerTree: ShowWindowOwnerTreeContext(m);
 //    cvtWindowsByThread: ShowWindowsByThreadContext(m);
   end;
 end;
 
-procedure TMMWindowTreeFrame.ShowWindowParentTreeContext(m: TMMMessage);
+procedure TMMWindowTreeFrame.ShowWindowParentTreeContext;
 var
   t: TMMThread;
   w: TMMWindow;
@@ -196,32 +227,30 @@ var
   ot, ow: TMMDataObject;
   c: Integer;
 begin
+  if FMessage = nil then
+    Exit;
+
   // Load the set of all windows, processes and threads.
   // TODO: Consider optimisations -- partial reload based on event_id?
-  FreeAndNil(ws);
-  FreeAndNil(ps);
-  FreeAndNil(ts);
-  ws := db.LoadWindows(m.event_id);
-  ps := db.LoadProcesses(m.event_id);
-  ts := db.LoadThreads(m.event_id);
+  // TODO: Don't show threads, processes and windows excluded by current filter
 
   // TODO: Refactor the data manipulation into a good place
 
-  grid.RowCount := ts.Count + ws.Count + ps.Count + 1;
+  grid.RowCount := FMessage.Context.Threads.Count + FMessage.Context.Windows.Count + FMessage.Context.Processes.Count + 1;
 
   // Form a nice tree.
-  for t in ts.Values do
+  for t in FMessage.Context.Threads.Values do
   begin
-    if ps.TryGetValue(t.pid, p) then
+    if FMessage.Context.Processes.TryGetValue(t.pid, p) then
     begin
       t.Owner := p;
       p.Children.Add(t);
     end;
   end;
 
-  for w in ws.Values do
+  for w in FMessage.Context.Windows.Values do
   begin
-    if ts.TryGetValue(w.tid, t) then
+    if FMessage.Context.Threads.TryGetValue(w.tid, t) then
     begin
       w.Owner := t;
       t.Children.Add(w);
@@ -229,7 +258,7 @@ begin
   end;
 
   r := 1;
-  for p in ps.Values do
+  for p in FMessage.Context.Processes.Values do
   begin
     c := 0;
     for ot in p.Children do
@@ -238,18 +267,26 @@ begin
     if c > 0 then
     begin
       grid.Cells[0, r] := ExtractFileName(p.processName);
+      grid.Cells[1, r] := IntToStr(p.pid);
+      grid.Objects[0, r] := p;
       Inc(r);
       for ot in p.Children do
       begin
         t := ot as TMMThread;
         if t.Children.Count > 0 then
         begin
-          grid.Cells[0, r] := '   ' + IntToStr(t.tid);
+          if t.threadDescription = ''
+            then grid.Cells[0, r] := '    ' + IntToStr(t.tid)
+            else grid.Cells[0, r] := '    ' + t.threadDescription;
+          grid.Objects[0, r] := t;
+          grid.Cells[1, r] := '  ' + IntToStr(t.tid);
           Inc(r);
           for ow in t.Children do
           begin
             w := ow as TMMWindow;
-            grid.Cells[0, r] := '      ' + IntToHex(w.hwnd, 8) + ' ' + w.ClassName; //TODO: Use column renderers
+            grid.Cells[0, r] := '        ' + w.ClassName; //TODO: Use column renderers
+            grid.Cells[1, r] := '    ' + IntToHex(w.hwnd, 8);
+            grid.Objects[0, r] := w;
             Inc(r);
           end;
         end;

@@ -15,8 +15,20 @@ uses
 type
   TByteArray = TArray<Byte>;
 
+  TMMMessageContext = record
+  private
+    FProcesses: TMMProcessDictionary;
+    FWindows: TMMWindowDictionary;
+    FThreads: TMMThreadDictionary;
+  public
+    property Threads: TMMThreadDictionary read FThreads;
+    property Processes: TMMProcessDictionary read FProcesses;
+    property Windows: TMMWindowDictionary read FWindows;
+  end;
+
   TMMMessage = class(TMMEvent)
-  strict private
+  private
+    FContext: TMMMessageContext;
   public
     index: Integer;
 
@@ -33,7 +45,10 @@ type
     window: TMMWindow;
     messageName: TMMMessageName;
 
-    procedure Fill(process: TMMProcess; thread: TMMThread; window: TMMWindow);
+    procedure Fill(messageNames: TMMMessageNameDictionary; process: TMMProcess; thread: TMMThread; window: TMMWindow;
+      processes: TMMProcessDictionary;
+      threads: TMMThreadDictionary;
+      windows: TMMWindowDictionary);
     constructor Create(
       timestamp: Int64;
       pid,
@@ -51,6 +66,9 @@ type
 //      const detail: Pointer;
 //      detailLength: Integer
     );
+    destructor Destroy; override;
+
+    property Context: TMMMessageContext read FContext;
   end;
 
 type
@@ -108,29 +126,34 @@ begin
 //  end;
 end;
 
-procedure TMMMessage.Fill(process: TMMProcess; thread: TMMThread; window: TMMWindow);
-{var
-  ps: TMMProcesses;
-  ws: TMMWindows;}
+destructor TMMMessage.Destroy;
+begin
+  FreeAndNil(process);
+  FreeAndNil(thread);
+  FreeAndNil(window);
+  inherited Destroy;
+end;
+
+procedure TMMMessage.Fill(
+  messageNames: TMMMessageNameDictionary;
+  process: TMMProcess;
+  thread: TMMThread;
+  window: TMMWindow;
+
+  processes: TMMProcessDictionary;
+  threads: TMMThreadDictionary;
+  windows: TMMWindowDictionary);
 begin
   Self.process := process;
   Self.thread := thread;
   Self.window := window;
-{  if process <> nil then
-    Exit;
+  if not Assigned(messageNames) or not messageNames.TryGetValue(message, messageName)
+    then messageName := nil;
 
-  // Lookup data from context
-
-  if processes.TryGetValue(pid, ps)
-    then process := ps.FromBase(index)
-    else process := nil;
-
-  if windows.TryGetValue(hwnd, ws)
-    then window := ws.FromBase(index)
-    else window := nil;
-
-  if not messageNames.TryGetValue(message, messageName)
-    then messageName := nil;}
+  // TODO
+  FContext.FWindows := windows;
+  FContext.FProcesses := processes;
+  FContext.FThreads := threads;
 end;
 
 end.

@@ -11,13 +11,13 @@ uses
 type
   TMMSession = class
   private
-    FContext: TMMDataContext;
+    FContext: TMMDatabaseContext;
   public
     highlights, filters: TMMFilters;
     searches: TMMSearches;
     displayColumns: TMMColumns;
     allColumns: TMMColumns;
-    constructor Create(AContext: TMMDataContext);
+    constructor Create(AContext: TMMDatabaseContext);
     destructor Destroy; override;
     procedure LoadDefault(ALastFilterDefinition, ALastHighlightDefinition, ALastColumnDefinition, ALastSearchDefinition: string);
   end;
@@ -26,7 +26,7 @@ implementation
 
 { TMMSession }
 
-constructor TMMSession.Create(AContext: TMMDataContext);
+constructor TMMSession.Create(AContext: TMMDatabaseContext);
 begin
   inherited Create;
   FContext := AContext;

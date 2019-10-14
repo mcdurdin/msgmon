@@ -22,11 +22,11 @@ type
 
   TMMFilters = class(TObjectList<TMMFilter>)
   private
-    FContext: TMMDataContext;
+    FContext: TMMDatabaseContext;
     FColumns: TMMColumns;
     FFilterType: TMMFilterType;
   public
-    constructor Create(AContext: TMMDataContext; AFilterType: TMMFilterType);
+    constructor Create(AContext: TMMDatabaseContext; AFilterType: TMMFilterType);
     destructor Destroy; override;
     procedure LoadDefault;
     function LoadFromJSON(definition: string): Boolean;
@@ -55,7 +55,7 @@ uses
 
 { TMMFilters }
 
-constructor TMMFilters.Create(AContext: TMMDataContext; AFilterType: TMMFilterType);
+constructor TMMFilters.Create(AContext: TMMDatabaseContext; AFilterType: TMMFilterType);
 begin
   inherited Create;
   FFilterType := AFilterType;

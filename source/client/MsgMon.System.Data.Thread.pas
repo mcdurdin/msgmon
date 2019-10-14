@@ -11,6 +11,7 @@ uses
 
 type
   TMMThread = class(TMMEvent)
+  private
   public
     tidOwner: Integer;  // TODO: rename or eliminate
     isForegroundThread: Boolean;
@@ -21,6 +22,7 @@ type
     hwndMenuOwner,
     hwndMoveSize: DWORD;
     activeHKL: DWORD;
+    threadDescription: string;
 
     constructor Create(
       timestamp: Int64;
@@ -29,6 +31,7 @@ type
       event_id: Int64;
 
       tidOwner: Integer;
+      threadDescription: string;
       isForegroundThread: Integer;
       hwndFocus,
       hwndActive,
@@ -38,6 +41,7 @@ type
       hwndMoveSize,
       activeHKL: Integer
     );
+    function Render(IncludeTID: Boolean): string;
   end;
 
 type
@@ -62,6 +66,7 @@ constructor TMMThread.Create(
   event_id: Int64;
 
   tidOwner: Integer;
+  threadDescription: string;
   isForegroundThread: Integer;
   hwndFocus,
   hwndActive,
@@ -75,6 +80,7 @@ begin
   inherited Create(timestamp, pid, tid, event_id);
 
   Self.tidOwner := tidOwner;
+  Self.threadDescription := threadDescription;
   Self.isForegroundThread := not(not LONGBOOL(isForegroundThread)); // Is this strictly necessary?
   Self.hwndFocus := hwndFocus;
   Self.hwndActive := hwndActive;
@@ -98,5 +104,18 @@ begin
   FreeAndNil(FWindows);
   inherited Destroy;
 end;}
+
+function TMMThread.Render(IncludeTID: Boolean): string;
+begin
+  if threadDescription = '' then
+    Result := IntToStr(tid)
+  else
+  begin
+    Result := threadDescription;
+
+    if IncludeTID then
+      Result := Result + ' ['+IntToStr(tid)+']';
+  end;
+end;
 
 end.

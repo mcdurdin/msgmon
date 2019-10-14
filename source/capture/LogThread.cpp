@@ -38,12 +38,20 @@ void LogThread() {
     return;
   }
 
+  PWSTR pszThreadDescription;
+  // TODO: We only want to do this call if >= Win10 1607
+  // We don't track changes to thread description; not worth the extra overhead
+  if (!SUCCEEDED(GetThreadDescription(GetCurrentThread(), &pszThreadDescription))) {
+    pszThreadDescription = NULL;
+  }
+
   pThreadData->state = ts;
 
   TraceLoggingWrite(g_Provider, MMEVENTNAME_THREAD,
     TraceLoggingLevel(TRACE_LEVEL_INFORMATION),
     TraceLoggingKeyword(READ_KEYWORD),
     TraceLoggingValue((UINT)tid, "tid"),
+    TraceLoggingValue(pszThreadDescription ? pszThreadDescription : L"", "threadDescription"),
     TraceLoggingValue((UINT64)ts.isForegroundThread, "isForegroundThread"),
     TraceLoggingValue((UINT64)ts.gti.hwndFocus, "hwndFocus"),
     TraceLoggingValue((UINT64)ts.gti.hwndActive, "hwndActive"),
@@ -53,4 +61,8 @@ void LogThread() {
     TraceLoggingValue((UINT64)ts.gti.hwndMoveSize, "hwndMoveSize"),
     TraceLoggingValue((DWORD)(UINT64)ts.activeHKL, "activeHKL")
   );
+
+  if (pszThreadDescription) {
+    LocalFree(pszThreadDescription);
+  }
 }
