@@ -115,8 +115,6 @@ Windows user message monitor in the style of procmon.
 5. Window treeview should also use filters for process name, pid, thread.
 6. Window treeview should show icons for apps and windows, and a B&W thread icon.
 
-* Include/Exclude on window handle fails (int vs hex discrepancy?)
-
 9. Add:
    * message time to trace view.
    * InSendMessageEx data

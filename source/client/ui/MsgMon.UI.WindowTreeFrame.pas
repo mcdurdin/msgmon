@@ -266,7 +266,7 @@ begin
 
     if c > 0 then
     begin
-      grid.Cells[0, r] := ExtractFileName(p.processName);
+      grid.Cells[0, r] := ExtractFileName(p.processName); // TODO use base renderer
       grid.Cells[1, r] := IntToStr(p.pid);
       grid.Objects[0, r] := p;
       Inc(r);
@@ -276,7 +276,7 @@ begin
         if t.Children.Count > 0 then
         begin
           if t.threadDescription = ''
-            then grid.Cells[0, r] := '    ' + IntToStr(t.tid)
+            then grid.Cells[0, r] := '    ' + IntToStr(t.tid)     // TODO use base renderer
             else grid.Cells[0, r] := '    ' + t.threadDescription;
           grid.Objects[0, r] := t;
           grid.Cells[1, r] := '  ' + IntToStr(t.tid);
@@ -284,8 +284,8 @@ begin
           for ow in t.Children do
           begin
             w := ow as TMMWindow;
-            grid.Cells[0, r] := '        ' + w.ClassName; //TODO: Use column renderers
-            grid.Cells[1, r] := '    ' + IntToHex(w.hwnd, 8);
+            grid.Cells[0, r] := '        ' + TMMWindow.BaseRender(False, w.hwnd, w.ClassName, '');
+            grid.Cells[1, r] := '    ' + TMMWindow.BaseRender(w.hwnd);
             grid.Objects[0, r] := w;
             Inc(r);
           end;

@@ -16,6 +16,7 @@ type
     ownerPid, ownerTid: Integer;
     hwndOwner, hwndParent: Integer;
     ClassName, RealClassName: string;
+  private
   public
     constructor Create(
       timestamp: Int64;
@@ -31,6 +32,9 @@ type
       className,
       realClassName: string);
     function Render(IncludeHandle: Boolean): string;
+    class function BaseRender(hwnd: Cardinal): string; overload; static;
+    class function BaseRender(IncludeHandle: Boolean; hwnd: Cardinal;
+      const ClassName, RealClassName: string): string; overload; static;
   end;
 
   TMMWindows = class(TObjectList<TMMWindow>)
@@ -76,13 +80,22 @@ end;
 
 function TMMWindow.Render(IncludeHandle: Boolean): string;
 begin
-  // TODO: Merge with TMMColumn render
+  Result := BaseRender(IncludeHandle, hwnd, ClassName, RealClassName);
+end;
+
+class function TMMWindow.BaseRender(hwnd: Cardinal): string;
+begin
+  Result := IntToHex(hwnd, 8);
+end;
+
+class function TMMWindow.BaseRender(IncludeHandle: Boolean; hwnd: Cardinal; const ClassName, RealClassName: string): string;
+begin
   Result := ClassName;
 
   if IncludeHandle then
     Result := Result + ' ['+IntToHex(hwnd, 8)+']'
-  else if RealClassName <> ClassName
-    then Result := Result + ' ('+RealClassName+')';
+  else if (RealClassName <> ClassName) and (RealClassName <> '') then
+    Result := Result + ' ('+RealClassName+')';
 end;
 
 end.

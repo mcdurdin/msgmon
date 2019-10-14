@@ -85,7 +85,6 @@ type
   TMMColumn_Window = class(TMMColumn)
   protected
     class function DefaultWidth: Integer; override;
-    class function BaseRender(hwnd: Cardinal): string;
     function DoRender(data: TMMMessage): string; override;
     function DoCompare(d1, d2: TMMMessage): Integer; override;
     function GetData(data: TMMMessage): Cardinal; virtual; abstract;
@@ -824,11 +823,6 @@ end;
 
 { TMMColumn_Window }
 
-class function TMMColumn_Window.BaseRender(hwnd: Cardinal): string;
-begin
-  Result := IntToHex(hwnd, 8);
-end;
-
 class function TMMColumn_Window.DefaultWidth: Integer;
 begin
   Result := 80;
@@ -851,7 +845,7 @@ begin
   dataValueInt := Integer(GetData(data));
   dataValue := DoRender(data); // TODO we could be nuanced here
 
-  if not TryStrToInt(value, filterValueInt) then
+  if not TryStrToInt('$'+value, filterValueInt) then
     Exit;
 
   case relation of
@@ -871,82 +865,8 @@ var
   hwnd: Cardinal;
 begin
   hwnd := GetData(data);
-  Result := BaseRender(hwnd);
+  Result := TMMWindow.BaseRender(hwnd);
 end;
-
-(*
-{ TMMColumn_hWndFocus }
-
-class function TMMColumn_hWndFocus.GetCaption: string;
-begin
-  Result := 'hwndFocus';
-end;
-
-function TMMColumn_hWndFocus.GetData(data: TMMMessage): Cardinal;
-begin
-  Result := data.hwndFocus;
-end;
-
-{ TMMColumn_hWndActive }
-
-class function TMMColumn_hWndActive.GetCaption: string;
-begin
-  Result := 'hwndActive';
-end;
-
-function TMMColumn_hWndActive.GetData(data: TMMMessage): Cardinal;
-begin
-  Result := data.hwndActive;
-end;
-
-{ TMMColumn_hWndCapture }
-
-class function TMMColumn_hWndCapture.GetCaption: string;
-begin
-  Result := 'hwndCapture';
-end;
-
-function TMMColumn_hWndCapture.GetData(data: TMMMessage): Cardinal;
-begin
-  Result := data.hwndCapture;
-end;
-
-{ TMMColumn_hWndCaret }
-
-class function TMMColumn_hWndCaret.GetCaption: string;
-begin
-  Result := 'hwndCaret';
-end;
-
-function TMMColumn_hWndCaret.GetData(data: TMMMessage): Cardinal;
-begin
-  Result := data.hwndCaret;
-end;
-
-{ TMMColumn_hWndMenuOwner }
-
-class function TMMColumn_hWndMenuOwner.GetCaption: string;
-begin
-  Result := 'hwndMenuOwner';
-end;
-
-function TMMColumn_hWndMenuOwner.GetData(data: TMMMessage): Cardinal;
-begin
-  Result := data.hwndMenuOwner;
-end;
-
-{ TMMColumn_hWndMoveSize }
-
-class function TMMColumn_hWndMoveSize.GetCaption: string;
-begin
-  Result := 'hwndMoveSize';
-end;
-
-function TMMColumn_hWndMoveSize.GetData(data: TMMMessage): Cardinal;
-begin
-  Result := data.hwndMoveSize;
-end;
-*)
 
 { TMMColumn_hWndClass }
 
@@ -957,15 +877,9 @@ end;
 
 function TMMColumn_hWnd_Class.GetData(data: TMMMessage): string;
 begin
-  if data.window = nil then
-    Result := TMMColumn_hWnd.BaseRender(data.hwnd)
-  else
-  begin
-    if data.window.RealClassName <> data.window.ClassName then
-      Result := data.window.ClassName + ' ('+data.window.RealClassName+')'
-    else
-      Result := data.window.ClassName;
-  end;
+  if data.window = nil
+    then Result := TMMWindow.BaseRender(data.hwnd)
+    else Result := TMMWindow.BaseRender(False, data.hwnd, data.window.ClassName, data.window.RealClassName);
 end;
 
 { TMMColumn_WindowClass }

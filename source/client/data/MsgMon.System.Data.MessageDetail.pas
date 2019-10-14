@@ -296,7 +296,7 @@ begin
       begin
         if FMessageContext.Windows.TryGetValue(FValueHwnd, w)
           then Result := w.Render(True)
-          else Result := IntToHex(FValueHwnd, 8); // TODO: Use default renderer
+          else Result := TMMWindow.BaseRender(FValueHwnd);
       end;
     {mdrMessage:
       begin
