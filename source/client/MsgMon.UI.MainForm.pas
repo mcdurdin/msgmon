@@ -52,7 +52,6 @@ type
     N2: TMenuItem;
     mnuEdit: TMenuItem;
     mnuEditCopy: TMenuItem;
-    mnuEditFind: TMenuItem;
     mnuEditFindHighlight: TMenuItem;
     mnuEditFindBookmark: TMenuItem;
     N3: TMenuItem;
@@ -799,12 +798,16 @@ begin
       Exit;
   end;
 
-  row := db.FindText(FSearchInfos[FActiveSearch].Search.Text, row, FindDown);
-  if row >= 0 then
-  begin
-    gridMessages.Row := row + 1;
-    gridMessagesClick(gridMessages);
-  end;
+  TMMProgressForm.Execute(Self,
+    procedure(Sender: IProgressUI)
+    begin
+      row := db.FindText(Sender, FSearchInfos[FActiveSearch].Search.Text, row, FindDown);
+      if row >= 0 then
+      begin
+        gridMessages.Row := row + 1;
+        gridMessagesClick(gridMessages);
+      end;
+    end);
 end;
 
 procedure TMMMainForm.mnuMessageSelectColumnsClick(Sender: TObject);

@@ -147,10 +147,10 @@ begin
   Self.process := process;
   Self.thread := thread;
   Self.window := window;
+
   if not Assigned(messageNames) or not messageNames.TryGetValue(message, messageName)
     then messageName := nil;
 
-  // TODO
   FContext.FWindows := windows;
   FContext.FProcesses := processes;
   FContext.FThreads := threads;

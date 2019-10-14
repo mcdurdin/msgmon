@@ -62,7 +62,7 @@ type
     function LoadProcesses(event_id: Int64): TMMProcessDictionary;
     function LoadThreads(event_id: Int64): TMMThreadDictionary;
 
-    function FindText(text: string; Row: Integer; FindDown: Boolean): Integer;
+    function FindText(progress: IProgressUI; text: string; Row: Integer; FindDown: Boolean): Integer;
 
     property TotalRowCount: Integer read FTotalRowCount;
     property FilteredRowCount: Integer read FFilteredRowCount;
@@ -159,7 +159,7 @@ begin
     '  Event e on t.event_id = e.event_id '+
     'where '+
     '  t.event_id < ? and '+
-    '  t.tid = ? '+ // TODO: Add tid to thread table?
+    '  t.tid = ? '+
     'limit 1'
   );
 
@@ -273,13 +273,27 @@ begin
   Result := vInclude and not vExclude;
 end;
 
-function TMMDatabase.FindText(text: string; Row: Integer; FindDown: Boolean): Integer;
+function TMMDatabase.FindText(progress: IProgressUI; text: string; Row: Integer; FindDown: Boolean): Integer;
 var
   s: string;
   m: TMMMessage;
   col: TMMColumn;
+  i: Integer;
 begin
   // We search through the visible columns in the view. Otherwise it is too confusing?
+  Result := -1;
+
+  if Assigned(progress) then
+  begin
+    progress.Title := 'Searching';
+    progress.Message := 'Finding '''+text+'''';
+    progress.CanCancel := True;
+    if FindDown
+      then progress.Max := FFilteredRowCount - Row
+      else progress.Max := Row;
+  end;
+
+  i := 0;
 
   // TODO: for now, we do a naive scan. We may later do this via SQL.
   while (Row >= 0) and (Row < FFilteredRowCount) do
@@ -298,8 +312,17 @@ begin
     if FindDown
       then Inc(Row)
       else Dec(Row);
+
+    Inc(i);
+    if Assigned(progress) and ((i mod 100) = 0) then
+    begin
+      progress.Position := i;
+      progress.Yield;
+      if progress.Cancelled then
+        Exit;
+    end;
   end;
-  Exit(-1);
+  Exit;
 end;
 
 procedure TMMDatabase.ApplyFilter(Sender: IProgressUI);
@@ -367,7 +390,7 @@ begin
           m.Free;
         end;
         Inc(i);
-        if Assigned(Sender) then
+        if Assigned(Sender) and ((i mod 100) = 0) then
         begin
           Sender.Position := i;
           Sender.Yield;

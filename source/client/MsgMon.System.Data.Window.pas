@@ -25,7 +25,7 @@ type
 
       hwnd,
       ownerPid,  // TODO: rename or eliminate
-      ownerTid,                               // TODO: rename or eliminate
+      ownerTid,  // TODO: rename or eliminate
       hwndOwner,
       hwndParent: Integer;
       className,

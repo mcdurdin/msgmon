@@ -314,11 +314,6 @@ object MMMainForm: TMMMainForm
         Enabled = False
         ShortCut = 16451
       end
-      object mnuEditFind: TMenuItem
-        Caption = '&Find...'
-        Enabled = False
-        ShortCut = 16454
-      end
       object mnuEditFindHighlight: TMenuItem
         Caption = 'Find &Highlight'
         Enabled = False
