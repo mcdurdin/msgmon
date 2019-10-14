@@ -17,8 +17,6 @@ All state changes are recorded against a global Event table:
 
 There will be a corresponding record in the appropriate table which gives the detail for the event; Message, Window, Process or Thread.
 
-Viewer design. A dictionary of Processes, Threads and Windows will still be helpful. This, however, will use Load(EventIndex) to get the state at a given Event. When loading the database, we'll need to query the Window, Process and Thread tables to get unique IDs. With this model, reuse of identifiers should be clear in the timeline?
-
 Then, we can drill into the data with various Views:
   * Message. This is the default and shows a procmon-style message trace.
   * Timeline. This shows the Process/Thread/Window lifecycle with major events highlighted for each window. Grouped by process/thread; view by owner or parent chains or flat. Filtering will remove windows that don't match requirements.
@@ -83,12 +81,12 @@ Windows user message monitor in the style of procmon.
   - Copy selected rows on Ctrl+C; also right-click shows selected row count off by 1
   - Link to MSDN on WM_*?
   - Highlight window in window tree when clicking on hwnd
-  - Start Trace should have an Administrator elevation icon on it if not already running as Admin (and then do the hoops); 
+  - Start Trace should have an Administrator elevation icon on it if not already running as Admin (and then do the hoops);
     this is because, according to docs for StartTrace:
 
       > Only users with administrative privileges, users in the Performance Log Users group, and services running as
       > LocalSystem, LocalService, NetworkService can control event tracing sessions. To grant a restricted user the
-      > ability to control trace sessions, add them to the Performance Log Users group. Only users with 
+      > ability to control trace sessions, add them to the Performance Log Users group. Only users with
       > administrative privileges and services running as LocalSystem can control an NT Kernel Logger session.
 
 4. Trace comparisons
@@ -107,24 +105,17 @@ Windows user message monitor in the style of procmon.
 
 7. Bundling and deployment
   - bundle into single executable for deployment (extract to same folder or temp folder on run?)
- 
+
 8. What data is redundant in each message? (PID, TID)
 
 9. Allow for command-line based trace recording, so we can avoid having the GUI app for remote use.
 
 ***
 1. Search is case sensitive
-2. Ctrl+F is not working
 3. May need more than 4 search params?
-4. Window treeview should show state at time of selected message.
 5. Window treeview should also use filters for process name, pid, thread.
 6. Window treeview should show icons for apps and windows, and a B&W thread icon.
 7. This all means that Window treeview should be implemented as a custom draw control rather than a TTreeView which has sucky perf.
-8. A change to how the capture works, to correspond with all this. The capture should be recording transforms from an initial window snapshot, with each thread mapped independently.
-
-* For perf reasons, periodically, the whole transformed snapshot should be written out to the database while converting the trace?
-
-* When a window has a parent from another thread, the child window thread should be responsible for documenting the ownership and this needs to be presented appropriately in the treeview.
 
 * Include/Exclude on window handle fails (int vs hex discrepancy?)
 
@@ -146,8 +137,8 @@ Windows user message monitor in the style of procmon.
    - messageNames
    - messages
    - filteredMessages
- 
+
  session
    - filter
    - displayColumns
- 
+

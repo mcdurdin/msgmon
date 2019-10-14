@@ -295,7 +295,10 @@ begin
 
   i := 0;
 
-  // TODO: for now, we do a naive scan. We may later do this via SQL.
+  // We do a flat scan because we are searching on the
+  // transformed text presented by the renderer. This means
+  // we cannot benefit from using SQL. This will probably be
+  // okay, perf-wise.
   while (Row >= 0) and (Row < FFilteredRowCount) do
   begin
     m := LoadMessageRow(Row, False);
@@ -356,17 +359,10 @@ begin
 //      '  (select t0.*, e0.* from Thread t0 inner join Event e0 on t0.event_id = e0.event_id order by t0.event_id desc) t on t.event_id < m.event_id and t.tid = e.tid '+
       'order by '+
       '  m.event_id asc');
-{
-      'SELECT Event.timestamp, Event.pid, Event.tid, Message.* '+
-      'FROM  Message '+
-      'INNER JOIN Event on Message.event_id = Event.event_id ');
-}
+
     try
       Assert(stmt.ColumnCount =
         MESSAGE_CX + EVENT_CX);
-//        WINDOW_CX + EVENT_CX +
-//        PROCESS_CX + EVENT_CX +
-//        THREAD_CX + EVENT_CX);
 
       if Assigned(Sender) then
       begin
@@ -422,11 +418,7 @@ begin
   w := nil;
   p := nil;
   t := nil;
-{
-    'SELECT Event.timestamp, Event.pid, Event.tid, Message.* '+
-    'FROM  Message '+
-    'INNER JOIN Event on Message.event_id = Event.event_id ');
-}
+
   Result := TMMMessage.Create(
     stmt.ColumnInt64(MESSAGE_CX + 1),        //timestamp
     stmt.ColumnInt(MESSAGE_CX + 2),          //'pid');
@@ -443,7 +435,9 @@ begin
     stmt.ColumnText(8)         // 'detail');
   );
 
-  // Do Window, Process and Thread loads
+  //
+  // Laod Window, Process and Thread data for the current message
+  //
 
   stmtWindowBase.BindInt(1, Result.event_id);
   stmtWindowBase.BindInt(2, Result.hwnd);
@@ -462,6 +456,10 @@ begin
   if stmtProcessBase.Step = SQLITE_ROW then
     p := LoadProcessRow(stmtProcessBase);
   stmtProcessBase.Reset;
+
+  //
+  // Load complete Window / Process / Thread context, if required
+  //
 
   if loadContext then
   begin

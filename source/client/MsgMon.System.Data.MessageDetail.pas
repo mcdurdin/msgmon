@@ -17,7 +17,7 @@ uses
   MsgMon.System.Data.Window;
 
 type
-  TMessageDetailRowType = (mdrTitle, mdrInteger, mdrString, mdrHwnd, mdrBoolean, mdrPID, mdrTID);
+  TMessageDetailRowType = (mdrTitle, mdrInteger, mdrInt64, mdrString, mdrHwnd, mdrBoolean, mdrPID, mdrTID);
 
   TMessageDetailRow = record
   strict private
@@ -35,6 +35,7 @@ type
     FValuePID: Cardinal;
     FValueTID: Cardinal;
     FValueLink: Integer;
+    FValueInt64: Int64;
     procedure SetContextInfo(databaseContext: TMMDatabaseContext; messageContext: TMMMessageContext; row: Integer);
     procedure SetHwnd(n: string; v: HWND);
     procedure SetBool(n: string; v: Boolean);
@@ -43,6 +44,7 @@ type
     procedure SetTID(n: string; v: Cardinal);
     procedure SetString(n, v: string);
     procedure SetTitle(n: string);
+    procedure SetInt64(n: string; v: Int64);
   public
     function RenderToString(IncludeTitle: Boolean): string;
     property Name: string read FName;
@@ -51,6 +53,7 @@ type
     property ValueType: TMessageDetailRowType read FValueType;
     property ValueLink: Integer read FValueLink;
     property ValueInteger: Integer read FValueInteger;
+    property ValueInt64: Int64 read FValueInt64;
     property ValueBoolean: Boolean read FValueBoolean;
     property ValueString: string read FValueString;
     property ValueHwnd: HWND read FValueHWND;
@@ -80,7 +83,7 @@ type
   end;
 
 const
-  MessageDetailRowTypeNames: array[TMessageDetailRowType] of string = ('Title', 'Integer', 'String', 'Hwnd', 'Boolean', 'PID', 'TID');
+  MessageDetailRowTypeNames: array[TMessageDetailRowType] of string = ('Title', 'Integer', 'Int64', 'String', 'Hwnd', 'Boolean', 'PID', 'TID');
 
 implementation
 
@@ -223,13 +226,17 @@ end;
 class function TMessageDetailRenderer.RenderDefaults(context: TMMDatabaseContext; data: TMMMessage): TMessageDetails;
 begin
   // TODO: Add wparam, lparam, message time, etc
-  SetLength(Result, 3);
+  SetLength(Result, 6);
   Result[0].SetHwnd('hwnd', data.hwnd);
   Result[1].SetInt('message', data.message);
-  if data.messageName <> nil then
-    Result[2].SetString('message', data.messageName.name)
-  else
-    SetLength(Result, 2);
+  // TODO: render message name with column renderer
+  if data.messageName <> nil
+    then Result[2].SetString('message', data.messageName.name)
+    else Result[2].SetInt('message', data.message);
+  Result[3].SetInt64('wParam', data.wParam);
+  Result[4].SetInt64('lParam', data.lParam);
+  Result[5].SetInt64('lResult', data.lResult);
+  //TODO Result[6].SetTimestamp('Timestamp', data.timestamp);
 end;
 
 class function TMessageDetailRenderer.WMWindowPosChanging(
@@ -274,6 +281,7 @@ begin
   // TODO: Merge this with column rendering
   case ValueType of
     mdrInteger: Result := IntToStr(FValueInteger);
+    mdrInt64: Result := IntToStr(FValueInt64);
     mdrString: Result := FValueString;
     mdrBoolean: Result := BoolToStr(FValueBoolean, True);
     mdrTitle: Result := '';
@@ -293,8 +301,15 @@ begin
       begin
         if FMessageContext.Windows.TryGetValue(FValueHwnd, w)
           then Result := w.Render(True)
-          else Result := IntToHex(FValueHwnd, 8); // TODO: Use default rendeder
+          else Result := IntToHex(FValueHwnd, 8); // TODO: Use default renderer
       end;
+    {mdrMessage:
+      begin
+        // TODO: Use default renderer
+        if FValueString <> ''
+          then Result := FValueString
+          else Result := IntToStr(FValueInteger);
+      end;}
   end;
   if IncludeTitle then
     Result := FName + ': ' + Result;
@@ -317,6 +332,12 @@ procedure TMessageDetailRow.SetInt(n: string; v: Integer);
 begin
   Self.DoSet(mdrInteger, n);
   Self.FValueInteger := v;
+end;
+
+procedure TMessageDetailRow.SetInt64(n: string; v: Int64);
+begin
+  Self.DoSet(mdrInt64, n);
+  Self.FValueInt64 := v;
 end;
 
 procedure TMessageDetailRow.SetPID(n: string; v: Cardinal);
