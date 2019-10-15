@@ -11,12 +11,9 @@
 
 //#include <iostream>
 #include <windows.h>
-#include <evntrace.h>
-#include <evntcons.h>
-#include <tdh.h>
-#include <unordered_map>
 
 #include "../shared/mm.h"
 #include "../shared/mmlog.h"
+#include "recorder.h"
 
 #endif //PCH_H

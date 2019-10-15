@@ -1,8 +1,6 @@
 // msgmon.recorder.cpp : This file contains the 'main' function. Program execution begins and ends there.
 //
 #include "pch.h"
-#include "recorder.h"
-#include "sqlite3.h"
 
 BOOL CreateDatabase(PCTSTR szPath, BOOL fOverwrite);
 BOOL LoadTrace(PTSTR szPath);
@@ -17,7 +15,8 @@ BOOL InsertRecord(LONGLONG event_id, int index, PWSTR tableName, PEVENT_RECORD e
 BOOL CreateEventTable(LONGLONG *first_event_id);
 BOOL InsertEventRecord(LONGLONG event_id, LONGLONG timestamp, ULONG pid, ULONG tid, MMEVENTTYPE type, PBYTE stack, DWORD stackLength);
 
-  void WINAPI EventRecordCallback(PEVENT_RECORD event);
+
+void WINAPI EventRecordCallback(PEVENT_RECORD event);
 
 sqlite3 *db = NULL;
 
@@ -88,6 +87,11 @@ BOOL LoadTrace(PTSTR szPath) {
     return FALSE;
   }
 
+  if (!CreateImageLoadTable()) {
+    MMLogError(L"CreateImageLoadTable failed");
+    return FALSE;
+  }
+
   hTrace = OpenTrace(&trace);
   if (hTrace == INVALID_PROCESSTRACE_HANDLE) {
     MMLogError(L"OpenTrace failed with error %d", GetLastError());
@@ -127,8 +131,13 @@ BOOL GetStackData(PEVENT_RECORD event, PBYTE *ppStack, PDWORD pcbStack) {
   return FALSE;
 }
 
+//
+
+constexpr GUID ImageLoadGuid = { 0x2cb15d1d, 0x5fc1, 0x11d2, {0xab, 0xe1, 0x00, 0xa0, 0xc9, 0x11, 0xf5, 0x18} };
+
+
 void WINAPI EventRecordCallback(PEVENT_RECORD event) {
-  if (!IsEqualGUID(event->EventHeader.ProviderId, g_Provider)) {
+  if (!IsEqualGUID(event->EventHeader.ProviderId, g_Provider) && !IsEqualGUID(event->EventHeader.ProviderId, ImageLoadGuid)) {
     return;
   }
 
@@ -149,6 +158,12 @@ void WINAPI EventRecordCallback(PEVENT_RECORD event) {
 
   if (status != ERROR_SUCCESS) {
     MMLogError(L"Failed to get event information with error %d", status);
+    return;
+  }
+
+  if (IsEqualGUID(event->EventHeader.ProviderId, ImageLoadGuid)) {
+    // Image Load
+    RecordImageLoad(event);
     return;
   }
 
@@ -245,7 +260,7 @@ BOOL Check(int value) {
 PBYTE propertyBuf = NULL;
 ULONG currentPropertyBufSize = 0, propertyBufSize = 0;
 
-BOOL GetEventProperties(PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO info, int propertyIndex, PWSTR &propertyName) {
+BOOL GetEventProperties(PCWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO info, int propertyIndex, PWSTR &propertyName) {
   propertyName = (PWCHAR)((PBYTE)(pInfo)+pInfo->EventPropertyInfoArray[propertyIndex].NameOffset);
   PROPERTY_DATA_DESCRIPTOR pdd = { 0 };
   pdd.ArrayIndex = ULONG_MAX;
