@@ -15,7 +15,7 @@ BOOL CreateTable(PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO info, i
 BOOL InsertRecord(LONGLONG event_id, int index, PWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO info);
 
 BOOL CreateEventTable(LONGLONG *first_event_id);
-BOOL InsertEventRecord(LONGLONG event_id, LONGLONG timestamp, ULONG pid, ULONG tid, MMEVENTTYPE type);
+BOOL InsertEventRecord(LONGLONG event_id, LONGLONG timestamp, ULONG pid, ULONG tid, MMEVENTTYPE type, PBYTE stack, DWORD stackLength);
 
   void WINAPI EventRecordCallback(PEVENT_RECORD event);
 
@@ -98,6 +98,35 @@ BOOL LoadTrace(PTSTR szPath) {
 }
 
 
+BOOL GetStackData(PEVENT_RECORD event, PBYTE *ppStack, PDWORD pcbStack) {
+  *ppStack = NULL;
+  *pcbStack = 0;
+  for (int i = 0; i < event->ExtendedDataCount; i++) {
+    PEVENT_HEADER_EXTENDED_DATA_ITEM ped = &event->ExtendedData[i];
+    if (ped->ExtType == EVENT_HEADER_EXT_TYPE_STACK_TRACE64) {
+      PEVENT_EXTENDED_ITEM_STACK_TRACE64 pst64 = (PEVENT_EXTENDED_ITEM_STACK_TRACE64)ped->DataPtr;
+      *ppStack = (PBYTE) pst64->Address;
+      *pcbStack = ped->DataSize - sizeof(ULONG64); // ignore MatchId for now
+      return FALSE;
+    } else if(event->ExtendedData[i].ExtType == EVENT_HEADER_EXT_TYPE_STACK_TRACE32) {
+      PEVENT_EXTENDED_ITEM_STACK_TRACE32 pst32= (PEVENT_EXTENDED_ITEM_STACK_TRACE32)ped->DataPtr;
+      
+      // Reformat 32 bit stack to 64 bit??
+      DWORD sz = ped->DataSize - sizeof(ULONG64);
+      *ppStack = new BYTE[sz * 2]; // todo cache to avoid reallocation
+      int j; PDWORD p = (PDWORD)*ppStack;
+      for (j = 0; j < ped->DataSize >> 3; j++) {
+        *p++ = 0;
+        *p++ = pst32->Address[j];
+      }
+      //*ppStack = (PBYTE)pst32->Address; 
+      *pcbStack = sz * 2; // ignore MatchId for now
+      return TRUE;
+    }
+  }
+  return FALSE;
+}
+
 void WINAPI EventRecordCallback(PEVENT_RECORD event) {
   if (!IsEqualGUID(event->EventHeader.ProviderId, g_Provider)) {
     return;
@@ -128,6 +157,11 @@ void WINAPI EventRecordCallback(PEVENT_RECORD event) {
     return;
   }
 
+  // Look for stack data
+  PBYTE pStack = NULL;
+  DWORD cbStack = 0;
+  BOOL shouldFree = GetStackData(event, &pStack, &cbStack);
+
   // TODO: this is calling out for refactoring ... ...
   PWSTR pTask = (PWSTR)((PBYTE)(pInfo)+pInfo->TaskNameOffset);
   if (wcscmp(pTask, L"Message") == 0) {
@@ -136,7 +170,7 @@ void WINAPI EventRecordCallback(PEVENT_RECORD event) {
       return;
     }
 
-    if (!InsertEventRecord(recordNum, event->EventHeader.TimeStamp.QuadPart, event->EventHeader.ProcessId, event->EventHeader.ThreadId, MMEVENT_MESSAGE)) {
+    if (!InsertEventRecord(recordNum, event->EventHeader.TimeStamp.QuadPart, event->EventHeader.ProcessId, event->EventHeader.ThreadId, MMEVENT_MESSAGE, pStack, cbStack)) {
       MMLogError(L"Failed to insert Event record for Message");
       return;
     }
@@ -152,7 +186,7 @@ void WINAPI EventRecordCallback(PEVENT_RECORD event) {
       return;
     }
 
-    if (!InsertEventRecord(recordNum, event->EventHeader.TimeStamp.QuadPart, event->EventHeader.ProcessId, event->EventHeader.ThreadId, MMEVENT_WINDOW)) {
+    if (!InsertEventRecord(recordNum, event->EventHeader.TimeStamp.QuadPart, event->EventHeader.ProcessId, event->EventHeader.ThreadId, MMEVENT_WINDOW, pStack, cbStack)) {
       MMLogError(L"Failed to insert Event record for Window");
       return;
     }
@@ -168,7 +202,7 @@ void WINAPI EventRecordCallback(PEVENT_RECORD event) {
       return;
     }
 
-    if (!InsertEventRecord(recordNum, event->EventHeader.TimeStamp.QuadPart, event->EventHeader.ProcessId, event->EventHeader.ThreadId, MMEVENT_PROCESS)) {
+    if (!InsertEventRecord(recordNum, event->EventHeader.TimeStamp.QuadPart, event->EventHeader.ProcessId, event->EventHeader.ThreadId, MMEVENT_PROCESS, pStack, cbStack)) {
       MMLogError(L"Failed to insert Event record for Process");
       return;
     }
@@ -184,7 +218,7 @@ void WINAPI EventRecordCallback(PEVENT_RECORD event) {
       return;
     }
 
-    if (!InsertEventRecord(recordNum, event->EventHeader.TimeStamp.QuadPart, event->EventHeader.ProcessId, event->EventHeader.ThreadId, MMEVENT_THREAD)) {
+    if (!InsertEventRecord(recordNum, event->EventHeader.TimeStamp.QuadPart, event->EventHeader.ProcessId, event->EventHeader.ThreadId, MMEVENT_THREAD, pStack, cbStack)) {
       MMLogError(L"Failed to insert Event record for Thread");
       return;
     }
@@ -335,8 +369,8 @@ BOOL CreateEventTable(LONGLONG *first_event_id) {
 
   char buf[256], stmtbuf[256], *p = buf;
 
-  sprintf_s(buf,  "CREATE TABLE IF NOT EXISTS \"%ws\" (event_id INTEGER, timestamp INTEGER, pid INTEGER, tid INTEGER, type INTEGER)", MMEVENTNAME_EVENT_L);
-  sprintf_s(stmtbuf, "INSERT INTO \"%ws\" VALUES (?, ?, ?, ?, ?)", MMEVENTNAME_EVENT_L);
+  sprintf_s(buf,  "CREATE TABLE IF NOT EXISTS \"%ws\" (event_id INTEGER, timestamp INTEGER, pid INTEGER, tid INTEGER, type INTEGER, stack TEXT)", MMEVENTNAME_EVENT_L);
+  sprintf_s(stmtbuf, "INSERT INTO \"%ws\" VALUES (?, ?, ?, ?, ?, ?)", MMEVENTNAME_EVENT_L);
 
   // create the table (we'll do this outside a transaction so it's available instantly to the consumer)
   if (!Check(sqlite3_exec(db, "COMMIT TRANSACTION;", NULL, NULL, NULL))) return FALSE;
@@ -365,7 +399,7 @@ BOOL CreateEventTable(LONGLONG *first_event_id) {
   return TRUE;
 }
 
-BOOL InsertEventRecord(LONGLONG event_id, LONGLONG timestamp, ULONG pid, ULONG tid, MMEVENTTYPE type) {
+BOOL InsertEventRecord(LONGLONG event_id, LONGLONG timestamp, ULONG pid, ULONG tid, MMEVENTTYPE type, PBYTE stack, DWORD sz) {
   auto stmt = tables.find(MMEVENTNAME_EVENT_L);
   if (stmt == tables.end()) {
     return FALSE;
@@ -379,7 +413,19 @@ BOOL InsertEventRecord(LONGLONG event_id, LONGLONG timestamp, ULONG pid, ULONG t
   sqlite3_bind_int(stmt->second, 4, tid);
   sqlite3_bind_int(stmt->second, 5, type);
 
+  wchar_t *chStack = NULL;
+  if (stack && sz) {
+    chStack = new wchar_t[sz * 2 + 1]; // TODO: don't reallocate
+    hexStr2(stack, sz, chStack);  // TODO: can we use blobs because that avoids unnecessary bin/hex/bin conversion
+    sqlite3_bind_text16(stmt->second, 6, chStack, -1, NULL);
+  }
+
   int sstatus = sqlite3_step(stmt->second);
+
+  if (chStack != NULL) {
+    delete chStack;
+  }
+
   if (sstatus != SQLITE_DONE) {
     MMLogError(L"Table %s [%d] failed to insert with code %d", MMEVENTNAME_EVENT_L, event_id, sstatus);
     return FALSE;

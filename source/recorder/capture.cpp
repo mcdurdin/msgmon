@@ -17,6 +17,12 @@ PEVENT_TRACE_PROPERTIES pSessionProperties = NULL;
 
 void StopMsgMonTrace();
 
+// Microsoft-Windows-User-Loader            {B059B83F-D946-4B13-87CA-4292839DC2F2}
+// {B059B83F-D946-4B13-87CA-4292839DC2F2} 
+static const GUID g_UserLoader =
+{ 0xB059B83F, 0xD946, 0x4B13, { 0x87, 0xCA, 0x42, 0x92, 0x83, 0x9D, 0xC2, 0xF2 } };
+
+
 ULONG StringBufferSize(const wchar_t *logfile) {
   if (logfile == NULL) return 0;
   return (ULONG) (wcslen(logfile) + 1) * sizeof(wchar_t);
@@ -41,18 +47,20 @@ BOOL StartMsgMonTrace(wchar_t *logfile, BOOL overwrite) {
   pSessionProperties->Wnode.BufferSize = BufferSize;
   pSessionProperties->Wnode.Flags = WNODE_FLAG_TRACED_GUID;
   pSessionProperties->Wnode.ClientContext = 1; //QPC clock resolution
-  pSessionProperties->Wnode.Guid = g_Provider;
-  pSessionProperties->MaximumFileSize = 256; // 0; // 256;  // 256 MB
+  pSessionProperties->Wnode.Guid = g_Provider; //SystemTraceControlGuid; // g_Provider;
+  pSessionProperties->MaximumFileSize = 1024; // 1GB max trace size
   pSessionProperties->LoggerNameOffset = sizeof(EVENT_TRACE_PROPERTIES);
+  pSessionProperties->LogFileMode = EVENT_TRACE_SYSTEM_LOGGER_MODE;
   if (logfile == NULL) {
-    pSessionProperties->LogFileMode = EVENT_TRACE_REAL_TIME_MODE;
+    pSessionProperties->LogFileMode |= EVENT_TRACE_REAL_TIME_MODE;
     pSessionProperties->LogFileNameOffset = 0;
   }
   else {
-    pSessionProperties->LogFileMode = EVENT_TRACE_FILE_MODE_SEQUENTIAL;
+    pSessionProperties->LogFileMode |= EVENT_TRACE_FILE_MODE_SEQUENTIAL;
     pSessionProperties->LogFileNameOffset = sizeof(EVENT_TRACE_PROPERTIES) + sizeof(SESSION_NAME) + sizeof(wchar_t);
     wcscpy_s(PWCHAR(PBYTE(pSessionProperties) + pSessionProperties->LogFileNameOffset), wcslen(logfile)+1, logfile);
   }
+  pSessionProperties->EnableFlags = EVENT_TRACE_FLAG_IMAGE_LOAD; //?? may want these as well? | EVENT_TRACE_FLAG_PROCESS | EVENT_TRACE_FLAG_THREAD;
 
   status = StartTrace(&FSessionHandle, SESSION_NAME, pSessionProperties);
   if (ERROR_ALREADY_EXISTS == status) {
@@ -71,13 +79,6 @@ BOOL StartMsgMonTrace(wchar_t *logfile, BOOL overwrite) {
     StopMsgMonTrace();
     return FALSE;
   }
-
-  /*
-  TODO: Look at supporting LOADER+PROC_THREAD trace as well for call stack data
-  if not TExecProcess.WaitForProcess(
-    'xperf_run.bat -on LOADER+PROC_THREAD -start "' + LOGSESSION_NAME + '" -on MsgMon:::''stack'' -f "' + LOGSESSION_1_FILENAME + '"',
-    GetCurrentDir) then
-    RaiseLastOSError; */
 
   params.Version = ENABLE_TRACE_PARAMETERS_VERSION_2;
   params.EnableProperty = EVENT_ENABLE_PROPERTY_STACK_TRACE;
@@ -103,9 +104,9 @@ BOOL StartMsgMonTrace(wchar_t *logfile, BOOL overwrite) {
 }
 
 void StopMsgMonTrace() {
+  ULONG status;
   if (FSessionHandle != NULL) {
-
-    ULONG status = ControlTrace(FSessionHandle, SESSION_NAME, pSessionProperties, EVENT_TRACE_CONTROL_STOP);
+    status = ControlTrace(FSessionHandle, SESSION_NAME, pSessionProperties, EVENT_TRACE_CONTROL_STOP);
     if (ERROR_SUCCESS != status) {
       MMLogError(L"ControlTrace failed with %d", status);
     }

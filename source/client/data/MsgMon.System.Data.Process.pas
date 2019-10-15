@@ -4,6 +4,7 @@ interface
 
 uses
   System.Generics.Collections,
+  System.SysUtils,
   Winapi.Windows,
 
   MsgMon.System.Data.Event,
@@ -27,6 +28,7 @@ type
       pid,
       tid: Integer;
       event_id: Int64;
+      const stack: string;
 
       pidOwner: Integer; // TODO: rename or eliminate
       platform_: DWORD;
@@ -45,9 +47,6 @@ type
 
 implementation
 
-uses
-  System.SysUtils;
-
 { TMsgMonProcess }
 
 constructor TMMProcess.Create(
@@ -55,13 +54,14 @@ constructor TMMProcess.Create(
   pid,
   tid: Integer;
   event_id: Int64;
+  const stack: string;
 
   pidOwner: Integer;
   platform_: DWORD;
   const processPath,
   commandLine: string);
 begin
-  inherited Create(timestamp, pid, tid, event_id);
+  inherited Create(timestamp, pid, tid, event_id, stack);
 
 //  FThreads := TMMThreads.Create;
 

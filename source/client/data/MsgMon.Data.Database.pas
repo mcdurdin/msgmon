@@ -76,7 +76,7 @@ implementation
 
 const
   // TODO: Refactor these into const arrays of fields
-  EVENT_CX = 5;
+  EVENT_CX = 6;
   MESSAGE_CX = 9;
   WINDOW_CX = 9;
   THREAD_CX = 12;
@@ -424,6 +424,8 @@ begin
     stmt.ColumnInt(MESSAGE_CX + 2),          //'pid');
     stmt.ColumnInt(MESSAGE_CX + 3),          //'tid');
     stmt.ColumnInt64(MESSAGE_CX + 0),        //event_id
+    // type is 4
+    stmt.ColumnText(MESSAGE_CX + 5),         //stack
 
     stmt.ColumnInt(1),          //'row'); // source row, not target row
     stmt.ColumnInt(2),         // 'hwnd');
@@ -483,6 +485,7 @@ begin
     stmt.ColumnInt(WINDOW_CX + 2),          //'pid');
     stmt.ColumnInt(WINDOW_CX + 3),          //'tid');
     stmt.ColumnInt64(WINDOW_CX + 0),        //event_id
+    stmt.ColumnText(WINDOW_CX + 5),         //stack
 
     stmt.ColumnInt(2), // hwnd
     stmt.ColumnInt(3), // ownerPid
@@ -501,6 +504,7 @@ begin
     stmt.ColumnInt(THREAD_CX + 2),          //'pid');
     stmt.ColumnInt(THREAD_CX + 3),          //'tid');
     stmt.ColumnInt64(THREAD_CX + 0),        //event_id
+    stmt.ColumnText(THREAD_CX + 5),         //stack
 
     stmt.ColumnInt(2), // tid
     stmt.ColumnText(3), // threadDescription
@@ -522,6 +526,7 @@ begin
     stmt.ColumnInt(PROCESS_CX + 2),          //'pid');
     stmt.ColumnInt(PROCESS_CX + 3),          //'tid');
     stmt.ColumnInt64(PROCESS_CX + 0),        //event_id
+    stmt.ColumnText(PROCESS_CX + 5),         //stack
 
     stmt.ColumnInt(2), // ownerPid
     stmt.ColumnInt(3), // platform_

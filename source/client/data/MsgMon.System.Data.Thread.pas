@@ -4,6 +4,7 @@ interface
 
 uses
   System.Generics.Collections,
+  System.SysUtils,
   Winapi.Windows,
 
   MsgMon.System.Data.Event,
@@ -29,9 +30,10 @@ type
       pid,
       tid: Integer;
       event_id: Int64;
+      const stack: string;
 
       tidOwner: Integer;
-      threadDescription: string;
+      const threadDescription: string;
       isForegroundThread: Integer;
       hwndFocus,
       hwndActive,
@@ -54,8 +56,7 @@ type
 implementation
 
 uses
-  System.Classes,
-  System.SysUtils;
+  System.Classes;
 
 { TMsgMonThread }
 
@@ -64,9 +65,10 @@ constructor TMMThread.Create(
   pid,
   tid: Integer;
   event_id: Int64;
+  const stack: string;
 
   tidOwner: Integer;
-  threadDescription: string;
+  const threadDescription: string;
   isForegroundThread: Integer;
   hwndFocus,
   hwndActive,
@@ -77,7 +79,7 @@ constructor TMMThread.Create(
   activeHKL: Integer
 );
 begin
-  inherited Create(timestamp, pid, tid, event_id);
+  inherited Create(timestamp, pid, tid, event_id, stack);
 
   Self.tidOwner := tidOwner;
   Self.threadDescription := threadDescription;

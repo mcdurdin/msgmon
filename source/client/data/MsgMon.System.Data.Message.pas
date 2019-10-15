@@ -4,6 +4,7 @@ interface
 
 uses
   System.Generics.Collections,
+  System.SysUtils,
   Winapi.Windows,
 
   MsgMon.System.Data.Event,
@@ -13,8 +14,6 @@ uses
   MsgMon.System.Data.Window;
 
 type
-  TByteArray = TArray<Byte>;
-
   TMMMessageContext = record
   private
     FProcesses: TMMProcessDictionary;
@@ -37,7 +36,7 @@ type
     wParam, lParam, lResult: UINT64;
 
     mode: DWORD;
-    detail: TByteArray;
+    detail: TArrayOfByte;
     stack: string;
 
     process: TMMProcess;
@@ -54,6 +53,7 @@ type
       pid,
       tid: Integer;
       event_id: Int64;
+      const stack: string;
 
       index,
       hwnd,
@@ -62,7 +62,7 @@ type
       lParam,
       lResult: Int64;
       mode: Integer;
-      detail: string
+      const detail: string
 //      const detail: Pointer;
 //      detailLength: Integer
     );
@@ -78,8 +78,7 @@ type
 implementation
 
 uses
-  System.Classes,
-  System.SysUtils;
+  System.Classes;
 
 { TMsgMonMessage }
 
@@ -88,6 +87,7 @@ constructor TMMMessage.Create(
   pid,
   tid: Integer;
   event_id: Int64;
+  const stack: string;
 
   index: Integer;
   hwnd,
@@ -96,12 +96,12 @@ constructor TMMMessage.Create(
   lParam,
   lResult: Int64;
   mode: Integer;
-  detail: string
+  const detail: string
 //  const detail: Pointer;
 //  detailLength: Integer
 );
 begin
-  inherited Create(timestamp, pid, tid, event_id);
+  inherited Create(timestamp, pid, tid, event_id, stack);
 
   Self.index := index;
 

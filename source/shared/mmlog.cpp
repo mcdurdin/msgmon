@@ -34,3 +34,18 @@ inline BOOL MMLogging() {
 //  return FALSE;
 //#endif
 }
+
+
+
+constexpr char hexmap[] = {
+  '0', '1', '2', '3', '4', '5', '6', '7',
+  '8', '9', 'a', 'b', 'c', 'd', 'e', 'f' // lowercase because Delphi's System.Classes.HexToBin requires it
+};
+
+void hexStr2(PBYTE data, int len, wchar_t *out) {
+  for (int i = 0; i < len; ++i) {
+    out[2 * i] = hexmap[(data[i] & 0xF0) >> 4];
+    out[2 * i + 1] = hexmap[data[i] & 0x0F];
+  }
+  out[2 * len] = 0;
+}

@@ -4,6 +4,7 @@ interface
 
 uses
   System.Generics.Collections,
+  System.SysUtils,
   Winapi.Windows,
 
   MsgMon.System.Data.Event;
@@ -23,13 +24,14 @@ type
       pid,
       tid: Integer;
       event_id: Int64;
+      const stack: string;
 
       hwnd,
       ownerPid,  // TODO: rename or eliminate
       ownerTid,  // TODO: rename or eliminate
       hwndOwner,
       hwndParent: Integer;
-      className,
+      const className,
       realClassName: string);
     function Render(IncludeHandle: Boolean): string;
     class function BaseRender(hwnd: Cardinal): string; overload; static;
@@ -45,9 +47,6 @@ type
 
 implementation
 
-uses
-  System.SysUtils;
-
 { TMsgMonWindow }
 
 constructor TMMWindow.Create(
@@ -55,6 +54,7 @@ constructor TMMWindow.Create(
   pid,
   tid: Integer;
   event_id: Int64;
+  const stack: string;
 
   hwnd,
   ownerPid,
@@ -62,10 +62,10 @@ constructor TMMWindow.Create(
   hwndOwner,
   hwndParent:
   Integer;
-  className,
+  const className,
   realClassName: string);
 begin
-  inherited Create(timestamp, pid, tid, event_id);
+  inherited Create(timestamp, pid, tid, event_id, stack);
 
   Self.hwnd := hwnd;
   Self.ownerPid := ownerPid;
