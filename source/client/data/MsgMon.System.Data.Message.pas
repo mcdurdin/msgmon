@@ -37,7 +37,6 @@ type
 
     mode: DWORD;
     detail: TArrayOfByte;
-    stack: string;
 
     process: TMMProcess;
     thread: TMMThread;

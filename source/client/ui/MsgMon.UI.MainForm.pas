@@ -12,6 +12,7 @@ uses
   MsgMon.System.Data.Column,
   MsgMon.System.Data.Context,
   MsgMon.System.Data.Filter,
+  MsgMon.System.Data.Image,
   MsgMon.System.Data.Message,
   MsgMon.System.Data.MessageName,
   MsgMon.System.Data.Process,
@@ -206,6 +207,7 @@ type
     procedure FindHighlightText(FindDown: Boolean);
     procedure SetActiveHighlight(t: string; UpdateForSearch: Boolean);
     procedure ApplySearches;
+    procedure ClearSearches;
   end;
 
 var
@@ -227,6 +229,7 @@ uses
   MsgMon.System.Data.Search,
   MsgMon.System.ExecProcess,
   MsgMon.System.ProgressManager,
+  MsgMon.System.StackRenderer,
   MsgMon.System.Util;
 
 const
@@ -254,8 +257,7 @@ begin
   FSearchInfos[1].MenuItem := mnuMessageSearchContext2;
   FSearchInfos[2].MenuItem := mnuMessageSearchContext3;
   FSearchInfos[3].MenuItem := mnuMessageSearchContext4;
-  for i := 0 to High(FSearchInfos) do
-    FSearchInfos[i].Search := nil;
+  ClearSearches;
 
   gridMessages.OnColWidthsChanged := gridMessagesColWidthsChanged;
   CoInitializeEx(nil, COINIT_APARTMENTTHREADED);
@@ -1042,6 +1044,7 @@ begin
   FFilename := TPath.Combine(TPath.GetTempPath, 'msgmon.' + IntToStr(GetCurrentProcessId) + '.db');
   if FileExists(FFilename) then
     DeleteFile(FFilename);
+  ClearSearches;
   UpdateStatusBar;
 end;
 
@@ -1097,6 +1100,9 @@ end;
 procedure TMMMainForm.tmrUpdateWindowTreeTimer(Sender: TObject);
 var
   d: TMessageDetails;
+  images: TMMImages;
+  i: Integer;
+  pid0images: TMMImages;
 begin
   UpdateWindowTree;
   tmrUpdateWindowTree.Enabled := False;
@@ -1111,19 +1117,46 @@ begin
   begin
     d := TDetailRenderer.RenderMessage(selectedMessage, True);
     TDetailGridController.Render(d, gridMessageDetails);
-    memoCallStack.Text := selectedMessage.stack;
+
+    pid0images := db.LoadImages(0);
+    images := db.LoadImages(selectedMessage.pid);
+    try
+      memoCallStack.Text := TStackRenderer.Render(selectedMessage.stack, images, pid0images);
+    finally
+      images.Free;
+      pid0images.Free;
+    end;
   end;
 end;
+    {try
+      for i := 0 to images.Count - 1 do
+        memoCallStack.Lines.Add(
+          Format('%s: base=%08.8x size=%08.8x chksum=%08.8x timedatestamp=%08.8x', [
+            images[i].filename,
+            images[i].imagebase,
+            images[i].imagesize,
+            images[i].checksum,
+            images[i].timedatestamp]));
+    finally
+      images.Free;
+    end;
+  end;
+end;    }
 
 procedure TMMMainForm.CloseDatabase;
-var
-  i: Integer;
 begin
   FWindowTreeFrame.CloseDatabase;
   FreeAndNil(db);
+  ClearSearches;
+  UpdateStatusBar;
+end;
+
+procedure TMMMainForm.ClearSearches;
+var
+  i: Integer;
+begin
   for i := 0 to High(FSearchInfos) do
     FSearchInfos[i].Search := nil;
-  UpdateStatusBar;
 end;
 
 //

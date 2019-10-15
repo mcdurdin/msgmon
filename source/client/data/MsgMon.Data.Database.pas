@@ -19,6 +19,7 @@ uses
   MsgMon.System.Data.Process,
   MsgMon.System.Data.Session,
   MsgMon.System.Data.Thread,
+  MsgMon.System.Data.Image,
   MsgMon.System.Data.Window;
 
 type
@@ -61,6 +62,8 @@ type
     function LoadWindows(event_id: Int64): TMMWindowDictionary;
     function LoadProcesses(event_id: Int64): TMMProcessDictionary;
     function LoadThreads(event_id: Int64): TMMThreadDictionary;
+
+    function LoadImages(pid: Integer): TMMImages;
 
     function FindText(progress: IProgressUI; text: string; Row: Integer; FindDown: Boolean): Integer;
 
@@ -698,6 +701,33 @@ begin
       if not filters.LoadFromJSON(stmt.ColumnText(1)) then
         filters.LoadDefault;
       ApplyFilter(nil);
+    end;
+  finally
+    stmt.Free;
+  end;
+end;
+
+function TMMDatabase.LoadImages(pid: Integer): TMMImages;
+var
+  stmt: TSQLite3Statement;
+const
+  sql_LoadImages =
+    'SELECT filename, pid, checksum, timedatestamp, imagesize, imagebase FROM Image WHERE pid = ?';
+begin
+  Result := TMMImages.Create;
+  stmt := TSQLite3Statement.Create(db, sql_LoadImages);
+  try
+    stmt.BindInt(1, pid);
+    while stmt.Step <> SQLITE_DONE do
+    begin
+      Result.Add(TMMImage.Create(
+        stmt.ColumnText(0),
+        stmt.ColumnInt(1),
+        stmt.ColumnInt(2),
+        stmt.ColumnInt(3),
+        stmt.ColumnInt64(4),
+        stmt.ColumnInt64(5)
+      ));
     end;
   finally
     stmt.Free;
