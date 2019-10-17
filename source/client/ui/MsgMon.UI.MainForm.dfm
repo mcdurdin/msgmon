@@ -82,15 +82,11 @@ object MMMainForm: TMMMainForm
       Top = 0
       Width = 701
       Height = 154
-      ActivePage = tabCallStack
+      ActivePage = tabMessageDetail
       Align = alClient
       TabOrder = 0
       object tabMessageDetail: TTabSheet
         Caption = 'Message Details'
-        ExplicitLeft = 0
-        ExplicitTop = 0
-        ExplicitWidth = 0
-        ExplicitHeight = 0
         object gridMessageDetails: TStringGrid
           Left = 0
           Top = 0
@@ -101,6 +97,7 @@ object MMMainForm: TMMMainForm
           DefaultRowHeight = 16
           RowCount = 2
           FixedRows = 0
+          GridLineWidth = 0
           Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goColSizing, goRowSelect]
           TabOrder = 0
           OnClick = gridMessageDetailsClick
@@ -115,10 +112,6 @@ object MMMainForm: TMMMainForm
       object TabSheet1: TTabSheet
         Caption = 'Log'
         ImageIndex = 2
-        ExplicitLeft = 0
-        ExplicitTop = 0
-        ExplicitWidth = 0
-        ExplicitHeight = 0
         object memoLog: TMemo
           Left = 0
           Top = 0
@@ -148,6 +141,7 @@ object MMMainForm: TMMMainForm
     DefaultRowHeight = 16
     FixedCols = 0
     RowCount = 2
+    GridLineWidth = 0
     Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRangeSelect, goColSizing, goColMoving, goRowSelect]
     PopupMenu = mnuItem
     TabOrder = 3

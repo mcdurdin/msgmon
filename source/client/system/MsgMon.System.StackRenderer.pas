@@ -150,7 +150,7 @@ begin
     m0.Free;
   end;
 
-  // TODO: Push this data into our thread for processing
+  // Push this data into our thread for processing
   (FThread as TStackRenderThread).QueueProcessing(event_id, FFirstKernelModule, ims, stack_in);
 end;
 
@@ -447,7 +447,6 @@ begin
   if ActionCode = CBA_EVENT then
   begin
     evt := PIMAGEHLP_CBA_EVENT(CallbackData);
-    //TODO: Post to main thread
     s := TString.Create(evt.desc);
     PostMessage(FResultWnd, WM_USER+1, 0, LParam(s));
     Result := True;

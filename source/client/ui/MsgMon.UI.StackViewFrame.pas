@@ -18,11 +18,11 @@ type
   TMMStackViewFrame = class(TForm)
     gridStack: TStringGrid;
     panCommand: TPanel;
-    cmdProperties: TButton;
     cmdCopyStack: TButton;
     lblStatus: TLabel;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
+    procedure cmdCopyStackClick(Sender: TObject);
   private
     db: TMMDatabase;
     FPlainStackRenderer: TPlainStackRenderer;
@@ -44,6 +44,8 @@ type
 implementation
 
 uses
+  Vcl.Clipbrd,
+
 {$IFDEF STACK_DEBUGGING}
   MsgMon.UI.MainForm,
 {$ENDIF}
@@ -59,6 +61,24 @@ begin
 
   if Assigned(db) then
     CreateStackRenderer;
+end;
+
+procedure TMMStackViewFrame.cmdCopyStackClick(Sender: TObject);
+var
+  s: string;
+  x, y: Integer;
+begin
+  s := '';
+  for y := 0 to gridStack.RowCount - 1 do
+  begin
+    s := s + gridStack.Cells[0, y];
+    for x := 1 to gridStack.ColCount - 1 do
+    begin
+      s := s + #9 + gridStack.Cells[x, y];
+    end;
+    s := s + #13#10;
+  end;
+  Clipboard.AsText := s;
 end;
 
 procedure TMMStackViewFrame.CreateStackRenderer;
@@ -127,16 +147,13 @@ begin
   images := db.LoadImages(m.pid);
   try
     FCurrentEventID := m.event_id;
-    // TODO: Move this into a separate thread to avoid blocking ui thread
-//    FStackRenderer.Cancel;
 
     // Get a plain, symbol free trace with our naive renderer first.
     sr := FPlainStackRenderer.Render(m.stack, images);
     RenderReady(Self, m.event_id, sr);
 
     // Start looking up symbols on our background stack renderer thread
-
-    // Cancels current render, starts a new one.
+    // If one is running already, cancels it and starts again
     FStackRenderer.Render(m.event_id, m.stack, images);
   finally
     images.Free;

@@ -33,6 +33,7 @@ object MMWindowTreeFrame: TMMWindowTreeFrame
     ColCount = 3
     DefaultRowHeight = 16
     FixedRows = 0
+    GridLineWidth = 0
     Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRowSelect]
     TabOrder = 0
     OnDrawCell = gridDetailsDrawCell
@@ -47,6 +48,7 @@ object MMWindowTreeFrame: TMMWindowTreeFrame
     DefaultColWidth = 300
     DefaultRowHeight = 16
     FixedCols = 0
+    GridLineWidth = 0
     Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRowSelect]
     TabOrder = 1
     OnClick = gridClick

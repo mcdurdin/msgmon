@@ -22,6 +22,7 @@ object MMStackViewFrame: TMMStackViewFrame
     Align = alClient
     DefaultRowHeight = 16
     FixedCols = 0
+    GridLineWidth = 0
     Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRangeSelect, goColSizing, goRowSelect]
     TabOrder = 0
   end
@@ -32,29 +33,27 @@ object MMStackViewFrame: TMMStackViewFrame
     Height = 39
     Align = alBottom
     TabOrder = 1
+    DesignSize = (
+      651
+      39)
     object lblStatus: TLabel
       Left = 8
       Top = 11
       Width = 474
       Height = 13
+      Anchors = [akLeft, akTop, akRight]
       AutoSize = False
       Caption = 'status'
-    end
-    object cmdProperties: TButton
-      Left = 488
-      Top = 6
-      Width = 75
-      Height = 25
-      Caption = 'Properties...'
-      TabOrder = 0
     end
     object cmdCopyStack: TButton
       Left = 569
       Top = 6
       Width = 75
       Height = 25
+      Anchors = [akTop, akRight]
       Caption = 'Copy Stack'
-      TabOrder = 1
+      TabOrder = 0
+      OnClick = cmdCopyStackClick
     end
   end
 end
