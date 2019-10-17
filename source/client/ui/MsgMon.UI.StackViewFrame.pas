@@ -9,6 +9,8 @@ uses
 
   MsgMon.Data.Database,
   MsgMon.System.Data.Image,
+  MsgMon.System.StackBase,
+  MsgMon.System.PlainStackRenderer,
   MsgMon.System.StackRenderer,
   MsgMon.System.Data.Message;
 
@@ -23,11 +25,14 @@ type
     procedure FormDestroy(Sender: TObject);
   private
     db: TMMDatabase;
-    FSystemModules: TMMImages;
+    FPlainStackRenderer: TPlainStackRenderer;
     FStackRenderer: TStackRenderer;
+    FCurrentEventID: Int64;
     procedure SettingsChange(Sender: TObject);
     procedure UpdateStatus(const msg: string);
     procedure StackRendererEvent(Sender: TObject; const Message: string);
+    procedure CreateStackRenderer;
+    procedure RenderReady(Sender: TObject; event_id: Int64; sr: TStackRows);
     { Private declarations }
   public
     { Public declarations }
@@ -46,9 +51,33 @@ uses
 
 procedure TMMStackViewFrame.SetDatabase(Adb: TMMDatabase);
 begin
+  FreeAndNil(FStackRenderer);
+
   db := Adb;
+
   if Assigned(db) then
-    FSystemModules := db.LoadImages(0);
+    CreateStackRenderer;
+end;
+
+procedure TMMStackViewFrame.CreateStackRenderer;
+var
+  FSystemModules: TMMImages;
+begin
+  FSystemModules := db.LoadImages(0);
+  try
+    FStackRenderer := TStackRenderer.Create(
+      TMMSettings.Instance.DbghelpPath,
+      TMMSettings.Instance.SymbolPath,
+      FSystemModules);
+    FStackRenderer.OnEvent := StackRendererEvent;
+
+    FPlainStackRenderer := TPlainStackRenderer.Create(
+      FSystemModules);
+  finally
+    FSystemModules.Free;
+  end;
+
+  UpdateStatus('');
 end;
 
 function FormatMemoryAddress(r: UInt64): string;
@@ -62,7 +91,9 @@ end;
 
 procedure TMMStackViewFrame.UpdateStatus(const msg: string);
 begin
-  if msg = '' then
+  if not Assigned(FStackRenderer) then
+    lblStatus.Caption := 'No data'
+  else if msg = '' then
   begin
     if FStackRenderer.DbghelpLoaded
       then lblStatus.Caption := 'Symbol resolution enabled'
@@ -83,28 +114,26 @@ var
   r: TStackRow;
   i: Integer;
 begin
-  if not Assigned(m) or not Assigned(db) then
+  if not Assigned(m) or not Assigned(db) or not Assigned(FStackRenderer) then
+  begin
+    gridStack.RowCount := 1;
     Exit;
+  end;
 
   images := db.LoadImages(m.pid);
   try
+    FCurrentEventID := m.event_id;
     // TODO: Move this into a separate thread to avoid blocking ui thread
-    sr := FStackRenderer.Render(m.stack, images, FSystemModules);
-    gridStack.RowCount := Length(sr)+1;
-    for i := 0 to High(sr) do
-    begin
-      r := sr[i];
-      if r.IsKernel
-        then gridStack.Cells[0, i+1] := 'K '+IntToStr(r.Frame)
-        else gridStack.Cells[0, i+1] := 'U '+IntToStr(r.Frame);
-      gridStack.Cells[1, i+1] := r.Module;
-      gridStack.Cells[2, i+1] := r.Location;
-      gridStack.Cells[3, i+1] := FormatMemoryAddress(r.Address);
-      gridStack.Cells[4, i+1] := r.Path;
-    end;
-    if gridStack.RowCount > 1 then
-      gridStack.FixedRows := 1;
+//    FStackRenderer.Cancel;
 
+    // Get a plain, symbol free trace with our naive renderer first.
+    sr := FPlainStackRenderer.Render(m.stack, images);
+    RenderReady(Self, m.event_id, sr);
+
+    // Start looking up symbols on our background stack renderer thread
+
+    // Cancels current render, starts a new one.
+//    FStackRenderer.StartRender(m.event_id, m.stack, images);
   finally
     images.Free;
   end;
@@ -113,16 +142,12 @@ end;
 procedure TMMStackViewFrame.CloseDatabase;
 begin
   db := nil;
-  FreeAndNil(FSystemModules);
+  FreeAndNil(FStackRenderer);
+  FreeAndNil(FPlainStackRenderer);
 end;
 
 procedure TMMStackViewFrame.FormCreate(Sender: TObject);
 begin
-  FStackRenderer := TStackRenderer.Create(
-    TMMSettings.Instance.DbghelpPath,
-    TMMSettings.Instance.SymbolPath);
-  FStackRenderer.OnEvent := StackRendererEvent;
-
   TMMSettings.Instance.Notification(SettingsChange);
   gridStack.ColWidths[0] := 40;
   gridStack.ColWidths[1] := 148;
@@ -140,9 +165,8 @@ end;
 procedure TMMStackViewFrame.SettingsChange(Sender: TObject);
 begin
   FreeAndNil(FStackRenderer);
-  FStackRenderer := TStackRenderer.Create(
-    TMMSettings.Instance.DbghelpPath,
-    TMMSettings.Instance.SymbolPath);
+  FreeAndNil(FPlainStackRenderer);
+  CreateStackRenderer;
 end;
 
 procedure TMMStackViewFrame.StackRendererEvent(Sender: TObject;
@@ -155,6 +179,33 @@ procedure TMMStackViewFrame.FormDestroy(Sender: TObject);
 begin
   TMMSettings.Instance.RemoveNotification(SettingsChange);
   FreeAndNil(FStackRenderer);
+  FreeAndNil(FPlainStackRenderer);
+end;
+
+procedure TMMStackViewFrame.RenderReady(Sender: TObject; event_id: Int64; sr: TStackRows);
+var
+  i: Integer;
+  r: TStackRow;
+begin
+  if event_id <> FCurrentEventID then
+    // Stack trace is late to the party, ignore it
+    Exit;
+
+  gridStack.RowCount := Length(sr)+1;
+  for i := 0 to High(sr) do
+  begin
+    r := sr[i];
+    if r.IsKernel
+      then gridStack.Cells[0, i+1] := 'K '+IntToStr(r.Frame)
+      else gridStack.Cells[0, i+1] := 'U '+IntToStr(r.Frame);
+    gridStack.Cells[1, i+1] := r.Module;
+    gridStack.Cells[2, i+1] := r.Location;
+    gridStack.Cells[3, i+1] := FormatMemoryAddress(r.Address);
+    gridStack.Cells[4, i+1] := r.Path;
+  end;
+
+  if gridStack.RowCount > 1 then
+    gridStack.FixedRows := 1;
 end;
 
 end.

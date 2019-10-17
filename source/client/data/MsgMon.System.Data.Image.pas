@@ -24,6 +24,7 @@ type
   end;
 
   TMMImages = class(TObjectList<TMMImage>)
+    function Clone: TMMImages;
   end;
 
 implementation
@@ -40,6 +41,17 @@ begin
   Self.timedatestamp := timedatestamp;
   Self.imagesize := imagesize;
   Self.imagebase := imagebase;
+end;
+
+{ TMMImages }
+
+function TMMImages.Clone: TMMImages;
+var
+  i: TMMImage;
+begin
+  Result := TMMImages.Create;
+  for i in Self do
+    Result.Add(TMMImage.Create(i.filename, i.pid, i.checksum, i.timedatestamp, i.imagesize, i.imagebase));
 end;
 
 end.

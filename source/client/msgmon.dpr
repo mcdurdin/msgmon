@@ -36,7 +36,9 @@ uses
   MsgMon.System.StackRenderer in 'system\MsgMon.System.StackRenderer.pas',
   MsgMon.UI.StackViewFrame in 'ui\MsgMon.UI.StackViewFrame.pas' {MMStackViewFrame},
   MsgMon.Win.DbgHelp in 'system\MsgMon.Win.DbgHelp.pas',
-  MsgMon.System.Settings in 'system\MsgMon.System.Settings.pas';
+  MsgMon.System.Settings in 'system\MsgMon.System.Settings.pas',
+  MsgMon.System.PlainStackRenderer in 'system\MsgMon.System.PlainStackRenderer.pas',
+  MsgMon.System.StackBase in 'system\MsgMon.System.StackBase.pas';
 
 {$R *.res}
 

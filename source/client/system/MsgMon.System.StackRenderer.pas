@@ -9,20 +9,10 @@ uses
   Winapi.Windows,
 
   MsgMon.System.Data.Event,
-  MsgMon.System.Data.Image;
+  MsgMon.System.Data.Image,
+  MSgMon.System.StackBase; // todo: rename?
 
 type
-  TStackRow = record
-    IsKernel: Boolean;
-    Frame: Integer;
-    Module: string;
-    Location: string;
-    Address: UInt64;
-    Path: string;
-  end;
-
-  TStackRows = array of TStackRow;
-
   TStackRendererEvent = procedure(Sender: TObject; const Message: string) of object;
 
   TStackRenderer = class
@@ -30,13 +20,14 @@ type
     hSymProcess: THandle;
     FDbghelpLoaded: Boolean;
     FSymbolFiles: TDictionary<string,string>;
+    FSystemModules: TMMImages;
     FOnEvent: TStackRendererEvent;
     function SymCallback(hProcess: THandle; ActionCode: ULONG; CallbackData,
       UserContext: ULONG64): BOOL;
   public
-    constructor Create(const ADbghelpPath, ASymbolPath: string);
+    constructor Create(const ADbghelpPath, ASymbolPath: string; ASystemModules: TMMImages);
     destructor Destroy; override;
-    function Render(stack: TArrayOfByte; images, pid0images: TMMImages): TStackRows;
+    function Render(stack_in: TArrayOfByte; images_in: TMMImages): TStackRows;
     property DbghelpLoaded: Boolean read FDbghelpLoaded;
     property OnEvent: TStackRendererEvent read FOnEvent write FOnEvent;
   end;
@@ -53,15 +44,17 @@ begin
   Result := TStackRenderer(DWORD(UserContext)).SymCallback(hProcess, ActionCode, CallbackData, UserContext);
 end;
 
-constructor TStackRenderer.Create(const ADbghelpPath, ASymbolPath: string);
+constructor TStackRenderer.Create(const ADbghelpPath, ASymbolPath: string; ASystemModules: TMMImages);
 begin
   inherited Create;
   FSymbolFiles := TDictionary<string,string>.Create;
+  FSystemModules := ASystemModules.Clone;
+
   hSymProcess := 1; // 1 ensures it's a fake handle because it's not div by 4
   FDbghelpLoaded := LoadDbgHelp(ADbghelpPath);
   if FDbghelpLoaded then
   begin
-    SymSetOptions(SYMOPT_UNDNAME or SYMOPT_DEFERRED_LOADS or SYMOPT_INCLUDE_32BIT_MODULES or SYMOPT_DEBUG);
+    SymSetOptions(SYMOPT_UNDNAME or SYMOPT_DEFERRED_LOADS or SYMOPT_INCLUDE_32BIT_MODULES); // or SYMOPT_DEBUG);
     if not SymInitialize(hSymProcess, PChar(ASymbolPath), False) then
       RaiseLastOSError;
     SymRegisterCallback64(hSymProcess, SymCallback_, DWORD(Self));
@@ -77,6 +70,7 @@ begin
     UnloadDbghelp;
   end;
   FSymbolFiles.Free;
+  FSystemModules.Free;
   inherited Destroy;
 end;
 
@@ -85,7 +79,7 @@ begin
   Result := True;
 end;
 
-function TStackRenderer.Render(stack: TArrayOfByte; images, pid0images: TMMImages): TStackRows;
+function TStackRenderer.Render(stack_in: TArrayOfByte; images_in: TMMImages): TStackRows;
 var
   len: Integer;
   i: Integer;
@@ -93,7 +87,8 @@ var
   d: UInt64;
   s: PSymbolInfo;
   base: array of UInt64;
-  ims: TMMImages;
+  stack: TArrayOfByte;
+  m0, ims: TMMImages;
   im: TMMImage;
   j: Integer;
   r: TStackRow;
@@ -105,13 +100,33 @@ const
 begin
   SetLength(Result, 0);
 
-  len := Length(stack) div 8; // we have setup the stack as 8-byte aligned even on 32-bit systems
+  // Copy input data so we can process in our own thread
 
-  ims := TMMImages.Create(False);
-  ims.AddRange(images);
+  stack := stack_in;
+
+  ims := TMMImages.Create;
+
+  m0 := images_in.Clone;
+  try
+    m0.OwnsObjects := False;
+    ims.AddRange(m0);
+  finally
+    m0.Free;
+  end;
+
   FFirstKernelModule := ims.Count;
-  ims.AddRange(pid0images);
 
+  m0 := FSystemModules.Clone;
+  try
+    m0.OwnsObjects := False;
+    ims.AddRange(m0);
+  finally
+    m0.Free;
+  end;
+
+  // TODO: Push this data into our thread for processing
+
+  len := Length(stack) div 8; // we have setup the stack as 8-byte aligned even on 32-bit systems
   SetLength(base, ims.Count);
   FillChar(base[0], sizeof(UInt64) * ims.Count, 0);
 
