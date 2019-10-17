@@ -44,7 +44,9 @@ type
 implementation
 
 uses
+{$IFDEF STACK_DEBUGGING}
   MsgMon.UI.MainForm,
+{$ENDIF}
   MsgMon.System.Settings;
 
 {$R *.dfm}
@@ -70,6 +72,7 @@ begin
       TMMSettings.Instance.SymbolPath,
       FSystemModules);
     FStackRenderer.OnEvent := StackRendererEvent;
+    FStackRenderer.OnData := RenderReady;
 
     FPlainStackRenderer := TPlainStackRenderer.Create(
       FSystemModules);
@@ -95,14 +98,17 @@ begin
     lblStatus.Caption := 'No data'
   else if msg = '' then
   begin
-    if FStackRenderer.DbghelpLoaded
-      then lblStatus.Caption := 'Symbol resolution enabled'
-      else lblStatus.Caption := 'Symbol resolution disabled';
+    lblStatus.Caption := 'Ready';
+//    if FStackRenderer.DbghelpLoaded TODO -- report on symbol resolution...
+//      then lblStatus.Caption := 'Symbol resolution enabled'
+//      else lblStatus.Caption := 'Symbol resolution disabled';
   end
   else
   begin
     lblStatus.Caption := msg;
+{$IFDEF STACK_DEBUGGING}
     MMMainForm.Log(llDebug, msg); //TODO Cleanup MMMainForm reference
+{$ENDIF}
   end;
   lblStatus.Update;
 end;
@@ -111,8 +117,6 @@ procedure TMMStackViewFrame.UpdateView(m: TMMMessage);
 var
   images: TMMImages;
   sr: TStackRows;
-  r: TStackRow;
-  i: Integer;
 begin
   if not Assigned(m) or not Assigned(db) or not Assigned(FStackRenderer) then
   begin
@@ -133,7 +137,7 @@ begin
     // Start looking up symbols on our background stack renderer thread
 
     // Cancels current render, starts a new one.
-//    FStackRenderer.StartRender(m.event_id, m.stack, images);
+    FStackRenderer.Render(m.event_id, m.stack, images);
   finally
     images.Free;
   end;

@@ -19,7 +19,7 @@ type
   public
     constructor Create(ASystemModules: TMMImages);
     destructor Destroy; override;
-    function Render(stack_in: TArrayOfByte; images_in: TMMImages): TStackRows;
+    function Render(stack: TArrayOfByte; images_in: TMMImages): TStackRows;
   end;
 
 implementation
@@ -38,49 +38,24 @@ begin
   inherited Destroy;
 end;
 
-function TPlainStackRenderer.Render(stack_in: TArrayOfByte; images_in: TMMImages): TStackRows;
+function TPlainStackRenderer.Render(stack: TArrayOfByte; images_in: TMMImages): TStackRows;
 var
   len: Integer;
   i: Integer;
   p: PUInt64;
-  d: UInt64;
-  base: array of UInt64;
-  stack: TArrayOfByte;
-  m0, ims: TMMImages;
+  ims: TMMImages;
   im: TMMImage;
   j: Integer;
   r: TStackRow;
   FFirstKernelModule: Integer;
-  foundfile: array[0..260] of char;
-  SymbolFilename: string;
 begin
   SetLength(Result, 0);
 
-  // Copy input data so we can process in our own thread
-
-  stack := stack_in;
-
-  ims := TMMImages.Create;
+  ims := TMMImages.Create(False);
   try
-    m0 := images_in.Clone;
-    try
-      m0.OwnsObjects := False;
-      ims.AddRange(m0);
-    finally
-      m0.Free;
-    end;
-
+    ims.AddRange(images_in);
     FFirstKernelModule := ims.Count;
-
-    m0 := FSystemModules.Clone;
-    try
-      m0.OwnsObjects := False;
-      ims.AddRange(m0);
-    finally
-      m0.Free;
-    end;
-
-    // TODO: Push this data into our thread for processing
+    ims.AddRange(FSystemModules);
 
     len := Length(stack) div 8; // we have setup the stack as 8-byte aligned even on 32-bit systems
 

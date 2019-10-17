@@ -2,6 +2,8 @@ unit MsgMon.UI.MainForm;
 
 interface
 
+{$WARN SYMBOL_PLATFORM OFF}
+
 uses
   Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.AppEvnts, Vcl.ToolWin,
