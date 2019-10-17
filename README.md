@@ -1,28 +1,3 @@
-# Work in this branch:
-
-This branch reworks the entire state model for logging. The logging is stateless on both ends. At any point in time, we can display the window, thread, process, global state. As far as possible, we avoid a global state; this may reduce complexity?
-
-All state changes are recorded against a global Event table:
-
-* EventID (incrementing based on the recorder.cpp order events are received)
-* EventTimestamp (at time of event capture, thread-level; already in the trace in EVENT_RECORD.EventHeader)
-* EventTID (already in the trace in EVENT_RECORD.EventHeader)
-* EventPID (already in the trace in EVENT_RECORD.EventHeader)
-* EventType:
-  - Message
-  - Window(State)
-  - Process(State)
-  - Thread(State)
-  - Global(State)? -- this may not be required.
-
-There will be a corresponding record in the appropriate table which gives the detail for the event; Message, Window, Process or Thread.
-
-Then, we can drill into the data with various Views:
-  * Message. This is the default and shows a procmon-style message trace.
-  * Timeline. This shows the Process/Thread/Window lifecycle with major events highlighted for each window. Grouped by process/thread; view by owner or parent chains or flat. Filtering will remove windows that don't match requirements.
-
-
-
 # msgmon
 
 Windows user message monitor in the style of procmon.
@@ -41,6 +16,10 @@ Windows user message monitor in the style of procmon.
 3. If you modify the .vcxproj projects, you need to merge the changes in to the .vcxproj.in projects (these exist to allow for differing Windows SDK versions)
 
 # TODO
+
+Drill into the data with various Views:
+  * Message. This is the default and shows a procmon-style message trace.
+  * Timeline. This shows the Process/Thread/Window lifecycle with major events highlighted for each window. Grouped by process/thread; view by owner or parent chains or flat. Filtering will remove windows that don't match requirements.
 
 >> state includes: current focus, current active, parent + owner hierarchy, z-order, window size/position, capture, etc. State transforms need to be captured
 >> but for purpose of rapid spelunking should probably be a complete snapshot for a given window state change, attached to a specific message. This changes the
@@ -90,12 +69,6 @@ Windows user message monitor in the style of procmon.
       > administrative privileges and services running as LocalSystem can control an NT Kernel Logger session.
 
 4. Trace comparisons
-
-5. Provide data needed for call stacks
-  - Add events for process start / stop, thread start / stop (using ETW kernel events)
-  - http://www.rioki.org/2017/01/09/windows_stacktrace.html (analyzing the stack)
-  - https://www.itprotoday.com/microsoft-visual-studio/profiling-and-stack-tracing-event-tracing-windows (collecting the stack)
-  - https://blogs.windows.com/buildingapps/2019/05/09/announcing-traceprocessor-preview-0-1-0/#5zwb6AJffOv0z1vz.97 (an alternative, alpha code though)
 
 6. Bugs and issues
   - Some messages have only partial data. Why?
