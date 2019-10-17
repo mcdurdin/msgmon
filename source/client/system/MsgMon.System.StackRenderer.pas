@@ -5,7 +5,9 @@ interface
 uses
   System.Classes,
   System.Generics.Collections,
+  System.SyncObjs,
   System.SysUtils,
+  Winapi.Messages,
   Winapi.Windows,
 
   MsgMon.System.Data.Event,
@@ -24,6 +26,8 @@ type
     FOnEvent: TStackRendererEvent;
     function SymCallback(hProcess: THandle; ActionCode: ULONG; CallbackData,
       UserContext: ULONG64): BOOL;
+  protected
+    procedure DataResult(event_id: Int64; rows: TStackRows);
   public
     constructor Create(const ADbghelpPath, ASymbolPath: string; ASystemModules: TMMImages);
     destructor Destroy; override;
@@ -72,11 +76,6 @@ begin
   FSymbolFiles.Free;
   FSystemModules.Free;
   inherited Destroy;
-end;
-
-function FindFileCallback(filename: PCHAR; context: PVOID): BOOL; stdcall;
-begin
-  Result := True;
 end;
 
 function TStackRenderer.Render(stack_in: TArrayOfByte; images_in: TMMImages): TStackRows;
@@ -233,6 +232,169 @@ begin
   end
   else
     Exit(False);
+end;
+
+type
+  TStackRenderInput = class
+  public
+    images: TMMImages;
+    stack: TArrayOfByte;
+    event_id: Int64;
+    constructor Create(images: TMMImages; stack: TArrayOfByte; event_id: Int64);
+    destructor Destroy; override;
+  end;
+
+  TStackRenderResult = class
+    event_id: Int64;
+    rows: TStackRows;
+    constructor Create(event_id: Int64; rows: TStackRows);
+  end;
+
+  TStackRenderThread = class(TThread)
+  private
+    FOwner: TStackRenderer;
+    FResultWnd: THandle;
+    FDataEvent: TEvent;
+    FCurrent, FNext: TStackRenderInput;
+    FLock: TCriticalSection;
+    procedure DataResultProc(var Message: TMessage);
+    function ProcessStack: TStackRenderResult;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(Owner: TStackRenderer);
+    destructor Destroy; override;
+    procedure QueueProcessing(
+      event_id: Int64;
+      ims: TMMImages;
+      stack: TArrayOfByte);
+  end;
+
+{ TStackRenderThread - Main Thread Context }
+
+constructor TStackRenderThread.Create(Owner: TStackRenderer);
+begin
+  FLock := TCriticalSection.Create;
+  FOwner := Owner;
+  FDataEvent := TEvent.Create;
+  FResultWnd := AllocateHwnd(DataResultProc);
+  inherited Create(False);
+end;
+
+procedure TStackRenderThread.DataResultProc(var Message: TMessage);
+var
+  srr: TStackRenderResult;
+begin
+  try
+    if Message.Msg = WM_USER then
+    begin
+      srr := TStackRenderResult(Message.LParam);
+      FOwner.DataResult(srr.event_id, srr.Rows);
+      srr.Free;
+    end;
+
+    Message.Result := DefWindowProc(FResultWnd, Message.Msg, Message.wParam, Message.lParam);
+  except
+    ;
+  end;
+end;
+
+destructor TStackRenderThread.Destroy;
+begin
+  inherited Destroy;
+  DeallocateHWnd(FResultWnd);
+  FreeAndNil(FLock);
+end;
+
+procedure TStackRenderThread.QueueProcessing(
+  input: TStackRenderInput);
+begin
+  // Add another stack to process. Wipes all other stacks
+  FLock.Enter;
+  try
+    FreeAndNil(FNext);
+    FNext := input;
+  finally
+    FLock.Leave;
+  end;
+  FDataEvent.SetEvent;
+end;
+
+{ TStackRenderThread - Execution Thread Context }
+
+procedure TStackRenderThread.Execute;
+var
+  srr: TStackRenderResult;
+begin
+  repeat
+    if Terminated then
+      Exit;
+    FDataEvent.WaitFor(INFINITE);
+    if Terminated then
+      Exit;
+    FLock.Enter;
+    try
+      FreeAndNil(FCurrent);
+      FCurrent := FNext;
+      FNext := nil;
+    finally
+      FLock.Leave;
+    end;
+
+    srr := nil;
+    try
+      if Terminated then
+        Exit;
+      srr := ProcessStack;
+    finally
+      FreeAndNil(FCurrent);
+    end;
+
+    if Terminated then
+    begin
+      FreeAndNil(srr);
+      Exit;
+    end;
+
+    if Assigned(srr) then
+      PostMessage(FResultWnd, WM_USER, 0, LParam(srr));
+
+  until False;
+end;
+
+function TStackRenderThread.ProcessStack: TStackRenderResult;
+var
+  srr: TStackRenderResult;
+begin
+  // At this point, we have a stack to work with
+
+
+  Result := TStackRenderResult.Create(FCurrent.event_id, FRows);
+end;
+
+{ TStackRenderInput }
+
+constructor TStackRenderInput.Create(images: TMMImages; stack: TArrayOfByte;
+  event_id: Int64);
+begin
+  inherited Create;
+  Self.images := images;
+  Self.stack := stack;
+  Self.event_id := event_id;
+end;
+
+destructor TStackRenderInput.Destroy;
+begin
+  FreeAndNil(images);
+  inherited Destroy;
+end;
+
+{ TStackRenderResult }
+
+constructor TStackRenderResult.Create(event_id: Int64; rows: TStackRows);
+begin
+  Self.event_id := event_id;
+  Self.rows := rows;
 end;
 
 end.
