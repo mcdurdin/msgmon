@@ -31,7 +31,12 @@ uses
   MsgMon.System.Data.Event in 'data\MsgMon.System.Data.Event.pas',
   MsgMon.System.ContextViewTypes in 'system\MsgMon.System.ContextViewTypes.pas',
   MsgMon.UI.ProgressForm in 'ui\MsgMon.UI.ProgressForm.pas' {MMProgressForm},
-  MsgMon.System.ProgressManager in 'system\MsgMon.System.ProgressManager.pas';
+  MsgMon.System.ProgressManager in 'system\MsgMon.System.ProgressManager.pas',
+  MsgMon.System.Data.Image in 'data\MsgMon.System.Data.Image.pas',
+  MsgMon.System.StackRenderer in 'system\MsgMon.System.StackRenderer.pas',
+  MsgMon.UI.StackViewFrame in 'ui\MsgMon.UI.StackViewFrame.pas' {MMStackViewFrame},
+  MsgMon.Win.DbgHelp in 'system\MsgMon.Win.DbgHelp.pas',
+  MsgMon.System.Settings in 'system\MsgMon.System.Settings.pas';
 
 {$R *.res}
 

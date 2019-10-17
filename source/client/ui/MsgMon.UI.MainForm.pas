@@ -22,6 +22,7 @@ uses
   MsgMon.System.ExecConsoleProcess,
   MsgMon.UI.DetailRenderToGrid,
   MsgMon.UI.WindowTreeFrame,
+  MsgMon.UI.StackViewFrame,
   Vcl.Themes,
   Vcl.Menus, Vcl.ExtCtrls, Vcl.ActnMenus, System.Actions, Vcl.ActnList,
   Vcl.StdActns, Vcl.PlatformDefaultStyleActnCtrls, Vcl.ActnMan, Vcl.ActnCtrls,
@@ -78,8 +79,7 @@ type
     mnuMessageViewDetailPane: TMenuItem;
     PageControl1: TPageControl;
     tabMessageDetail: TTabSheet;
-    TabSheet2: TTabSheet;
-    memoCallStack: TMemo;
+    tabCallStack: TTabSheet;
     mnuItem: TPopupMenu;
     mnuPopupFilterInclude: TMenuItem;
     mnuPopupFilterExclude: TMenuItem;
@@ -114,6 +114,12 @@ type
     mnuMessageSearchContext3: TMenuItem;
     mnuMessageSearchContext2: TMenuItem;
     mnuMessageSearchContext1: TMenuItem;
+    mnuTools: TMenuItem;
+    cmdToolsEnableStackTraces: TMenuItem;
+    cmdToolsDisplayStackTraces: TMenuItem;
+    cmdToolsSymbolPath: TMenuItem;
+    cmdToolsDbghelpPath: TMenuItem;
+    dlgLocateDbghelp: TFileOpenDialog;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure mnuFileExitClick(Sender: TObject);
@@ -153,8 +159,11 @@ type
     procedure mnuMessageFindPreviousClick(Sender: TObject);
     procedure mnuMessageFindNextClick(Sender: TObject);
     procedure dlgFindFind(Sender: TObject);
-  private
-    type TLogLevel = (llInfo, llWarning, llError, llDebug);
+    procedure mnuToolsClick(Sender: TObject);
+    procedure cmdToolsEnableStackTracesClick(Sender: TObject);
+    procedure cmdToolsDisplayStackTracesClick(Sender: TObject);
+    procedure cmdToolsSymbolPathClick(Sender: TObject);
+    procedure cmdToolsDbghelpPathClick(Sender: TObject);
   private
     db: TMMDatabase;
     FFilename: string;
@@ -175,12 +184,11 @@ type
     FLastColumnsDefinition, FLastHighlightDefinition, FLastFilterDefinition, FLastSearchesDefinition: string;
     FPreparingView: Boolean;
     FWindowTreeFrame: TMMWindowTreeFrame;
+    FStackViewFrame: TMMStackViewFrame;
 
     FSearchInfos: TSearchInfoArray;
     FActiveSearch: Integer;
 
-    procedure Log(LogLevel: TLogLevel; Msg: string); overload;
-    procedure Log(LogLevel: TLogLevel; Msg: string; const Args: array of const); overload;
     procedure gridMessagesColWidthsChanged(Sender: TObject);
     procedure BeginLogProcesses;
     procedure EndLogProcesses;
@@ -208,6 +216,12 @@ type
     procedure SetActiveHighlight(t: string; UpdateForSearch: Boolean);
     procedure ApplySearches;
     procedure ClearSearches;
+    procedure PrepareStackViewFrame;
+
+  public
+    type TLogLevel = (llInfo, llWarning, llError, llDebug);
+    procedure Log(LogLevel: TLogLevel; Msg: string); overload;
+    procedure Log(LogLevel: TLogLevel; Msg: string; const Args: array of const); overload;
   end;
 
 var
@@ -229,6 +243,7 @@ uses
   MsgMon.System.Data.Search,
   MsgMon.System.ExecProcess,
   MsgMon.System.ProgressManager,
+  MsgMon.System.Settings,
   MsgMon.System.StackRenderer,
   MsgMon.System.Util;
 
@@ -241,8 +256,6 @@ const
   SRegValue_Searches = 'Searches';
 
 procedure TMMMainForm.FormCreate(Sender: TObject);
-var
-  i: Integer;
 begin
   TDetailGridController.Resize(gridMessageDetails);
 
@@ -354,6 +367,7 @@ end;
 procedure TMMMainForm.WMUser(var Message: TMessage);
 begin
   LoadLastTrace;
+  PrepareStackViewFrame;
 end;
 
 //
@@ -1074,6 +1088,8 @@ begin
   ApplyFilter;
   ApplySearches;
   FWindowTreeFrame.SetDatabase(db);
+  if Assigned(FStackViewFrame) then
+    FStackViewFrame.SetDatabase(db);
   gridMessagesClick(gridMessages);
   UpdateStatusBar;
 
@@ -1100,15 +1116,11 @@ end;
 procedure TMMMainForm.tmrUpdateWindowTreeTimer(Sender: TObject);
 var
   d: TMessageDetails;
-  images: TMMImages;
-  i: Integer;
-  pid0images: TMMImages;
 begin
   UpdateWindowTree;
   tmrUpdateWindowTree.Enabled := False;
 
   gridMessageDetails.RowCount := 1;
-  memoCallStack.Text := '';
 
   if not Assigned(db) then
     Exit;
@@ -1118,37 +1130,78 @@ begin
     d := TDetailRenderer.RenderMessage(selectedMessage, True);
     TDetailGridController.Render(d, gridMessageDetails);
 
-    pid0images := db.LoadImages(0);
-    images := db.LoadImages(selectedMessage.pid);
-    try
-      memoCallStack.Text := TStackRenderer.Render(selectedMessage.stack, images, pid0images);
-    finally
-      images.Free;
-      pid0images.Free;
-    end;
+    if Assigned(FStackViewFrame) then
+      FStackViewFrame.UpdateView(selectedMessage);
   end;
 end;
-    {try
-      for i := 0 to images.Count - 1 do
-        memoCallStack.Lines.Add(
-          Format('%s: base=%08.8x size=%08.8x chksum=%08.8x timedatestamp=%08.8x', [
-            images[i].filename,
-            images[i].imagebase,
-            images[i].imagesize,
-            images[i].checksum,
-            images[i].timedatestamp]));
-    finally
-      images.Free;
-    end;
-  end;
-end;    }
 
 procedure TMMMainForm.CloseDatabase;
 begin
   FWindowTreeFrame.CloseDatabase;
+  if Assigned(FStackViewFrame) then
+    FStackViewFrame.CloseDatabase;
   FreeAndNil(db);
   ClearSearches;
   UpdateStatusBar;
+end;
+
+procedure TMMMainForm.cmdToolsDisplayStackTracesClick(Sender: TObject);
+begin
+  TMMSettings.Instance.DisplayStackTraces := not TMMSettings.Instance.DisplayStackTraces;
+  PrepareStackViewFrame;
+end;
+
+procedure TMMMainForm.PrepareStackViewFrame;
+begin
+  if TMMSettings.Instance.DisplayStackTraces then
+  begin
+    if not Assigned(FStackViewFrame) then
+    begin
+      FStackViewFrame := TMMStackViewFrame.Create(Self);
+      FStackViewFrame.SetDatabase(db);
+      FStackViewFrame.Parent := tabCallStack;
+      FStackViewFrame.Visible := True;
+    end;
+    FStackViewFrame.UpdateView(selectedMessage);
+    tabCallStack.TabVisible := True;
+  end
+  else
+  begin
+    FreeAndNil(FStackViewFrame);
+    tabCallStack.TabVisible := False;
+  end;
+end;
+
+procedure TMMMainForm.cmdToolsEnableStackTracesClick(Sender: TObject);
+begin
+  TMMSettings.Instance.EnableStackTraces := not TMMSettings.Instance.EnableStackTraces;
+end;
+
+procedure TMMMainForm.cmdToolsSymbolPathClick(Sender: TObject);
+var
+  FSymbolPath: string;
+begin
+  FSymbolPath := TMMSettings.Instance.SymbolPath;
+  if InputQuery('Set Symbol Path', 'Symbol Path', FSymbolPath) then
+  begin
+    TMMSettings.Instance.SymbolPath := FSymbolPath;
+    if Assigned(FStackViewFrame) and Assigned(selectedMessage) then
+      FStackViewFrame.UpdateView(selectedMessage);
+  end;
+end;
+
+procedure TMMMainForm.cmdToolsDbghelpPathClick(Sender: TObject);
+var
+  FDbghelpPath: string;
+begin
+  FDbghelpPath := TMMSettings.Instance.DbghelpPath;
+  dlgLocateDbghelp.Filename := FDbghelpPath;
+  if dlgLocateDbghelp.Execute then
+  begin
+    TMMSettings.Instance.DbghelpPath := dlgLocateDbghelp.Filename;
+    if Assigned(FStackViewFrame) and Assigned(selectedMessage) then
+      FStackViewFrame.UpdateView(selectedMessage);
+  end;
 end;
 
 procedure TMMMainForm.ClearSearches;
@@ -1340,6 +1393,13 @@ begin
   f := CreateFilterFromPopup;
   db.session.filters.Add(f);
   ApplyFilter;
+end;
+
+procedure TMMMainForm.mnuToolsClick(Sender: TObject);
+begin
+  cmdToolsEnableStackTraces.Checked := TMMSettings.Instance.EnableStackTraces;
+  cmdToolsDisplayStackTraces.Checked := TMMSettings.Instance.DisplayStackTraces and Assigned(db) and db.HasStackTraces;
+  cmdToolsDisplayStackTraces.Enabled := Assigned(db) and db.HasStackTraces;
 end;
 
 procedure TMMMainForm.panSearchDblClick(Sender: TObject);

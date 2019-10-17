@@ -143,49 +143,52 @@
         <DelphiCompile Include="$(MainSource)">
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
-        <DCCReference Include="MsgMon.UI.MainForm.pas">
+        <DCCReference Include="ui\MsgMon.UI.MainForm.pas">
             <Form>MMMainForm</Form>
-            <FormType>dfm</FormType>
         </DCCReference>
-        <DCCReference Include="MsgMon.System.ExecProcess.pas"/>
-        <DCCReference Include="MsgMon.System.Data.Message.pas"/>
-        <DCCReference Include="MsgMon.System.Data.Window.pas"/>
-        <DCCReference Include="MsgMon.System.Data.Process.pas"/>
-        <DCCReference Include="MsgMon.System.Data.MessageName.pas"/>
-        <DCCReference Include="MsgMon.System.Data.Column.pas"/>
-        <DCCReference Include="MsgMon.System.Data.Context.pas"/>
-        <DCCReference Include="MsgMon.UI.FilterForm.pas">
+        <DCCReference Include="system\MsgMon.System.ExecProcess.pas"/>
+        <DCCReference Include="data\MsgMon.System.Data.Message.pas"/>
+        <DCCReference Include="data\MsgMon.System.Data.Window.pas"/>
+        <DCCReference Include="data\MsgMon.System.Data.Process.pas"/>
+        <DCCReference Include="data\MsgMon.System.Data.MessageName.pas"/>
+        <DCCReference Include="data\MsgMon.System.Data.Column.pas"/>
+        <DCCReference Include="data\MsgMon.System.Data.Context.pas"/>
+        <DCCReference Include="ui\MsgMon.UI.FilterForm.pas">
             <Form>MMFilterForm</Form>
-            <FormType>dfm</FormType>
         </DCCReference>
-        <DCCReference Include="MsgMon.System.Data.Filter.pas"/>
-        <DCCReference Include="MsgMon.System.Data.Session.pas"/>
+        <DCCReference Include="data\MsgMon.System.Data.Filter.pas"/>
+        <DCCReference Include="data\MsgMon.System.Data.Session.pas"/>
         <DCCReference Include="..\ext\sqlite\delphi\Source\SQLite3.pas"/>
         <DCCReference Include="..\ext\sqlite\delphi\Source\SQLite3Utils.pas"/>
         <DCCReference Include="..\ext\sqlite\delphi\Source\SQLite3Wrap.pas"/>
-        <DCCReference Include="MsgMon.Data.Database.pas"/>
-        <DCCReference Include="MsgMon.System.ExecConsoleProcess.pas"/>
-        <DCCReference Include="MsgMon.System.Util.pas"/>
-        <DCCReference Include="MsgMon.System.Data.MessageDetail.pas"/>
-        <DCCReference Include="MsgMon.UI.DisplayColumnForm.pas">
+        <DCCReference Include="data\MsgMon.Data.Database.pas"/>
+        <DCCReference Include="system\MsgMon.System.ExecConsoleProcess.pas"/>
+        <DCCReference Include="system\MsgMon.System.Util.pas"/>
+        <DCCReference Include="data\MsgMon.System.Data.MessageDetail.pas"/>
+        <DCCReference Include="ui\MsgMon.UI.DisplayColumnForm.pas">
             <Form>MMDisplayColumnsForm</Form>
-            <FormType>dfm</FormType>
         </DCCReference>
-        <DCCReference Include="MsgMon.System.Data.VKeyNames.pas"/>
-        <DCCReference Include="MsgMon.UI.WindowTreeFrame.pas">
+        <DCCReference Include="data\MsgMon.System.Data.VKeyNames.pas"/>
+        <DCCReference Include="ui\MsgMon.UI.WindowTreeFrame.pas">
             <Form>MMWindowTreeFrame</Form>
-            <FormType>dfm</FormType>
         </DCCReference>
-        <DCCReference Include="MsgMon.System.Data.Thread.pas"/>
-        <DCCReference Include="MsgMon.UI.DetailRenderToGrid.pas"/>
-        <DCCReference Include="MsgMon.System.Data.Search.pas"/>
-        <DCCReference Include="MsgMon.System.Data.Event.pas"/>
-        <DCCReference Include="MsgMon.System.ContextViewTypes.pas"/>
-        <DCCReference Include="MsgMon.UI.ProgressForm.pas">
+        <DCCReference Include="data\MsgMon.System.Data.Thread.pas"/>
+        <DCCReference Include="ui\MsgMon.UI.DetailRenderToGrid.pas"/>
+        <DCCReference Include="data\MsgMon.System.Data.Search.pas"/>
+        <DCCReference Include="data\MsgMon.System.Data.Event.pas"/>
+        <DCCReference Include="system\MsgMon.System.ContextViewTypes.pas"/>
+        <DCCReference Include="ui\MsgMon.UI.ProgressForm.pas">
             <Form>MMProgressForm</Form>
+        </DCCReference>
+        <DCCReference Include="system\MsgMon.System.ProgressManager.pas"/>
+        <DCCReference Include="data\MsgMon.System.Data.Image.pas"/>
+        <DCCReference Include="system\MsgMon.System.StackRenderer.pas"/>
+        <DCCReference Include="ui\MsgMon.UI.StackViewFrame.pas">
+            <Form>MMStackViewFrame</Form>
             <FormType>dfm</FormType>
         </DCCReference>
-        <DCCReference Include="MsgMon.System.ProgressManager.pas"/>
+        <DCCReference Include="system\MsgMon.Win.DbgHelp.pas"/>
+        <DCCReference Include="system\MsgMon.System.Settings.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>

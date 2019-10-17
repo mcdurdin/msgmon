@@ -4,6 +4,7 @@ interface
 
 uses
   System.Classes,
+  System.Generics.Collections,
   System.SysUtils,
   Winapi.Windows,
 
@@ -11,72 +12,80 @@ uses
   MsgMon.System.Data.Image;
 
 type
+  TStackRow = record
+    IsKernel: Boolean;
+    Frame: Integer;
+    Module: string;
+    Location: string;
+    Address: UInt64;
+    Path: string;
+  end;
+
+  TStackRows = array of TStackRow;
+
+  TStackRendererEvent = procedure(Sender: TObject; const Message: string) of object;
+
   TStackRenderer = class
-    class function Render(stack: TArrayOfByte; images, pid0images: TMMImages): string;
+  private
+    hSymProcess: THandle;
+    FDbghelpLoaded: Boolean;
+    FSymbolFiles: TDictionary<string,string>;
+    FOnEvent: TStackRendererEvent;
+    function SymCallback(hProcess: THandle; ActionCode: ULONG; CallbackData,
+      UserContext: ULONG64): BOOL;
+  public
+    constructor Create(const ADbghelpPath, ASymbolPath: string);
+    destructor Destroy; override;
+    function Render(stack: TArrayOfByte; images, pid0images: TMMImages): TStackRows;
+    property DbghelpLoaded: Boolean read FDbghelpLoaded;
+    property OnEvent: TStackRendererEvent read FOnEvent write FOnEvent;
   end;
 
 implementation
 
+uses
+  MsgMon.Win.DbgHelp;
+
 { TStackRenderer }
 
-type
-  TSymbolInfo = record
-    SizeOfStruct: ULONG;
-    TypeIndex: ULONG;
-    Reserved: array[0..1] of ULONG64;
-    Index: ULONG;
-    Size: ULONG;
-    ModBase: ULONG64;
-    Flags: ULONG;
-    Value: ULONG64;
-    Address: ULONG64;
-    Register: ULONG;
-    Scope: ULONG;
-    Tag: ULONG;
-    NameLen: ULONG;
-    MaxNameLen: ULONG;
-    Name: array[0..0] of CHAR;
+function SymCallback_(hProcess: THandle; ActionCode: ULONG; CallbackData: ULONG64; UserContext: ULONG64): BOOL; stdcall;
+begin
+  Result := TStackRenderer(DWORD(UserContext)).SymCallback(hProcess, ActionCode, CallbackData, UserContext);
+end;
+
+constructor TStackRenderer.Create(const ADbghelpPath, ASymbolPath: string);
+begin
+  inherited Create;
+  FSymbolFiles := TDictionary<string,string>.Create;
+  hSymProcess := 1; // 1 ensures it's a fake handle because it's not div by 4
+  FDbghelpLoaded := LoadDbgHelp(ADbghelpPath);
+  if FDbghelpLoaded then
+  begin
+    SymSetOptions(SYMOPT_UNDNAME or SYMOPT_DEFERRED_LOADS or SYMOPT_INCLUDE_32BIT_MODULES or SYMOPT_DEBUG);
+    if not SymInitialize(hSymProcess, PChar(ASymbolPath), False) then
+      RaiseLastOSError;
+    SymRegisterCallback64(hSymProcess, SymCallback_, DWORD(Self));
   end;
+end;
 
-  PSymbolInfo = ^TSymbolInfo;
-
-// TODO: Lazy load (avoids issues with old dbghelp.dll)
-function SymFromAddr(hProcess: THandle; Address: DWORD64; Displacement: PDWORD64; Symbol: PSymbolInfo): BOOL; stdcall; external 'dbghelp.dll' name 'SymFromAddrW'  delayed;
-function SymSetOptions(SymOptions: DWORD): DWORD; stdcall; external '.\dbghelp.dll'  delayed;
-function SymInitialize(hProcess: THandle; UserSearchPath: PWCHAR; fInvadeProcess: BOOL): BOOL; stdcall; external '.\dbghelp.dll' name 'SymInitializeW'  delayed;
-function SymCleanup(hProcess: THandle): BOOL; stdcall; external '.\dbghelp.dll'  delayed;
-function SymUnloadModule64(hProcess: THandle; BaseOfDll: ULONG64): BOOL; stdcall; external '.\dbghelp.dll' delayed;
-
-type
-  TMODLOAD_DATA = record
-    ssize, ssig: DWORD;
-    data: PVOID;
-    size, flags: DWORD;
+destructor TStackRenderer.Destroy;
+begin
+  if FDbghelpLoaded then
+  begin
+    if not SymCleanup(hSymProcess) then
+      RaiseLastOSError;
+    UnloadDbghelp;
   end;
+  FSymbolFiles.Free;
+  inherited Destroy;
+end;
 
-  PMODLOAD_DATA = ^TMODLOAD_DATA;
+function FindFileCallback(filename: PCHAR; context: PVOID): BOOL; stdcall;
+begin
+  Result := True;
+end;
 
-function SymLoadModuleExW(
-  hProcess: THandle;
-  hFile: THandle;
-  ImageName: PWCHAR;
-  ModuleName: PWCHAR;
-  BaseOfDll: DWORD64;
-  DllSize: DWORD;
-  Data: PMODLOAD_DATA;
-  Flags: DWORD
-): DWORD64; stdcall; external '.\dbghelp.dll' delayed;
-
-const
-  SYMOPT_UNDNAME = $00000002;
-  SYMOPT_DEFERRED_LOADS = $00000004;
-  SYMOPT_INCLUDE_32BIT_MODULES = $00002000;
-  SYMOPT_DEBUG = $80000000;
-
-var
-  hSymProcess: THandle;
-
-class function TStackRenderer.Render(stack: TArrayOfByte; images, pid0images: TMMImages): string;
+function TStackRenderer.Render(stack: TArrayOfByte; images, pid0images: TMMImages): TStackRows;
 var
   len: Integer;
   i: Integer;
@@ -85,90 +94,130 @@ var
   s: PSymbolInfo;
   base: array of UInt64;
   ims: TMMImages;
-  m, j: Integer;
-  sym: string;
+  im: TMMImage;
+  j: Integer;
+  r: TStackRow;
+  FFirstKernelModule: Integer;
+  foundfile: array[0..260] of char;
+  SymbolFilename: string;
 const
   MaxNameInfo = 100;
 begin
-  Result := '';
+  SetLength(Result, 0);
+
+  len := Length(stack) div 8; // we have setup the stack as 8-byte aligned even on 32-bit systems
 
   ims := TMMImages.Create(False);
   ims.AddRange(images);
+  FFirstKernelModule := ims.Count;
   ims.AddRange(pid0images);
 
-  hSymProcess := GetCurrentProcess;
-
-  SymSetOptions(SYMOPT_UNDNAME or SYMOPT_DEFERRED_LOADS or SYMOPT_INCLUDE_32BIT_MODULES or SYMOPT_DEBUG);
-  if not SymInitialize(hSymProcess, 'SRV*c:\symbols*http://msdl.microsoft.com/download/symbols', True) then
-    RaiseLastOSError;
-
   SetLength(base, ims.Count);
-  for i := 0 to ims.Count - 1 do
+  FillChar(base[0], sizeof(UInt64) * ims.Count, 0);
+
+  p := @stack[0];
+  for i := 0 to len - 1 do
   begin
-    base[i] := SymLoadModuleExW(hSymProcess, 0, PChar(ExtractFileName(ims[i].filename)), nil, ims[i].imagebase, ims[i].imagesize, nil, 0);
+    for j := 0 to ims.Count - 1 do
+      if (ims[j].imagebase <= p^) and (p^ < ims[j].ImageBase + ims[j].imagesize) then
+      begin
+        im := ims[j];
+        if base[j] = 0 then
+        begin
+          // https://gregsplaceontheweb.wordpress.com/2015/08/15/how-to-download-windows-image-files-from-the-microsoft-symbol-server-using-c-and-dbghelp/
+          if not FSymbolFiles.TryGetValue(im.Filename, SymbolFilename) then
+          begin
+            if SymFindFileInPath(hSymProcess, nil, PChar(ExtractFileName(im.filename)),
+              Pointer(im.timedatestamp), im.imagesize, 0, SSRVOPT_DWORD, foundfile, nil, nil) then
+            begin
+              FSymbolFiles.Add(im.filename, foundfile);
+              base[j] := SymLoadModuleExW(hSymProcess, 0, foundfile, nil, im.imagebase, 0, nil, 0);
+            end
+            else
+            begin
+              FSymbolFiles.Add(im.filename, '');
+              base[j] := im.imagebase;
+            end;
+          end
+          else
+          begin
+            if SymbolFilename <> ''
+              then base[j] := SymLoadModuleExW(hSymProcess, 0, PChar(SymbolFilename), nil, im.imagebase, 0, nil, 0)
+              else base[j] := im.imagebase;
+          end;
+        end;
+        Break;
+      end;
+    Inc(p);
   end;
 
   // TODO: Note: we are not currently supporting images unloaded and reloaded at a new base address
   // Or where one image is unloaded and another is loaded at an overlapping address
-  len := Length(stack) div 8; // stack is 8-byte aligned
   p := @stack[0];
   s := AllocMem(sizeof(TSymbolInfo) + MaxNameInfo);
+
+  SetLength(Result, len);
+
   for i := 0 to len - 1 do
   begin
     FillChar(s^, sizeof(TSymbolInfo) + MaxNameInfo, 0);
     s.SizeOfStruct := sizeof(TSymbolInfo);
     s.MaxNameLen := MaxNameInfo;
-    m := -1;
+    im := nil;
+
+    r.IsKernel := False;
+
     for j := 0 to ims.Count - 1 do
       if (ims[j].imagebase <= p^) and (p^ < ims[j].ImageBase + ims[j].imagesize) then
       begin
-        m := j;
+        im := ims[j];
+        r.IsKernel := j >= FFirstKernelModule;
         Break;
       end;
 
-    if SymFromAddr(hSymProcess, p^, @d, s) then
+    r.Frame := i;
+    if Assigned(im)
+      then r.Module := ExtractFileName(im.filename)
+      else r.Module := 'Unknown';
+
+    if FDbghelpLoaded and SymFromAddr(hSymProcess, p^, @d, s) then
     begin
-//      for i := 0 to High(base) do
       if d > 0
-        then sym := Format(' %s+0x%x', [s.Name, d])
-        else sym := s.Name;
+        then r.Location := Format('%s + 0x%x', [s.Name, d])
+        else r.Location := s.Name;
     end
     else
     begin
-      if m >= 0 then
-        sym := Format('+0x%x', [p^ - ims[m].imagebase])
-      else
-        sym := 'Unknown';
+      if Assigned(im)
+        then r.Location := Format('%s + 0x%x [%d:%s]', [r.Module, p^ - im.imagebase, GetLastError, SysErrorMessage(GetLastError)])
+        else r.Location := Format('Unknown [%d:%s]', [GetLastError, SysErrorMessage(GetLastError)]);
     end;
 
-    if m >= 0
-      then Result := Result + Format('%016.16x [%s]%s %x'#13#10, [p^, ExtractFileName(ims[m].filename), sym, s.Flags])
-      else Result := Result + Format('%016.16x [unknown]%s %x'#13#10, [p^, sym, s.Flags]);
-//    else
-//      Result := Result + Format('%016.16x %s'#13#10, [p^, SysErrorMessage(GetLastError)]);
+    r.Address := p^;
+    if Assigned(im)
+      then r.Path := im.filename
+      else r.Path := '';
+
+    Result[i] := r;
     Inc(p);
   end;
-
-//  for i := 0 to images.Count - 1 do
-//  begin
-//    if base[i] <> 0 then
-//      if not SymUnLoadModule64(hSymProcess, base[i]) then
-//        RaiseLastOSError;
-//  end;
-
-  if not SymCleanup(hSymProcess) then
-    RaiseLastOSError;
-
-  Result := Result + #13#10;
-
-  for i := 0 to ims.Count - 1 do
-    Result := Result + Format('%016.16x - %016.16x %s'#13#10, [ims[i].imagebase, ims[i].imagebase + ims[i].imagesize, ExtractFileName(ims[i].filename)]);
 
   ims.Free;
 end;
 
-initialization
-  if LoadLibrary(PChar(ExtractFilePath(ParamStr(0))+'dbghelp.dll')) = 0 then
-    RaiseLastOSError;
-  LoadLibrary(PChar(ExtractFilePath(ParamStr(0))+'symsrv.dll'));
+function TStackRenderer.SymCallback(hProcess: THandle; ActionCode: ULONG; CallbackData: ULONG64; UserContext: ULONG64): BOOL;
+var
+  evt: PIMAGEHLP_CBA_EVENT;
+begin
+  if ActionCode = CBA_EVENT then
+  begin
+    evt := PIMAGEHLP_CBA_EVENT(CallbackData);
+    if Assigned(FOnEvent) then
+      FOnEvent(Self, evt.desc);
+    Result := True;
+  end
+  else
+    Exit(False);
+end;
+
 end.

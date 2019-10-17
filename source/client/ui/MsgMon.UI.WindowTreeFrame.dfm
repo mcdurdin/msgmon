@@ -8,11 +8,7 @@ object MMWindowTreeFrame: TMMWindowTreeFrame
   ClientHeight = 338
   ClientWidth = 651
   Color = clBtnFace
-  Font.Charset = DEFAULT_CHARSET
-  Font.Color = clWindowText
-  Font.Height = -11
-  Font.Name = 'Tahoma'
-  Font.Style = []
+  ParentFont = True
   OldCreateOrder = False
   OnCreate = FormCreate
   OnResize = FormResize

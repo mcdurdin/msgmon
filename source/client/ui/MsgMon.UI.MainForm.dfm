@@ -82,11 +82,15 @@ object MMMainForm: TMMMainForm
       Top = 0
       Width = 701
       Height = 154
-      ActivePage = tabMessageDetail
+      ActivePage = tabCallStack
       Align = alClient
       TabOrder = 0
       object tabMessageDetail: TTabSheet
         Caption = 'Message Details'
+        ExplicitLeft = 0
+        ExplicitTop = 0
+        ExplicitWidth = 0
+        ExplicitHeight = 0
         object gridMessageDetails: TStringGrid
           Left = 0
           Top = 0
@@ -104,20 +108,9 @@ object MMMainForm: TMMMainForm
           OnDrawCell = gridMessageDetailsDrawCell
         end
       end
-      object TabSheet2: TTabSheet
+      object tabCallStack: TTabSheet
         Caption = 'Call Stack'
         ImageIndex = 1
-        DesignSize = (
-          693
-          126)
-        object memoCallStack: TMemo
-          Left = 0
-          Top = 0
-          Width = 693
-          Height = 126
-          Anchors = [akLeft, akTop, akRight, akBottom]
-          TabOrder = 0
-        end
       end
       object TabSheet1: TTabSheet
         Caption = 'Log'
@@ -437,6 +430,26 @@ object MMMainForm: TMMMainForm
         OnClick = mnuFilterHighlightClick
       end
     end
+    object mnuTools: TMenuItem
+      Caption = '&Tools'
+      OnClick = mnuToolsClick
+      object cmdToolsEnableStackTraces: TMenuItem
+        Caption = 'Enable &stack traces'
+        OnClick = cmdToolsEnableStackTracesClick
+      end
+      object cmdToolsDisplayStackTraces: TMenuItem
+        Caption = '&Display stack traces'
+        OnClick = cmdToolsDisplayStackTracesClick
+      end
+      object cmdToolsSymbolPath: TMenuItem
+        Caption = '&Symbol path...'
+        OnClick = cmdToolsSymbolPathClick
+      end
+      object cmdToolsDbghelpPath: TMenuItem
+        Caption = 'Dbghelp &path...'
+        OnClick = cmdToolsDbghelpPathClick
+      end
+    end
     object mnuHelp: TMenuItem
       Caption = '&Help'
       object mnuHelpAbout: TMenuItem
@@ -497,5 +510,20 @@ object MMMainForm: TMMMainForm
     OnFind = dlgFindFind
     Left = 352
     Top = 200
+  end
+  object dlgLocateDbghelp: TFileOpenDialog
+    FavoriteLinks = <>
+    FileTypes = <
+      item
+        DisplayName = 'dbghelp.dll'
+        FileMask = 'dbghelp.dll'
+      end
+      item
+        DisplayName = 'All files (*.*)'
+        FileMask = '*.*'
+      end>
+    Options = [fdoFileMustExist]
+    Left = 360
+    Top = 208
   end
 end

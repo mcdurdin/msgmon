@@ -12,15 +12,15 @@ type
     pid: Integer;
     checksum: Integer;
     timedatestamp: Integer;
-    imagesize: Int64;
-    imagebase: Int64;
+    imagesize: UInt64;
+    imagebase: UInt64;
     constructor Create(
       filename: string;
       pid: Integer;
       checksum: Integer;
       timedatestamp: Integer;
-      imagesize: Int64;
-      imagebase: Int64);
+      imagesize: UInt64;
+      imagebase: UInt64);
   end;
 
   TMMImages = class(TObjectList<TMMImage>)
@@ -31,7 +31,7 @@ implementation
 { TMMImage }
 
 constructor TMMImage.Create(filename: string; pid, checksum,
-  timedatestamp: Integer; imagesize, imagebase: Int64);
+  timedatestamp: Integer; imagesize, imagebase: UInt64);
 begin
   inherited Create;
   Self.filename := filename;

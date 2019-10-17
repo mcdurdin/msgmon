@@ -40,6 +40,7 @@ type
     stmtWindowBase: TSQLite3Statement;
     stmtProcessBase: TSQLite3Statement;
     stmtThreadBase: TSQLite3Statement;
+    FHasStackTraces: Boolean;
     procedure Load;
     procedure SaveFilter(filters: TMMFilters; filter_id: TMMFilterType);
     procedure LoadFilter(filters: TMMFilters; filter_id: TMMFilterType);
@@ -67,6 +68,7 @@ type
 
     function FindText(progress: IProgressUI; text: string; Row: Integer; FindDown: Boolean): Integer;
 
+    property HasStackTraces: Boolean read FHasStackTraces;
     property TotalRowCount: Integer read FTotalRowCount;
     property FilteredRowCount: Integer read FFilteredRowCount;
     property Session: TMMSession read FSession;
@@ -230,6 +232,14 @@ begin
   Assert(stmtMessage.ColumnName(12) = 'filter_row');}
 
 //  ApplyFilter;
+
+  stmt := TSQLite3Statement.Create(db, 'SELECT COUNT(*) FROM Image');
+  try
+    stmt.Step;
+    FHasStackTraces := stmt.ColumnInt(0) > 0;
+  finally
+    stmt.Free;
+  end;
 end;
 
 procedure TMMDatabase.InitializeFilter(filters: TMMFilters);

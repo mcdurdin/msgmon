@@ -12,6 +12,14 @@ BOOL GetUInt32Property(PCWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO 
 BOOL GetPointer64Property(PCWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO info, int propertyIndex, PCWSTR expectedPropertyName, PUINT64 value);
 BOOL GetPointer32Property(PCWSTR tableName, PEVENT_RECORD event, PTRACE_EVENT_INFO info, int propertyIndex, PCWSTR expectedPropertyName, PUINT32 value);
 
+// Maintain a map of image information
+struct imageinfo {
+  DWORD TimeDateStamp;
+  DWORD SizeOfImage;
+};
+
+std::unordered_map<std::wstring, imageinfo> image_info;
+
 
 void RecordImageLoad(PEVENT_RECORD event) {
   // uint32 ImageBase;
@@ -51,8 +59,46 @@ void RecordImageLoad(PEVENT_RECORD event) {
 
   if (!GetUInt32Property(MMEVENTNAME_IMAGE_L, event, pInfo, 2, L"ProcessId", &pid)) return;
   if (!GetUInt32Property(MMEVENTNAME_IMAGE_L, event, pInfo, 3, L"ImageChecksum", &checksum)) return;
-  if (!GetUInt32Property(MMEVENTNAME_IMAGE_L, event, pInfo, 4, L"TimeDateStamp", &timedatestamp)) return;
+  //if (!GetUInt32Property(MMEVENTNAME_IMAGE_L, event, pInfo, 4, L"TimeDateStamp", &timedatestamp)) return;
   if( !GetWStrProperty(MMEVENTNAME_IMAGE_L, event, pInfo, 13, L"FileName", &filename, &filenameLength)) return;
+
+  auto ii = image_info.find(filename);
+  if (ii != image_info.end()) {
+    imagesize = ii->second.SizeOfImage;
+    timedatestamp = ii->second.TimeDateStamp;
+  }
+  else {
+    imageinfo info = { 0, 0 };
+
+    // https://googleprojectzero.blogspot.com/2016/02/the-definitive-guide-on-win32-to-nt.html
+    // Get the timedatestamp from the PE file if we can
+    // Translate path to DOS accessible path
+
+    std::wstring ntFilename = L"\\\\?\\GLOBALROOT" + std::wstring(filename);
+    
+    HANDLE hFile = CreateFile(ntFilename.c_str(), GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING, 0, NULL);
+    if (hFile != INVALID_HANDLE_VALUE) {
+      IMAGE_DOS_HEADER dos;
+      IMAGE_NT_HEADERS nt;
+      DWORD count;
+      // read PE file DOS header
+      if (ReadFile(hFile, &dos, sizeof(dos), &count, NULL)) {
+        if (SetFilePointer(hFile, dos.e_lfanew, NULL, FILE_BEGIN) != INVALID_SET_FILE_POINTER || GetLastError() == NO_ERROR) {
+          // read PE file NT header
+          if (ReadFile(hFile, &nt, sizeof(nt), &count, NULL)) {
+            info.SizeOfImage = nt.OptionalHeader.SizeOfImage;
+            info.TimeDateStamp = nt.FileHeader.TimeDateStamp;
+            //info.TranslatedFilename = ntFilename;
+          }
+        }
+      }
+      CloseHandle(hFile);
+    }
+    image_info[filename] = info;
+    timedatestamp = info.TimeDateStamp;
+    imagesize = info.SizeOfImage;
+  }
+
 
   if (!InsertImageLoadRecord(filename, pid, checksum, timedatestamp, imagesize, imagebase)) {
     MMLogError(L"Failed to insert record %s pid=%d", filename, pid);
