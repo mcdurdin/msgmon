@@ -74,6 +74,7 @@ Drill into the data with various Views:
   - Some messages have only partial data. Why?
   - Add lock table for writing traces
   - Cleanup unsigned vs signed chaos for TID,PID,HWND etc
+  - "Enable stack trace" and "Display stack trace" menu items are incompletely implemented
 
 7. Bundling and deployment
   - bundle into single executable for deployment (extract to same folder or temp folder on run?)
