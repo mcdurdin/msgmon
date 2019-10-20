@@ -179,7 +179,7 @@ begin
   FSymbolPath := ASymbolPath;
   FLock := TCriticalSection.Create;
   FOwner := Owner;
-  FDataEvent := TEvent.Create;
+  FDataEvent := TEvent.Create(nil, False, False, '');
   FResultWnd := AllocateHwnd(DataResultProc);
   inherited Create(False);
 end;
